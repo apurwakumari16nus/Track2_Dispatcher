@@ -1,0 +1,31 @@
+{
+  "seed": 5105,
+  "objective": "robustness",
+  "shocked_workshop_id": "W2",
+  "shocked_workshop_name": "SteadyHands",
+  "events": [
+    {
+      "workshop_id": "W2",
+      "expected": 5.3823529411764675,
+      "observed": 13.941176470588232,
+      "jump": 8.558823529411764,
+      "flagged_on_day": 33,
+      "status": "suspect",
+      "order_id": "ORD-047",
+      "date": "2026-02-03"
+    },
+    {
+      "workshop_id": "W2",
+      "expected": 5.3823529411764675,
+      "observed": 13.941176470588232,
+      "jump": 8.558823529411764,
+      "flagged_on_day": 33,
+      "cleared_on_day": 44,
+      "expected_on_clear": 0.0,
+      "observed_on_clear": 2.941176470588232,
+      "status": "cleared",
+      "order_id": "ORD-012",
+      "date": "2026-02-14"
+    }
+  ]
+}
