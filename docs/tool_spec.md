@@ -1,6 +1,6 @@
 # Allocation tool specification
 
-`src/tools.py` provides six pure functions: no LLM calls, file or network access,
+`src/tools.py` provides eight pure functions: no LLM calls, file or network access,
 randomness, or mutation of the batch, workshop profiles, or queues. Each function
 returns a plain dictionary or a list of plain dictionaries. Returned dates use
 ISO `YYYY-MM-DD` strings so results can be logged as JSON.
@@ -25,6 +25,27 @@ as `today` when evaluating a simulator dispatch.
 | `candidates` | `batch`, `workshops`, `queues`, `today`, optional `exclude=None` (list of full workshop names or IDs) | List of merged eligibility, ETA, and cost dictionaries for eligible, unexcluded workshops; every row has `eligible=True` and `reason="ok"`. Stable ascending sort by `total_days`; `[]` when none remain. | Assemble comparable options using the other tools. Match exclusions by stripped, case-insensitive full name or ID; ignore unknown exclusions. Equal totals preserve workshop iteration order. | Does not choose or dispatch a workshop, enforce a due-date cutoff, balance cost or concentration, split batches, or interpret partial names and natural-language constraints. | Propagates the estimation errors for a retained candidate, including `KeyError`, `ZeroDivisionError`, and `ValueError`. Misspelled or partial exclusions match nothing. Stale queues, hidden shocks, and stochastic defects can change the observed ranking. |
 
 ## Arithmetic and simulator limits
+
+The agent also uses these evidence-producing tools:
+
+| name | input | output | purpose | non-goals | failure mode |
+| --- | --- | --- | --- | --- | --- |
+| `order_options` | `orders_df`, list of order IDs | Existing order rows reduced to ID, customer, product, pieces, current stage | Supply concrete CSV-backed clarification choices and their numerical evidence | Does not infer or invent a missing order, classify chat text, or read files | Unknown IDs yield no row; malformed/missing columns or non-integer quantities raise errors. Stale CSV data produces stale clarification choices. |
+| `estimate_split` | Batch, workshops, queues, today, optional exclusions and whole-batch comparison workshop ID | Availability/reason or two part estimates, combined duration/ETA/cost, spare days, whole-batch comparison, fastest-single comparison, speed-up and earlier-calendar-ETA flags | Find the fastest legal positive-integer two-workshop split, using existing ETA/cost/eligibility/queue tools for each part | Does not commit allocations, optimize defects/fairness/cost, infer a transport charge, or model consolidation and rework | Returns unavailable when fewer than two suitable shops or caps cannot fit both parts; malformed pieces or an invalid supplied comparison shop raise `ValueError`. Stale queues and hidden closures can invalidate the estimate. |
+
+Split parts run concurrently: the combined duration is the **maximum** of the
+part durations, and the combined ETA is the later part ETA. Each part's own lead
+time is included in its estimate. Lead time is not summed across parallel parts
+to calculate elapsed time. Consequently a split can be faster; this model does
+not justify a blanket claim that splits usually lose. Costs are summed using the
+existing per-piece model, without inventing a pickup fee.
+
+For each eligible pair, the split tool checks the integer quantities around the
+intersection of the two completion-time lines and the feasible cap boundaries.
+The maximum of those lines is convex, so this finds the minimum nominal duration
+without enumerating every piece count. Ties among evaluated plans use cost, shop
+IDs, and quantity for deterministic output. A lower duration can round to the
+same calendar ETA. Split results are previews, not simulator dispatches.
 
 The base processing, queue, lead-time, eligibility, and cost rules use the
 simulator's profile fields without rounding intermediate values. The tools

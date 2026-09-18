@@ -1,0 +1,2 @@
+# Preserve PDF bytes when cloning on Windows (including text-based PDFs).
+*.pdf binary

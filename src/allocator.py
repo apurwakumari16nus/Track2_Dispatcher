@@ -37,6 +37,9 @@ class DecisionRecord:
     options: list[dict[str, Any]] = field(default_factory=list)
     shock_flags: list[dict[str, Any]] = field(default_factory=list)
     shock_events: list[dict[str, Any]] = field(default_factory=list)
+    # Agent evidence: queue probes, order lookups, eligibility and split estimates.
+    # Kept separate from prose and raw model output for numerical faithfulness.
+    tool_outputs: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -1,0 +1,6 @@
+name: custom_lateness_fairness
+w_lateness: 0.7
+w_defect: 0.0
+w_fairness: 0.3
+w_robustness: 0.0
+w_cost: 0.0

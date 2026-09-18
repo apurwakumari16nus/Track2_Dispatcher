@@ -1,0 +1,351 @@
+{
+  "description": "Synthetic LLM EXTRACTION overrides for CI. Not human gold labels; never copy into eval/labels.csv. Merge each request with defaults.",
+  "dispatch_requests_sha256": "ffb566389665fb27a6045aab605236d7cdfa6f64ae4c24e6423cb506522bc04f",
+  "defaults": {
+    "request_id": null,
+    "sender": null,
+    "order_id": null,
+    "customer": null,
+    "product": null,
+    "category": null,
+    "pieces": null,
+    "due_date_text": null,
+    "date_not_confirmed": false,
+    "suggested_workshop": null,
+    "excluded_workshops": [],
+    "preference": null,
+    "split_allowed": false,
+    "is_question_only": false,
+    "question_topic": "allocation",
+    "must_make_date": false,
+    "constraints": [],
+    "missing_fields": [],
+    "behaviour": "allocate",
+    "reason": "Synthetic extraction fixture only; not a human evaluation label."
+  },
+  "requests": {
+    "R01": {
+      "sender": "Chen",
+      "customer": "Harbor Knits",
+      "product": "Scarf",
+      "category": "ACCESSORIES",
+      "request_id": "R01"
+    },
+    "R02": {
+      "sender": "Ravi",
+      "customer": "Harbor Knits",
+      "is_question_only": true,
+      "question_topic": "allocation_history",
+      "request_id": "R02"
+    },
+    "R03": {
+      "sender": "Priya",
+      "customer": "TrendCart",
+      "request_id": "R03"
+    },
+    "R04": {
+      "sender": "Boss",
+      "order_id": "ORD-029",
+      "pieces": 1500,
+      "product": "Beanie",
+      "category": "ACCESSORIES",
+      "due_date_text": "Apr 01",
+      "request_id": "R04"
+    },
+    "R05": {
+      "sender": "Mei",
+      "order_id": "ORD-066",
+      "date_not_confirmed": true,
+      "request_id": "R05"
+    },
+    "R06": {
+      "sender": "Chen",
+      "order_id": "ORD-061",
+      "pieces": 800,
+      "customer": "Harbor Knits",
+      "product": "Scarf",
+      "category": "ACCESSORIES",
+      "due_date_text": "Apr 05",
+      "request_id": "R06"
+    },
+    "R07": {
+      "sender": "Ravi",
+      "order_id": "ORD-020",
+      "pieces": 1200,
+      "product": "Vest",
+      "category": "TOPS",
+      "due_date_text": "Mar 31",
+      "must_make_date": true,
+      "constraints": [
+        {
+          "text": "just make Mar 31",
+          "imposed_by": "Ravi",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R07"
+    },
+    "R08": {
+      "sender": "Priya",
+      "order_id": "ORD-073",
+      "pieces": 400,
+      "product": "Hoodie",
+      "category": "TOPS",
+      "suggested_workshop": "FreshStart",
+      "request_id": "R08"
+    },
+    "R09": {
+      "sender": "Boss",
+      "order_id": "ORD-045",
+      "pieces": 150,
+      "customer": "Cotton Club",
+      "product": "Vest",
+      "category": "TOPS",
+      "due_date_text": "Apr 09",
+      "preference": "fastest",
+      "constraints": [
+        {
+          "text": "Cost doesn't matter, just the fastest turnaround.",
+          "imposed_by": "Boss",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R09"
+    },
+    "R10": {
+      "sender": "Mei",
+      "customer": "Loom & Leaf",
+      "request_id": "R10"
+    },
+    "R11": {
+      "sender": "Chen",
+      "order_id": "ORD-008",
+      "suggested_workshop": "OldMill",
+      "request_id": "R11"
+    },
+    "R12": {
+      "sender": "Ravi",
+      "order_id": "ORD-053",
+      "pieces": 800,
+      "customer": "UrbanThread",
+      "product": "Polo shirt",
+      "category": "TOPS",
+      "due_date_text": "Apr 10",
+      "excluded_workshops": [
+        "QuickStitch"
+      ],
+      "constraints": [
+        {
+          "text": "Boss says nothing new to QuickStitch this week, they're swamped.",
+          "imposed_by": "Boss",
+          "relayed_by": "Ravi"
+        }
+      ],
+      "request_id": "R12"
+    },
+    "R13": {
+      "sender": "Priya",
+      "order_id": "ORD-120",
+      "customer": "TrendCart",
+      "is_question_only": true,
+      "question_topic": "customer_quote",
+      "request_id": "R13"
+    },
+    "R14": {
+      "sender": "Boss",
+      "order_id": "ORD-103",
+      "product": "Scarf",
+      "category": "ACCESSORIES",
+      "suggested_workshop": "QuickStitch",
+      "request_id": "R14"
+    },
+    "R15": {
+      "sender": "Mei",
+      "customer": "Loom & Leaf",
+      "request_id": "R15"
+    },
+    "R16": {
+      "sender": "Chen",
+      "order_id": "ORD-114",
+      "pieces": 2000,
+      "customer": "Northwind Apparel",
+      "product": "Hoodie",
+      "category": "TOPS",
+      "due_date_text": "Mar 23",
+      "must_make_date": true,
+      "constraints": [
+        {
+          "text": "Needs to ship Mar 23",
+          "imposed_by": "Chen",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R16"
+    },
+    "R17": {
+      "sender": "Ravi",
+      "order_id": "ORD-120",
+      "pieces": 1500,
+      "customer": "TrendCart",
+      "product": "Vest",
+      "category": "TOPS",
+      "due_date_text": "Mar 17",
+      "request_id": "R17"
+    },
+    "R18": {
+      "sender": "Priya",
+      "order_id": "ORD-999",
+      "is_question_only": true,
+      "question_topic": "order_status",
+      "request_id": "R18"
+    },
+    "R19": {
+      "sender": "Boss",
+      "preference": "fastest",
+      "constraints": [
+        {
+          "text": "send it to whoever is quickest",
+          "imposed_by": "Boss",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R19"
+    },
+    "R20": {
+      "sender": "Mei",
+      "order_id": "ORD-103",
+      "pieces": 2000,
+      "customer": "Bright Basics",
+      "product": "Scarf",
+      "category": "ACCESSORIES",
+      "due_date_text": "Apr 04",
+      "request_id": "R20"
+    },
+    "R21": {
+      "sender": "Chen",
+      "order_id": "ORD-081",
+      "pieces": 1500,
+      "customer": "Harbor Knits",
+      "product": "Crewneck sweater",
+      "category": "TOPS",
+      "due_date_text": "Apr 13",
+      "preference": "cheapest",
+      "must_make_date": true,
+      "constraints": [
+        {
+          "text": "cheapest shop that can still make Apr 13",
+          "imposed_by": "Chen",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R21"
+    },
+    "R22": {
+      "sender": "Ravi",
+      "order_id": "ORD-083",
+      "pieces": 1000,
+      "customer": "Maple & Co",
+      "product": "Hoodie",
+      "category": "TOPS",
+      "due_date_text": "Mar 23",
+      "request_id": "R22"
+    },
+    "R23": {
+      "sender": "Priya",
+      "order_id": "ORD-093",
+      "pieces": 100,
+      "customer": "Maple & Co",
+      "product": "Beanie",
+      "category": "ACCESSORIES",
+      "due_date_text": "Mar 29",
+      "split_allowed": true,
+      "constraints": [
+        {
+          "text": "Split it across two shops if that gets it back faster.",
+          "imposed_by": "Priya",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R23"
+    },
+    "R24": {
+      "sender": "Boss",
+      "order_id": "ORD-015",
+      "suggested_workshop": "Little Loom",
+      "request_id": "R24"
+    },
+    "R25": {
+      "sender": "Mei",
+      "order_id": "ORD-109",
+      "pieces": 500,
+      "customer": "Harbor Knits",
+      "product": "Vest",
+      "category": "TOPS",
+      "due_date_text": "Apr 13",
+      "excluded_workshops": [
+        "BudgetWorks"
+      ],
+      "constraints": [
+        {
+          "text": "keep it away from BudgetWorks",
+          "imposed_by": "Mei",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R25"
+    },
+    "R26": {
+      "sender": "Chen",
+      "order_id": "ORD-107",
+      "pieces": 2000,
+      "customer": "Northwind Apparel",
+      "product": "Cardigan",
+      "category": "TOPS",
+      "due_date_text": "Mar 16",
+      "request_id": "R26"
+    },
+    "R27": {
+      "sender": "Ravi",
+      "order_id": "ORD-055",
+      "pieces": 800,
+      "customer": "Cotton Club",
+      "product": "Crewneck sweater",
+      "category": "TOPS",
+      "due_date_text": "Mar 31",
+      "preference": "lowest_defect",
+      "constraints": [
+        {
+          "text": "lowest defect rate you can get",
+          "imposed_by": "Ravi",
+          "relayed_by": null
+        }
+      ],
+      "request_id": "R27"
+    },
+    "R28": {
+      "sender": "Priya",
+      "order_id": "ORD-002",
+      "pieces": 1000,
+      "product": "Crewneck sweater",
+      "category": "TOPS",
+      "due_date_text": "Mar 29",
+      "request_id": "R28"
+    },
+    "R29": {
+      "sender": "Boss",
+      "product": "Vest",
+      "category": "TOPS",
+      "request_id": "R29"
+    },
+    "R30": {
+      "sender": "Mei",
+      "order_id": "ORD-099",
+      "pieces": 1500,
+      "customer": "Northwind Apparel",
+      "product": "Polo shirt",
+      "category": "TOPS",
+      "due_date_text": "Apr 05",
+      "request_id": "R30"
+    }
+  }
+}

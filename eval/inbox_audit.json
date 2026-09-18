@@ -1,0 +1,1876 @@
+{
+  "input_hashes": {
+    "inbox": "ffb566389665fb27a6045aab605236d7cdfa6f64ae4c24e6423cb506522bc04f",
+    "labels": "3376bef8eb1b76eb3b72bccb8ab3514192bfe9cd191bb3d6795cf51a4e17bf5e",
+    "orders": "0880af9742fe7cc0923c5009e2de48a0bedb57b78cc294e35a1c9721fe0311f8",
+    "workshops": "d7e1c97d3d338a2b5aef8e35f167e3582f22c4526e9c736c5b4c8125505ec59e"
+  },
+  "mode": "live/cached",
+  "model": "",
+  "objective": "lateness",
+  "queue_policy": "independent queue0 snapshot per request",
+  "requests": [
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R01 [07:53] Chen: Need scarves for Harbor Knits sent out today, usual quantities.",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-061",
+          "ORD-108"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Chen",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R01"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R02 [07:59] Ravi: Which workshop did we use for the Harbor Knits batch last October?",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-041",
+          "ORD-061",
+          "ORD-081",
+          "ORD-108",
+          "ORD-109"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Ravi",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R02"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R03 [08:03] Priya: Can we get the TrendCart order moving? They are chasing.",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-005",
+          "ORD-017",
+          "ORD-020",
+          "ORD-082",
+          "ORD-096",
+          "ORD-120"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R03"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W2",
+        "days_to_spare": {
+          "W2": -13,
+          "W4": -23,
+          "W6": -14
+        },
+        "eligible_ids": [
+          "W2",
+          "W4",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R04 [08:08] Boss: ORD-029 needs a home today. 1500 beanies, back by Apr 01.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "ACCESSORIES",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-01",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": "ORD-029",
+        "packing": false,
+        "pieces": 1500,
+        "preference": null,
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R04"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R05 [08:14] Mei: ORD-066 due date just moved up — will confirm the new date after the call, but line something up.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": "ORD-066",
+        "packing": false,
+        "pieces": 1000,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": true
+      },
+      "request_id": "R05"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W2": -5,
+          "W4": -9,
+          "W6": -4
+        },
+        "eligible_ids": [
+          "W2",
+          "W4",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R06 [08:18] Chen: Farm out ORD-061 please — 800 scarves for Harbor Knits, ship date Apr 05.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "ACCESSORIES",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-05",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Chen",
+        "must_make_date": false,
+        "order_id": "ORD-061",
+        "packing": false,
+        "pieces": 800,
+        "preference": null,
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R06"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -10,
+          "W2": -13,
+          "W3": -14,
+          "W5": -11,
+          "W6": -12
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R07 [08:23] Ravi: ORD-020 — 1200 vests. No special requirements, just make Mar 31.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-31",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Ravi",
+        "must_make_date": true,
+        "order_id": "ORD-020",
+        "packing": false,
+        "pieces": 1200,
+        "preference": null,
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R07"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W1": 13,
+          "W2": 12,
+          "W3": 9,
+          "W5": 11,
+          "W6": 14
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R08 [08:29] Priya: Send ORD-073 (400 hoodies) to FreshStart, their quote was good.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-20",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": "ORD-073",
+        "packing": false,
+        "pieces": 400,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": false,
+        "suggested_workshops": [
+          "W8"
+        ],
+        "unconfirmed_date": false
+      },
+      "request_id": "R08"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W1": 2,
+          "W2": 3,
+          "W3": -1,
+          "W5": 1,
+          "W6": 5,
+          "W8": 4
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6",
+          "W8"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R09 [08:33] Boss: ORD-045 — 150 vests for Cotton Club, due Apr 09. It's urgent. Cost doesn't matter, just the fastest turnaround.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-09",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": "ORD-045",
+        "packing": false,
+        "pieces": 150,
+        "preference": "fastest",
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R09"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R10 [08:38] Mei: New rush coming in from Loom & Leaf — details to follow, but book capacity somewhere good.",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-008",
+          "ORD-024",
+          "ORD-035",
+          "ORD-040",
+          "ORD-063",
+          "ORD-073"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R10"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W1": 1,
+          "W2": 0,
+          "W3": -3,
+          "W5": 0,
+          "W6": 1
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R11 [08:44] Chen: OldMill is free right now — give them ORD-008.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-09",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Chen",
+        "must_make_date": false,
+        "order_id": "ORD-008",
+        "packing": false,
+        "pieces": 600,
+        "preference": null,
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [
+          "W7"
+        ],
+        "unconfirmed_date": false
+      },
+      "request_id": "R11"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W2": 0,
+          "W3": -2,
+          "W5": 0,
+          "W6": 1
+        },
+        "eligible_ids": [
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R12 [08:48] Ravi: ORD-053 — 800 polo shirts for UrbanThread, due Apr 10. Boss says nothing new to QuickStitch this week, they're swamped.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-10",
+        "exclude": [
+          "W1"
+        ],
+        "has_explicit_id": true,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": "ORD-053",
+        "packing": false,
+        "pieces": 800,
+        "preference": null,
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R12"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -25,
+          "W2": -28,
+          "W3": -30,
+          "W5": -26,
+          "W6": -29
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R13 [08:53] Priya: Finance asks: what price did we quote TrendCart on ORD-120?",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-17",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": "ORD-120",
+        "packing": false,
+        "pieces": 1500,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R13"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W2",
+        "days_to_spare": {
+          "W2": -13,
+          "W4": -27,
+          "W6": -14
+        },
+        "eligible_ids": [
+          "W2",
+          "W4",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R14 [08:59] Boss: QuickStitch for the scarves on ORD-103?",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "ACCESSORIES",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-04",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": "ORD-103",
+        "packing": false,
+        "pieces": 2000,
+        "preference": null,
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [
+          "W1"
+        ],
+        "unconfirmed_date": false
+      },
+      "request_id": "R14"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R15 [09:03] Mei: Boss wants the Loom & Leaf stuff outside asap.",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-008",
+          "ORD-024",
+          "ORD-035",
+          "ORD-040",
+          "ORD-063",
+          "ORD-073"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R15"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -21,
+          "W2": -25,
+          "W3": -26,
+          "W5": -21,
+          "W6": -26
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R16 [09:08] Chen: Northwind Apparel confirmed the reorder: ORD-114, 2000 hoodies. Needs to ship Mar 23, so it has to go out today.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-23",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Chen",
+        "must_make_date": true,
+        "order_id": "ORD-114",
+        "packing": true,
+        "pieces": 2000,
+        "preference": null,
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R16"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -25,
+          "W2": -28,
+          "W3": -30,
+          "W5": -26,
+          "W6": -29
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R17 [09:14] Ravi: ORD-120 — 1500 vests for TrendCart. Factory is full, this one goes outside. Back by Mar 17 please.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-17",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Ravi",
+        "must_make_date": false,
+        "order_id": "ORD-120",
+        "packing": false,
+        "pieces": 1500,
+        "preference": null,
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R17"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R18 [09:18] Priya: Any movement on ORD-999? Customer is chasing.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": "ORD-999",
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R18"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R19 [09:23] Boss: That big reorder from last week — send it to whoever is quickest.",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-002",
+          "ORD-005",
+          "ORD-008",
+          "ORD-010",
+          "ORD-015",
+          "ORD-017",
+          "ORD-020",
+          "ORD-024",
+          "ORD-029",
+          "ORD-035",
+          "ORD-036",
+          "ORD-040",
+          "ORD-041",
+          "ORD-045",
+          "ORD-053",
+          "ORD-055",
+          "ORD-061",
+          "ORD-062",
+          "ORD-063",
+          "ORD-066",
+          "ORD-073",
+          "ORD-081",
+          "ORD-082",
+          "ORD-083",
+          "ORD-093",
+          "ORD-095",
+          "ORD-096",
+          "ORD-099",
+          "ORD-103",
+          "ORD-107",
+          "ORD-108",
+          "ORD-109",
+          "ORD-114",
+          "ORD-120"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": "fastest",
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R19"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W2",
+        "days_to_spare": {
+          "W2": -13,
+          "W4": -27,
+          "W6": -14
+        },
+        "eligible_ids": [
+          "W2",
+          "W4",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R20 [09:29] Mei: New one for the network: ORD-103, 2000 scarves for Bright Basics, due Apr 04.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "ACCESSORIES",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-04",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": "ORD-103",
+        "packing": false,
+        "pieces": 2000,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R20"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W5",
+        "days_to_spare": {
+          "W1": 2,
+          "W2": -1,
+          "W3": -3,
+          "W5": 1,
+          "W6": -2
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R21 [09:33] Chen: ORD-081 — 1500 crewneck sweaters for Harbor Knits, due Apr 13. Margin is thin on this one — cheapest shop that can still make Apr 13.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-13",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Chen",
+        "must_make_date": true,
+        "order_id": "ORD-081",
+        "packing": false,
+        "pieces": 1500,
+        "preference": "cheapest",
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R21"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -17,
+          "W2": -19,
+          "W3": -21,
+          "W5": -19,
+          "W6": -19
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R22 [09:38] Ravi: ORD-083 ready to dispatch. 1000 hoodies for Maple & Co, back by Mar 23.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-23",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Ravi",
+        "must_make_date": false,
+        "order_id": "ORD-083",
+        "packing": false,
+        "pieces": 1000,
+        "preference": null,
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R22"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W2": -8,
+          "W4": -6,
+          "W6": -6
+        },
+        "eligible_ids": [
+          "W2",
+          "W4",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R23 [09:44] Priya: ORD-093 — 100 beanies for Maple & Co, due Mar 29. Split it across two shops if that gets it back faster.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "ACCESSORIES",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-29",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": "ORD-093",
+        "packing": false,
+        "pieces": 100,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": true,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R23"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W1": 9,
+          "W2": 9,
+          "W3": 6,
+          "W5": 7,
+          "W6": 11,
+          "W8": 10
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6",
+          "W8"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R24 [09:48] Boss: Little Loom does lovely work — ORD-015 to them?",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-16",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": "ORD-015",
+        "packing": false,
+        "pieces": 300,
+        "preference": null,
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [
+          "W4"
+        ],
+        "unconfirmed_date": false
+      },
+      "request_id": "R24"
+    },
+    {
+      "benchmark": {
+        "all_late": false,
+        "chosen_workshop": "W6",
+        "days_to_spare": {
+          "W1": 5,
+          "W2": 5,
+          "W5": 4,
+          "W6": 6
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R25 [09:53] Mei: ORD-109 — 500 vests for Harbor Knits, due Apr 13. …and keep it away from BudgetWorks, the last batch came back rough.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-13",
+        "exclude": [
+          "W3"
+        ],
+        "has_explicit_id": true,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": "ORD-109",
+        "packing": false,
+        "pieces": 500,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R25"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -28,
+          "W2": -32,
+          "W3": -33,
+          "W5": -28,
+          "W6": -33
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R26 [09:59] Chen: Can someone place ORD-107? 2000 cardigans, Northwind Apparel, due Mar 16.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-16",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Chen",
+        "must_make_date": false,
+        "order_id": "ORD-107",
+        "packing": true,
+        "pieces": 2000,
+        "preference": null,
+        "sender": "Chen",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R26"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -9,
+          "W2": -10,
+          "W3": -12,
+          "W5": -10,
+          "W6": -9
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R27 [10:03] Ravi: ORD-055 — 800 crewneck sweaters for Cotton Club, due Mar 31. Cotton Club rejected a batch last month, so lowest defect rate you can get.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-31",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Ravi",
+        "must_make_date": false,
+        "order_id": "ORD-055",
+        "packing": false,
+        "pieces": 800,
+        "preference": "lowest_defect",
+        "sender": "Ravi",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R27"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -11,
+          "W2": -13,
+          "W3": -15,
+          "W5": -13,
+          "W6": -13
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R28 [10:08] Priya: Sending ORD-002 outside — 1000 crewneck sweaters. Who has room this week? Due Mar 29.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-03-29",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Priya",
+        "must_make_date": false,
+        "order_id": "ORD-002",
+        "packing": false,
+        "pieces": 1000,
+        "preference": null,
+        "sender": "Priya",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R28"
+    },
+    {
+      "benchmark": null,
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R29 [10:14] Boss: The vests need to go out this week — who takes them?",
+      "reference": {
+        "candidate_order_ids": [
+          "ORD-015",
+          "ORD-020",
+          "ORD-024",
+          "ORD-045",
+          "ORD-109",
+          "ORD-120"
+        ],
+        "category": null,
+        "constraint_reference_complete": true,
+        "due_date": null,
+        "exclude": [],
+        "has_explicit_id": false,
+        "imposed_by": "Boss",
+        "must_make_date": false,
+        "order_id": null,
+        "packing": false,
+        "pieces": null,
+        "preference": null,
+        "sender": "Boss",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R29"
+    },
+    {
+      "benchmark": {
+        "all_late": true,
+        "chosen_workshop": "W1",
+        "days_to_spare": {
+          "W1": -6,
+          "W2": -9,
+          "W3": -11,
+          "W5": -7,
+          "W6": -10
+        },
+        "eligible_ids": [
+          "W1",
+          "W2",
+          "W3",
+          "W5",
+          "W6"
+        ],
+        "queue_snapshot": {
+          "W1": 4.0,
+          "W2": 2.5,
+          "W3": 5.0,
+          "W4": 0.5,
+          "W5": 3.0,
+          "W6": 1.0,
+          "W7": 0.0,
+          "W8": 0.0
+        }
+      },
+      "cache_key": null,
+      "error": "OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed",
+      "error_layer": "LLM extraction",
+      "failed_checks": [
+        "decision_correct",
+        "faithfulness_passed"
+      ],
+      "human_label": {
+        "constraint": "",
+        "expected_behaviour": "",
+        "expected_category": "",
+        "expected_due": "",
+        "expected_order_id": "",
+        "expected_pieces": "",
+        "issue": "",
+        "notes": ""
+      },
+      "hypothesis": "LLM extraction: execution failed; inspect the captured operational error.",
+      "raw_message": "R30 [10:18] Mei: Please allocate ORD-099: 1500 polo shirts, Northwind Apparel. Deadline Apr 05.",
+      "reference": {
+        "candidate_order_ids": [],
+        "category": "TOPS",
+        "constraint_reference_complete": true,
+        "due_date": "2026-04-05",
+        "exclude": [],
+        "has_explicit_id": true,
+        "imposed_by": "Mei",
+        "must_make_date": false,
+        "order_id": "ORD-099",
+        "packing": false,
+        "pieces": 1500,
+        "preference": null,
+        "sender": "Mei",
+        "split_allowed": false,
+        "suggested_workshops": [],
+        "unconfirmed_date": false
+      },
+      "request_id": "R30"
+    }
+  ],
+  "today": "2026-04-01"
+}
