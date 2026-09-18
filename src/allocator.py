@@ -153,7 +153,7 @@ class Allocator:
                 },
                 {
                     "action": "consider_split",
-                    "description": "Request a split feasibility check; splitting is not implemented.",
+                    "description": "Request a split feasibility estimate; confirming a split allocation is not supported.",
                 },
             ]
             reason_prefix = "Least-late fallback"

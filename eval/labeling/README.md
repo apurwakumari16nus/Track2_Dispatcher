@@ -2,7 +2,11 @@
 
 **Status: blank templates, awaiting two independent human reviews.** Only request
 IDs have been populated automatically. No expected answers have been supplied.
-Complete and reconcile these labels before implementing the intake.
+The intake is already implemented. The requested sequence of freezing labels
+before intake development was not completed; do not claim otherwise. Complete
+the independent reviews and reconciliation now, record the actual timing and
+prior exposure to system outputs, and freeze labels before final scoring.
+Additional unseen requests should be reserved for held-out evaluation.
 
 ## Files and roles
 
@@ -20,10 +24,11 @@ request and order files visible together. Each reviewer fills only their own
 CSV, without seeing the other person's answers. Do not use the intake's output
 to decide what the expected answer should have been.
 
-The earlier AI-generated project learning guide contains request-level discussion.
-Use the original data and this labeling rubric for the independent pass rather
-than copying those suggestions. Record whether either reviewer previously read
-that discussion; do not claim an entirely unaided review if that is inaccurate.
+Prior AI-generated study material or request-level discussion may influence a
+reviewer's expectations. Use the original data and this labeling rubric for the
+independent pass rather than copying those suggestions. Record whether either
+reviewer previously saw such discussion or system outputs; do not claim an
+entirely unaided review if that is inaccurate.
 
 ## Exact schema
 
@@ -113,8 +118,9 @@ different reviewers without recording that difference.
 4. Record each disagreement, both interpretations, source evidence, the agreed
    answer, and why it was chosen. Then fill the final row in `../labels.csv`.
 5. Confirm all 30 final rows are reviewed. Record the consensus date and commit
-   the completed labeling files before building the intake. Record the resulting
-   commit ID as evidence of timing.
+   the completed labeling files before final evaluation. Record the resulting
+   commit ID and the intake version already present at labeling as evidence of
+   the actual timing; this is not a pre-implementation label freeze.
 6. Later corrections must retain a change log and data-based reason. Do not
    change labels merely to make the system's score improve. Disclose development
    use, and reserve additional unseen requests for held-out evaluation.

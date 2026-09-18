@@ -56,9 +56,13 @@ are retriable and are not saved as permanent model responses.
 For a clearly marked synthetic dry run:
 
 ```bash
-python eval/run_inbox.py --mock --output-dir eval/mock_inbox
-python eval/run_inbox.py --mock --offline --output-dir eval/mock_inbox
+python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
+python eval/run_inbox.py --mock --offline --output-dir Apurwa/validation/mock_inbox
 ```
+
+`Apurwa/` is a Git-ignored local folder for personal materials and validation
+outputs, excluded from the submission. These synthetic outputs are kept separate
+from the final live evaluation evidence in `eval/`.
 
 Mock mode uses the existing CI extraction fixtures, a separate cache namespace,
 and a fixture-content hash. It never becomes live mode automatically and does

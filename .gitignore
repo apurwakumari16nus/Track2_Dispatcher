@@ -5,5 +5,9 @@ __pycache__/
 records/**/*.jsonl
 .DS_Store
 .Rhistory
+# Personal study materials and local validation recordings; never submit.
+/Apurwa/
+# Guard against recreating the former personal-export folder.
+/output/
 .pytest_cache/
 eval/cache/

@@ -5,6 +5,9 @@ eligible workshops, and show a recommendation with its supporting calculations.
 The LLM extracts language; Python checks eligibility, estimates delivery and cost,
 and chooses the workshop. A dispatcher explicitly confirms the local audit entry.
 
+**New to the repository?** Read the concise [team handbook](docs/team_handbook.md)
+for the project overview, setup, run commands, app walkthrough, and code map.
+
 ## Prerequisites
 
 - **Python 3.11+**, 64-bit; check the version before creating the environment.
@@ -129,20 +132,29 @@ reduces variation; cached replies make repeated extraction reproducible.
 The team must independently complete and reconcile **`eval/labels.csv`** before
 claiming behaviour accuracy. At documentation time, human answers are blank:
 missing labels remain unscored, and the human-label comparison test skips. Do not
-present those blanks as passes. Previously saved evaluation files are not proof
-of a successful live run; inspect the execution notes and regenerate them.
+present those blanks as passes. Intake is already implemented, so labels cannot
+now be described as frozen before development. Record the actual review timing,
+prior exposure to system output, and reconciliation; freeze labels before final
+scoring and reserve additional unseen requests where possible. Previously saved
+evaluation files are not proof of a successful live run; inspect the execution
+notes and regenerate them.
 
 For a free synthetic smoke test (not an evaluation of the real LLM):
 
 ```bash
-python eval/run_inbox.py --mock --output-dir eval/mock_inbox
+python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
 ```
 
 Windows equivalent:
 
 ```powershell
-.\.venv\Scripts\python.exe eval/run_inbox.py --mock --output-dir eval/mock_inbox
+.\.venv\Scripts\python.exe eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
 ```
+
+`Apurwa/` is a Git-ignored local folder for personal study materials and validation
+outputs. It is excluded from the submission and is not needed to run the app.
+The evaluator creates the requested output directory when needed; mock results
+there must not be presented as live inbox evaluation evidence.
 
 For the intake confusion matrix, run `python -m pytest tests/test_intake.py -q -s`.
 Set `TRACK2_REQUIRE_LABELS=1` to fail rather than skip incomplete human labels.

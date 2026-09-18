@@ -110,10 +110,11 @@ faithfulness and JSON validity before writing. It appends rather than overwrites
 error for corrupt records. A UI should append once per handled request, not on
 every rerender; automatic deduplication is not performed.
 
-Local cooperating writers/readers use POSIX advisory file locks (macOS/Linux).
-For Windows or a multi-host service, replace this storage adapter. Logs are
-ignored by Git and contain the chat text and audit evidence; they are not sent
-to the LLM by the logging module.
+Local cooperating writers/readers use `portalocker` file locks on Windows,
+macOS, and Linux. These coordinate local file access; a multi-host service still
+needs durable shared storage and coordinated allocation state. Logs are ignored
+by Git and contain the chat text and audit evidence; they are not sent to the LLM
+by the logging module.
 
 ## Validation
 

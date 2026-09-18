@@ -3,6 +3,9 @@
 Status: not started. Do not replace these placeholders with invented review
 results. Keep the two independent CSVs as the original evidence.
 
+Intake is already implemented while labels remain blank. Record the actual
+sequence; do not claim that labels were frozen before intake development.
+
 ## Review metadata
 
 | Item | Human entry |
@@ -11,11 +14,12 @@ results. Keep the two independent CSVs as the original evidence.
 | Reviewer 1 independent pass completed | |
 | Reviewer 2 name | |
 | Reviewer 2 independent pass completed | |
-| Prior exposure to AI-generated request discussion, by reviewer | |
+| Prior exposure to AI-generated discussion or system output, by reviewer | |
 | Source data version / commit | |
+| Intake version already present when labeling began | |
 | Shared queue assumption, if feasibility is assessed | |
 | Reconciliation date | |
-| Final labels commit ID (before intake implementation) | |
+| Final labels commit ID (frozen before final evaluation) | |
 | Expected-behaviour agreement before discussion, out of 30 | |
 | Primary-issue agreement before discussion, out of 30 | |
 | Requests with any field disagreement before discussion | |
@@ -42,18 +46,20 @@ say so only after both independent reviews and the comparison are complete.
 Fill this in after the work is done; remove brackets and any claims that are not
 true. Include actual disagreement examples rather than a generic statement.
 
-> Before implementing the intake, [reviewer 1] and [reviewer 2] independently
-> labeled all 30 supplied requests using [source data version] and 1 April 2026
+> Intake had already been implemented at [version/commit] when labeling began
+> on [actual date]. [Reviewer 1] and [reviewer 2] independently labeled all 30
+> supplied requests using [source data version] and 1 April 2026
 > as the fixed current date. They used the same ordered rubric and [queue
 > assumptions, if applicable]. Their prior exposure to AI-generated discussion
-> was [describe accurately]. Before reconciliation, they agreed on expected
-> behaviour for [n]/30 requests and primary issue for [m]/30 requests. They
-> disagreed on [actual requests/fields]: [explain the competing interpretations
+> or system output was [describe accurately]. Before reconciliation, they agreed
+> on expected behaviour for [n]/30 requests and primary issue for [m]/30 requests.
+> They disagreed on [actual requests/fields]: [explain the competing interpretations
 > and why the source evidence supported the resolution]. Both original label
 > files were preserved, and the agreed labels were frozen on [date/commit]
-> before intake development. Labels were based on the requests and source data,
-> rather than adjusted to the system's predictions. Development use and later
-> corrections were [describe], and held-out evaluation used [describe only what
+> before final scoring, not before intake development. Labels were based on the
+> requests and source data, rather than adjusted to the system's predictions.
+> Development use and later corrections were [describe], and held-out evaluation
+> used [describe only what
 > was actually reserved and evaluated, or state that it remains pending].
 
 ## Changes after the labels were frozen
