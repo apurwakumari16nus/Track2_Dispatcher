@@ -1,10 +1,9 @@
 # Dispatcher app
 
-From `Track2_dispatch`, run:
+From the repository root, run:
 
 ```bash
-source .venv/bin/activate
-streamlit run src/app.py
+uv run streamlit run src/app.py
 ```
 
 The first screen needs only the supplied CSV files. Dispatch uses live intake,
@@ -40,12 +39,19 @@ request is a separate action; this is not global order deduplication.
 
 ## Layout and evidence
 
-The sidebar switches between Dispatch and Decision log. The date and preset
-survive page navigation. Inbox and register have their own bounded scrolling;
-the recommendation and confirmation sit above the detailed table/expanders.
-The screen is monochrome except for the green, amber, red, and grey banners.
-Tabular numbers and recommendation metrics are right-aligned. Displayed numbers
-are rounded for readability; full-precision values remain in the raw evidence.
+The sidebar opens on Simulation and also offers Dispatch, Workshop register,
+and Decision log. Simulation automatically allocates all orders and is described
+in [the simulation workspace guide](simulation_workspace.md).
+The date and preset survive page navigation. The searchable inbox sits beside
+the request composer and decision area. A teal accent identifies actions and
+selection; green, amber, red and grey banners distinguish outcomes.
+Candidate numbers are right-aligned. Displayed numbers are rounded for
+readability; full-precision values remain in the raw evidence.
+
+The Workshop register offers category, batch-size and return-date controls.
+Eligibility and delivery estimates use the same tools as dispatch, without a
+model call or an allocation. The Dispatch page retains a collapsible queue
+snapshot. See [redesign notes and next steps](ui_redesign.md).
 
 The Faithfulness badge checks the complete template explanation. It does not
 claim that rounding on the presentation card is itself a separate faithfulness
@@ -88,7 +94,7 @@ The app never creates an empty log just by viewing this page.
 ## Verification
 
 ```bash
-python -m pytest tests/test_app.py -q
+uv run pytest tests/test_app.py -q
 ```
 
 Tests use synthetic extraction and temporary audit files. They cover all UI

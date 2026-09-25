@@ -11,6 +11,7 @@ for the project overview, setup, run commands, app walkthrough, and code map.
 ## Prerequisites
 
 - **Python 3.11+**, 64-bit; check the version before creating the environment.
+- **uv** package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/)).
 - **Git**, a terminal, and internet access to install packages.
 - An **OpenAI API key**, available API credit, and access to the configured model
   for live requests. No key is needed for the simulator or ordinary tests.
@@ -21,21 +22,25 @@ requests is a separate step. No Java, database, Node.js, or GPU is required.
 
 ## Setup and first run
 
-### Mac — Terminal
+The app now opens on the **Simulation** dashboard. It automatically computes a
+complete default experiment with no API key. Use **Run simulation** for a new
+seed, compare objectives and scenarios, inspect decisions, and export evidence.
+See [the project goal and demonstration guide](docs/simulation_workspace.md).
+The **Dispatch** page separately demonstrates live natural-language intake.
+
+### Mac — Terminal (or Linux)
 
 ```bash
 git clone https://github.com/apurwakumari16nus/Track2_Dispatcher.git
 cd Track2_Dispatcher
 python3 --version
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+uv sync
 cp .env.example .env
 open -e .env
 ```
 
-Wait for environment creation and installation to finish. If environment creation
-was interrupted, rerun `python3 -m venv .venv` before activating it.
+`uv sync` creates (or updates) `.venv` from `pyproject.toml` and the committed
+`uv.lock`. Use `uv run` below; no activation is necessary.
 
 ### Windows — PowerShell
 
@@ -43,16 +48,13 @@ was interrupted, rerun `python3 -m venv .venv` before activating it.
 git clone https://github.com/apurwakumari16nus/Track2_Dispatcher.git
 cd Track2_Dispatcher
 py -3 --version
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+uv sync
 Copy-Item .env.example .env
 notepad .env
 ```
 
 These Windows commands do not require activation or an execution-policy change.
-For the remaining commands, **replace `python` with
-`.\.venv\Scripts\python.exe` on Windows**. If `py` is unavailable but `python`
-is your Python 3.11+ installation, use `python -m venv .venv` instead.
+`uv run` works the same way on Mac, Linux, and Windows.
 
 ### Configure the API and open the app
 
@@ -69,19 +71,12 @@ An alternative model must support Chat Completions, strict JSON Schema, and
 `temperature=0`. The app loads `.env` automatically; existing environment values
 take precedence. Never commit `.env` or your real API key.
 
-Mac, in the activated environment:
+From the repository root:
 
 ```bash
-python -m streamlit run src/app.py
+uv run streamlit run src/app.py
 ```
 
-Windows:
-
-```powershell
-.\.venv\Scripts\python.exe -m streamlit run src/app.py
-```
-
-This is equivalent to `streamlit run src/app.py` when the environment is activated.
 Open **http://localhost:8501** if the browser does not open automatically. Keep the
 terminal running; use **Ctrl+C** to stop it.
 
@@ -96,17 +91,16 @@ the unchanged simulator reads its inputs from `harness/../data/`.
 
 ## Run evaluations and tests
 
-On Mac, activate `.venv` in each new terminal. On Windows, use the full interpreter
-path shown below. Run evaluation commands after stopping the app, or in a second
-terminal at the repository root.
+Run evaluation commands after stopping the app, or in a second terminal at the
+repository root. `uv run` uses the locked project environment on every platform.
 
-| Task | Mac (activated environment) | Windows PowerShell |
-| --- | --- | --- |
-| Simulator evaluation | `python eval/run_simulator.py` | `.\.venv\Scripts\python.exe eval/run_simulator.py` |
-| Live inbox evaluation | `python eval/run_inbox.py` | `.\.venv\Scripts\python.exe eval/run_inbox.py` |
-| Tests, no API calls by default | `python -m pytest -q` | `.\.venv\Scripts\python.exe -m pytest -q` |
-| Original simulator | `python harness/simulate.py` | `.\.venv\Scripts\python.exe harness/simulate.py` |
-| Original simulator with closure | `python harness/simulate.py --shock` | `.\.venv\Scripts\python.exe harness/simulate.py --shock` |
+| Task | Command |
+| --- | --- |
+| Simulator evaluation | `uv run python eval/run_simulator.py` |
+| Live inbox evaluation | `uv run python eval/run_inbox.py` |
+| Tests, no API calls by default | `uv run pytest -q` |
+| Original simulator | `uv run python harness/simulate.py` |
+| Original simulator with closure | `uv run python harness/simulate.py --shock` |
 
 **Simulator evaluation** runs random choice, greedy biggest, cheapest, earliest
 finish, and all six allocator presets with and without the shock (20 runs; seed
@@ -142,13 +136,7 @@ notes and regenerate them.
 For a free synthetic smoke test (not an evaluation of the real LLM):
 
 ```bash
-python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
-```
-
-Windows equivalent:
-
-```powershell
-.\.venv\Scripts\python.exe eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
+uv run python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox
 ```
 
 `Apurwa/` is a Git-ignored local folder for personal study materials and validation
@@ -156,7 +144,7 @@ outputs. It is excluded from the submission and is not needed to run the app.
 The evaluator creates the requested output directory when needed; mock results
 there must not be presented as live inbox evaluation evidence.
 
-For the intake confusion matrix, run `python -m pytest tests/test_intake.py -q -s`.
+For the intake confusion matrix, run `uv run pytest tests/test_intake.py -q -s`.
 Set `TRACK2_REQUIRE_LABELS=1` to fail rather than skip incomplete human labels.
 `TRACK2_INTAKE_REAL_LLM=1` optionally enables live intake tests and API charges.
 In PowerShell, set a flag with `$env:TRACK2_REQUIRE_LABELS = "1"`; on Mac use
@@ -258,8 +246,10 @@ correctness is evaluated separately: a real number attached to the wrong claim
 can still pass numeric membership checking.
 
 **Reproducible evidence.** Direct dependencies are pinned to exact versions in
-[requirements.txt](requirements.txt); transitive dependencies are resolved by pip,
-so this is not a complete platform-specific lockfile. The simulator uses an
+[pyproject.toml](pyproject.toml), with complete resolved versions in the committed
+[uv.lock](uv.lock). `requirements.txt` is a compatibility export for Streamlit
+Community Cloud; after changing dependencies, refresh it with
+`uv export --no-dev --no-hashes -o requirements.txt`. The simulator uses an
 explicit seed, and inbox extraction uses a versioned model and cached replies.
 Human labels must be written independently rather than copied from system output.
 
@@ -300,8 +290,9 @@ service needs shared queue state and durable external record storage.
 
 ## Troubleshooting
 
-- **Wrong Python / missing package:** use the `.venv` interpreter, and rerun
-  `python -m pip install -r requirements.txt` with that interpreter.
+- **Wrong Python / missing package:** run `uv sync`; `uv run ...` then selects
+  the project interpreter automatically. Use `uv python install 3.11` if no
+  compatible Python is available locally.
 - **Missing API/model setting:** save both `.env` fields, or both root-level Cloud
   secrets. Model access, invalid keys, quota, and connection errors are reported
   separately from a business decision to decline a request.

@@ -7,17 +7,17 @@ estimate completion times, calculate costs, or decide whether splitting works.
 
 ## Use
 
-Install `requirements.txt`. Set `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL` in the
+Run `uv sync`. Set `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL` in the
 project's `.env` or shell environment. The chosen model must support strict JSON
 Schema and temperature zero. There is no implicit model selection or fallback
 to unstructured text. The request uses OpenAI's
 [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 through Chat Completions, with `temperature=0` and `store=False`.
 
-From the project root, with the virtual environment active:
+From the project root:
 
 ```bash
-PYTHONPATH=src:harness python - <<'PY'
+PYTHONPATH=src:harness uv run python - <<'PY'
 from datetime import date
 import json
 import pandas as pd
