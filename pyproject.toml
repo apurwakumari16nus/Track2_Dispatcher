@@ -1,0 +1,26 @@
+[project]
+name = "track2-dispatcher"
+version = "0.1.0"
+description = "Auditable subcontractor dispatch desk"
+readme = "README.md"
+authors = [
+    { name = "Aditya Pandhari", email = "adityavp99@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib==3.11.1",
+    "openai==3.10.0",
+    "pandas==3.0.5",
+    "portalocker==3.2.0",
+    "pydantic==2.13.5",
+    "python-dotenv==1.2.3",
+    "pyyaml==6.0.3",
+    "streamlit==1.63.0",
+]
+
+[dependency-groups]
+dev = ["pytest==9.1.1"]
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"

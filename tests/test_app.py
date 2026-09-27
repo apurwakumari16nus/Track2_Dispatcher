@@ -130,7 +130,9 @@ def test_tool_traces_do_not_leak_across_contexts_or_change_results():
 
 
 def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
-    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20).run()
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
     assert not at.exception
     assert len([b for b in at.button if b.key and b.key.startswith("inbox_R")]) == 30
     assert at.date_input(key="desk_today").value == app.TODAY
@@ -158,7 +160,9 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
 
 @pytest.mark.parametrize("rid,verdict", [("R01", "NEEDS CLARIFICATION"), ("R02", "CANNOT ANSWER"), ("R08", "REFUSED")])
 def test_streamlit_behaviour_banners_and_no_automatic_writes(setup, rid, verdict):
-    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20).run()
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
     at.button(key="inbox_" + rid).click().run()
     next(b for b in at.button if b.label == "Dispatch").click().run()
     assert not at.exception
@@ -168,7 +172,9 @@ def test_streamlit_behaviour_banners_and_no_automatic_writes(setup, rid, verdict
 
 
 def test_streamlit_editing_request_invalidates_old_confirmation(setup):
-    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20).run()
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
     at.button(key="inbox_R30").click().run()
     next(b for b in at.button if b.label == "Dispatch").click().run()
     at.text_area(key="desk_message").set_value("A different request").run()
@@ -178,7 +184,9 @@ def test_streamlit_editing_request_invalidates_old_confirmation(setup):
 
 
 def test_streamlit_date_and_objective_survive_log_navigation(setup):
-    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20).run()
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
     at.date_input(key="desk_today").set_value(date(2026, 4, 3)).run()
     at.selectbox(key="desk_preset").set_value("fairness").run()
     at.radio(key="desk_page").set_value("Decision log").run()
@@ -186,3 +194,31 @@ def test_streamlit_date_and_objective_survive_log_navigation(setup):
     assert not at.exception
     assert at.date_input(key="desk_today").value == date(2026, 4, 3)
     assert at.selectbox(key="desk_preset").value == "fairness"
+
+
+def test_register_explores_eligibility_without_calling_model_or_saving(setup):
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
+    at.radio(key="desk_page").set_value("Workshop register").run()
+    assert not at.exception
+    assert "suspended" in " ".join(m.value for m in at.markdown)
+    at.number_input[0].set_value(100).run()
+    assert not at.exception
+    assert not setup[4] and not records.DEFAULT_PATH.exists()
+    at.radio(key="desk_page").set_value("Dispatch").run()
+    assert not at.exception
+    assert at.date_input(key="desk_today").value == app.TODAY
+
+
+def test_inbox_search_preserves_selection_and_does_not_dispatch(setup):
+    at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
+    at.session_state["desk_page"] = "Dispatch"
+    at.run()
+    at.text_input(key="inbox_search").set_value("R09").run()
+    assert [b.key for b in at.button if b.key and b.key.startswith("inbox_R")] == ["inbox_R09"]
+    at.button(key="inbox_R09").click().run()
+    assert at.text_area(key="desk_message").value == setup[3]["R09"]
+    at.text_input(key="inbox_search").set_value("no matching request").run()
+    assert not at.exception and not setup[4]
+    assert at.text_area(key="desk_message").value == setup[3]["R09"]

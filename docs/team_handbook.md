@@ -29,16 +29,15 @@ workshop. Explanations use templates populated with recorded facts.
 
 ## 2. First setup
 
-Install Git and Python 3.11 or newer. Run these commands in a terminal.
+Install Git, Python 3.11 or newer, and [uv](https://docs.astral.sh/uv/).
+Run these commands in a terminal.
 
 **Mac**
 
 ```bash
 git clone https://github.com/apurwakumari16nus/Track2_Dispatcher.git
 cd Track2_Dispatcher
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+uv sync
 cp .env.example .env
 ```
 
@@ -47,19 +46,17 @@ cp .env.example .env
 ```powershell
 git clone https://github.com/apurwakumari16nus/Track2_Dispatcher.git
 cd Track2_Dispatcher
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+uv sync
 Copy-Item .env.example .env
 ```
 
 A virtual environment (`.venv`) keeps this project's Python packages separate
-from other projects. Wait for its creation and package installation to finish.
+from other projects. `uv sync` creates or updates it from the committed lockfile.
 For an existing clone, enter its folder instead of cloning again. Your local
 folder may be called `Track2_dispatch`; a new clone uses `Track2_Dispatcher`.
 
-**Run all commands below from the repository root**, where `requirements.txt`
-lives. On Mac, activate `.venv` in each new terminal. On Windows, replace
-`python` below with `.\.venv\Scripts\python.exe`; activation is unnecessary.
+**Run all commands below from the repository root**, where `pyproject.toml` and
+`uv.lock` live. Use `uv run` on every platform; activation is unnecessary.
 
 For live intake only, edit `.env` and fill in both `OPENAI_API_KEY` and
 `OPENAI_INTAKE_MODEL`. The README provides a model configuration example.
@@ -73,23 +70,27 @@ without API calls.
 
 | Purpose | Command | What to expect |
 | --- | --- | --- |
-| Check the code | `python -m pytest -q` | Automated tests; no API calls by default. Human-label comparison skips while labels are incomplete. |
-| Compare all policies | `python eval/run_simulator.py` | 200 runs across ten paired seeds; 20 averaged rows, `eval/results.csv`, three charts in `eval/charts/`, and `eval/baseline_wins.md`. |
-| Run supplied baselines | `python harness/simulate.py` | Printed metrics for random, biggest-workshop and cheapest policies. |
-| Run baselines with a closure | `python harness/simulate.py --shock --seeds 10` | Same baselines with the simulated disruption. |
-| Inspect shock detection | `python eval/shock_trace.py` | Per-day CSV printed to the terminal for random versus the robustness allocator. |
-| Check inbox using prepared extractions | `python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox` | Synthetic results saved separately; no live model calls or model-accuracy claim. |
-| Evaluate live intake | `python eval/run_inbox.py` | Processes 30 requests; creates `eval/inbox_results.csv`, `eval/failure_cases.md`, and `eval/inbox_audit.json`. Cache misses call the API. |
-| Open the dispatcher screen | `python -m streamlit run src/app.py` | Local app at `http://localhost:8501`. Keep the terminal open; Ctrl+C stops it. |
+| Check the code | `uv run python -m pytest -q` | Automated tests; no API calls by default. Human-label comparison skips while labels are incomplete. |
+| Compare all policies | `uv run python eval/run_simulator.py` | 200 runs across ten paired seeds; 20 averaged rows, `eval/results.csv`, three charts in `eval/charts/`, and `eval/baseline_wins.md`. |
+| Run supplied baselines | `uv run python harness/simulate.py` | Printed metrics for random, biggest-workshop and cheapest policies. |
+| Run baselines with a closure | `uv run python harness/simulate.py --shock --seeds 10` | Same baselines with the simulated disruption. |
+| Inspect shock detection | `uv run python eval/shock_trace.py` | Per-day CSV printed to the terminal for random versus the robustness allocator. |
+| Check inbox using prepared extractions | `uv run python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox` | Synthetic results saved separately; no live model calls or model-accuracy claim. |
+| Evaluate live intake | `uv run python eval/run_inbox.py` | Processes 30 requests; creates `eval/inbox_results.csv`, `eval/failure_cases.md`, and `eval/inbox_audit.json`. Cache misses call the API. |
+| Open the dispatcher screen | `uv run python -m streamlit run src/app.py` | Local app at `http://localhost:8501`. Keep the terminal open; Ctrl+C stops it. |
 
 `Apurwa/` is an ignored local folder. The mock runner creates its output folder;
 you do not need anyone's personal files to run it. `--offline` means reuse an
 existing matching cache without new API calls; it does **not** create mock replies.
 Do not set `TRACK2_INTAKE_REAL_LLM=1` for ordinary offline tests.
 
+The app opens on the Simulation dashboard for one-seed exploration. Its exports
+are diagnostics; the CLI comparison above supplies the required ten-seed means.
+Both use the same eight official metrics.
+
 ## 4. How to use the app
 
-1. Keep **Today = 2026-04-01** for the supplied inbox scenario. Choose an objective;
+1. Select **Dispatch** in the sidebar. Keep **Today = 2026-04-01** for the supplied inbox scenario. Choose an objective;
    its weights are shown alongside it.
 2. Select an inbox request or enter new text, then click **Dispatch**.
 3. Read the verdict and any warning before the recommendation. The four outcomes

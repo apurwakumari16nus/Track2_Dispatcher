@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, timedelta
 import hashlib
 from html import escape
 import json
@@ -35,62 +35,7 @@ TODAY = date(2026, 4, 1)
 VERDICTS = {"allocate": ("ALLOCATE", "allocate"), "clarify": ("NEEDS CLARIFICATION", "clarify"),
             "refuse": ("REFUSED", "refuse"), "decline": ("CANNOT ANSWER", "decline")}
 
-CSS = """
-<style>
-.stApp { background:#fff; color:#202020; }
-.block-container { padding:2.8rem 1.5rem 1.5rem; max-width:1600px; }
-header[data-testid="stHeader"] { background:#fff; }
-[data-testid="stAppDeployButton"], [data-testid="stMainMenu"] { display:none; }
-[data-testid="stHeadingWithActionElements"] h1 { font-size:1.55rem; padding:.15rem 0; }
-[data-testid="stHeadingWithActionElements"] h3 { font-size:1.05rem; padding:.2rem 0; }
-[data-testid="stVerticalBlock"] { gap:.6rem; }
-[data-testid="stSidebar"] { background:#f5f5f5; }
-[data-testid="stSidebar"][aria-expanded="true"] { width:180px; min-width:180px; max-width:180px; }
-button, input, textarea { accent-color:#222 !important; }
-button[kind="secondary"] { color:#202020; border-color:#d4d4d4; }
-button[kind="primary"] { background:#222; border-color:#222; color:#fff; }
-button[kind="primary"]:hover { background:#444; border-color:#444; }
-button:focus-visible, textarea:focus-visible, input:focus-visible { outline-color:#555 !important; }
-[data-testid="stTextArea"] textarea { font-size:.84rem; line-height:1.45; }
-.st-key-inbox_list button { text-align:left; justify-content:flex-start; font-size:.77rem; min-height:2.5rem; }
-.st-key-inbox_list button p { font-size:.77rem; }
-.desk-banner { padding:.55rem .8rem; border-left:4px solid; font-weight:700; font-size:.83rem; margin-bottom:.45rem; }
-.desk-banner.allocate { background:#e9f5ec; color:#164b2c; border-color:#31734a; }
-.desk-banner.clarify { background:#fff3d9; color:#694607; border-color:#a87718; }
-.desk-banner.refuse { background:#fbecec; color:#802a2a; border-color:#ae4545; }
-.desk-banner.decline { background:#ededed; color:#444; border-color:#777; }
-.recommendation { border:1px solid #d3d3d3; border-radius:7px; padding:1rem; }
-.eyebrow { text-transform:uppercase; letter-spacing:.08em; color:#666; font-size:.66rem; font-weight:700; }
-.shop-title { font-size:1.5rem; font-weight:700; line-height:1.2; margin:.25rem 0 .75rem; }
-.metrics { display:grid; grid-template-columns:1.25fr .8fr 1fr .9fr; gap:.65rem; }
-.metric { text-align:right; font-variant-numeric:tabular-nums; }
-.metric small { display:block; color:#666; font-size:.68rem; }
-.metric strong { font-size:1.04rem; white-space:nowrap; }
-.reason { font-size:.83rem; margin:.8rem 0 0; line-height:1.4; }
-.weights { display:grid; grid-template-columns:repeat(5,1fr); gap:.65rem; padding-top:.55rem; }
-.weights div { text-align:right; font-variant-numeric:tabular-nums; }
-.weights small { display:block; font-size:.65rem; color:#666; }
-.weights strong { font-size:.95rem; }
-.mono-badge { display:inline-block; border:1px solid #aaa; border-radius:4px; padding:.18rem .45rem; font-size:.72rem; font-weight:600; }
-.table-wrap { overflow:auto; max-height:270px; border:1px solid #ddd; border-radius:5px; }
-.desk-table { width:100%; border-collapse:collapse; font-size:.73rem; }
-.desk-table th { position:sticky; top:0; background:#f2f2f2; text-align:left; color:#555; font-weight:600; }
-.desk-table th,.desk-table td { padding:.45rem .5rem; border-bottom:1px solid #e5e5e5; white-space:nowrap; }
-.desk-table .num { text-align:right; font-variant-numeric:tabular-nums; }
-.desk-table tr.chosen { background:#ededed; font-weight:700; outline:1px solid #777; outline-offset:-1px; }
-.desk-table tr.excluded { color:#686868; }
-.register { max-height:600px; overflow:auto; }
-.shop-register { border-bottom:1px solid #ddd; padding:.48rem 0; }
-.shop-register strong { font-size:.79rem; }
-.shop-meta { font-size:.63rem; color:#666; margin:.1rem 0; }
-.shop-values { display:grid; grid-template-columns:repeat(3,1fr); gap:.45rem; text-align:right; font-size:.75rem; font-variant-numeric:tabular-nums; }
-.shop-values small { display:block; font-size:.59rem; color:#666; }
-.suspect { font-size:.62rem; border:1px solid #666; padding:.1rem .2rem; font-weight:700; }
-.empty-state { border:1px dashed #bbb; border-radius:7px; padding:2rem 1.4rem; color:#666; font-size:.92rem; }
-pre,code { color:#202020 !important; }
-@media(max-width:1100px) { .block-container {padding:2.8rem 1rem 1rem;} .metrics {gap:.4rem;} .metric strong {font-size:.9rem;} }
-</style>
-"""
+CSS = "<style>" + (ROOT / "src" / "desk.css").read_text(encoding="utf-8") + "</style>"
 
 
 @dataclass
@@ -285,6 +230,10 @@ def result_panel(preview, current_signature, workshops):
         notices.append("NO ELIGIBLE WHOLE-BATCH OPTION: escalate")
     if notices:
         banner(" / ".join(notices), "clarify")
+    parsed = response.parsed_request
+    details = [parsed.order_id, parsed.customer, f"{parsed.pieces:,} pieces" if parsed.pieces else None,
+               f"Due {parsed.due_date}" if parsed.due_date else None]
+    html('<div class="request-facts">' + ' · '.join(escape(str(v)) for v in details if v) + '</div>')
     recommendation(response, workshops)
     if record["objective_name"] != st.session_state["desk_preset"]:
         st.caption("Request preference applied: " + record["objective_name"].replace("_", " "))
@@ -318,18 +267,24 @@ def result_panel(preview, current_signature, workshops):
         with st.expander("Saved audit entry", expanded=True):
             raw_json(st.session_state["desk_saved"][preview.token])
 
-    st.subheader("Candidates")
+    st.subheader("Compare workshops")
     rows = record.get("tool_outputs", {}).get("ui_candidate_inventory", record["candidates"])
     if rows:
-        table(["Workshop", "Queue", "Work", "Lead", "ETA", "Spare", "Cost", "Defect", "Score", "Restriction"],
+        table(["Workshop", "Return date", "Days to spare", "Cost", "Defect", "Score", "Restriction"],
               [[r["name"] + (" / chosen" if r["workshop_id"] == record["chosen_workshop"] else ""),
-                f"{r['queue_days']:.2f}", f"{r['processing_days']:.2f}", str(r["lead_days"]), r["eta_date"],
+                r["eta_date"],
                 str(r["days_to_spare"]), f"{r['total_cost']:,.2f}", f"{r['expected_defect_rate']:.1%}", f"{r['score']:.6f}", r.get("exclusion_reason", "")]
-               for r in rows], numeric=range(1, 9),
+               for r in rows], numeric=range(1, 6),
               classes=["chosen" if r["workshop_id"] == record["chosen_workshop"] else "excluded" if r.get("exclusion_reason") else "" for r in rows])
         st.caption("All profile-eligible workshops, ordered by score. Durations in days; costs in simulator units.")
     else:
         st.caption("No ranked candidates until the request can be allocated.")
+    with st.expander("Delivery breakdown", expanded=False):
+        if rows:
+            table(["Workshop", "Queue days", "Processing days", "Transport days", "Total days", "Return date"],
+                  [[r["name"], f"{r['queue_days']:.2f}", f"{r['processing_days']:.2f}",
+                    str(r["lead_days"]), f"{r['total_days']:.2f}", r["eta_date"]] for r in rows], numeric=range(1, 5))
+            st.caption("Return date follows the simulator's rounded total duration. These are estimates, not guarantees.")
     with st.expander("Ineligible"):
         rejected = record["ineligible"] or [r for r in record.get("tool_outputs", {}).get("eligibility", []) if not r["eligible"]]
         excluded = [{"workshop": row["name"], "reason": row["reason"]} for row in rejected]
@@ -347,6 +302,7 @@ def result_panel(preview, current_signature, workshops):
 
 def log_page(workshops):
     st.title("Decision log")
+    st.caption("Accepted allocations, their reasoning, and the people behind each constraint.")
     try:
         rows = records.load()
     except (OSError, ValueError) as error:
@@ -375,6 +331,46 @@ def log_page(workshops):
             raw_json(row)
 
 
+def workshop_page(workshops, state):
+    """Queryable register backed by the same eligibility and ETA tools as dispatch."""
+    html('<div class="page-kicker">OPERATIONS / WORKSHOP REGISTER</div>')
+    st.title("Find capacity, with confidence.")
+    st.caption("Check what each workshop can make, whether it can accept your batch, and when it could return.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        category = st.selectbox("Product category", ["TOPS", "ACCESSORIES"])
+    with c2:
+        pieces = st.number_input("Batch size (pieces)", min_value=1, max_value=1000000, value=1500, step=100)
+    with c3:
+        due = st.date_input("Required return date", value=max(TODAY, state["desk_today"]) + timedelta(days=7), min_value=state["desk_queue_date"])
+    today = max(state["desk_today"], state["desk_queue_date"])
+    queues = projected_queues(state["desk_queues"], state["desk_queue_date"], today)
+    batch = {"category": category, "pieces": pieces, "due_date": due}
+    checks = {r["workshop_id"]: r for r in tools.check_eligibility(batch, workshops)}
+    st.caption(f"Estimates from {today:%d %b %Y}. Queue + processing + transport; these checks do not allocate work.")
+    cols = st.columns(2, gap="medium")
+    for index, (wid, w) in enumerate(workshops.items()):
+        check = checks[wid]
+        with cols[index % 2]:
+            with st.container(border=True):
+                tag = "Eligible" if check["eligible"] else check["reason"]
+                html(f'<div class="workshop-heading"><span>{escape(wid)}</span><span class="eligibility {"eligible" if check["eligible"] else ""}">{escape(tag)}</span></div>'
+                     f'<h3>{escape(w.name)}</h3><p class="workshop-categories">{escape(" / ".join(sorted(w.makes)))}</p>')
+                a, b, c = st.columns(3)
+                a.metric("Capacity / day", f"{w.capacity:,.0f}")
+                b.metric("Queue days", f"{queues[wid]:.1f}")
+                c.metric("Batch limit", f"{w.max_batch:,}" if w.max_batch else "No cap")
+                if check["eligible"]:
+                    eta = tools.estimate_eta(batch, wid, workshops, queues, today)
+                    cost = tools.estimate_cost(batch, wid, workshops)
+                    margin = eta["days_to_spare"]
+                    timing = f"{margin} days to spare" if margin >= 0 else f"{abs(margin)} days late"
+                    html(f'<div class="delivery-outcome {"on-time" if margin >= 0 else "late"}">Return {eta["eta_date"]} · {timing}</div>')
+                    st.caption(f"Cost {cost['total_cost']:,.2f} simulator units · Defect exposure {w.defect_rate:.1%}")
+                else:
+                    st.caption("Not available for this batch. Adjust the category or quantity to explore alternatives.")
+
+
 def main():
     st.set_page_config(page_title="Track 2 Dispatch", layout="wide", initial_sidebar_state="expanded")
     html(CSS)
@@ -393,14 +389,25 @@ def main():
         if key not in state:
             state[key] = value
     with st.sidebar:
-        st.radio("Workspace", ["Dispatch", "Decision log"], key="desk_page")
-        st.caption("Track 2 / subcontractor desk")
+        html('<div class="brand"><span class="brand-mark">t2</span><div>Threadline<small>SUBCONTRACTING DESK</small></div></div>')
+        st.radio("Workspace", ["Simulation", "Dispatch", "Workshop register", "Decision log"], key="desk_page", label_visibility="collapsed")
+        st.divider()
+        html('<div class="sidebar-note"><strong>Automatic decisions. Visible evidence.</strong><p>Simulation evaluates scheduling. Dispatch demonstrates language intake and auditable recommendations.</p></div>')
+        st.caption("Track 2 · Quick-response subcontracting")
+    if state["desk_page"] == "Simulation":
+        from simulation_dashboard import dashboard
+        dashboard(workshops)
+        return
     if state["desk_page"] == "Decision log":
         log_page(workshops)
         return
-    title, today_col, objective_col, weights_col = st.columns([1.05, .9, 1.5, 2.3], vertical_alignment="center")
-    with title:
-        st.title("Dispatch desk")
+    if state["desk_page"] == "Workshop register":
+        workshop_page(workshops, state)
+        return
+    html('<div class="page-kicker">OPERATIONS / DISPATCH</div>')
+    st.title("Dispatch desk")
+    st.caption("The right workshop. A realistic return date. A decision you can explain.")
+    today_col, objective_col, weights_col = st.columns([1, 1.5, 2.5], vertical_alignment="center")
     with today_col:
         today = st.date_input("Today", key="desk_today", min_value=state["desk_queue_date"], on_change=invalidate)
     with objective_col:
@@ -412,33 +419,49 @@ def main():
             f'<div><small>{label}</small><strong>{getattr(config, "w_" + name):g}</strong></div>'
             for name, label in (("lateness", "Lateness"), ("defect", "Defect"), ("fairness", "Fairness"), ("robustness", "Robustness"), ("cost", "Cost"))) + '</div>')
     queues = projected_queues(state["desk_queues"], state["desk_queue_date"], today)
-    left, center, right = st.columns([1.08, 3, 1.08], gap="medium")
+    active = sum(w.status == "ACTIVE" for w in workshops.values())
+    html(f'<div class="workspace-summary"><span><strong>{len(messages)}</strong> inbox requests</span>'
+         f'<span><strong>{active} / {len(workshops)}</strong> active workshops</span>'
+         f'<span><strong>{len(state["desk_saved"])}</strong> confirmed this session</span>'
+         '<span class="summary-note">Queues are session projections</span></div>')
+    left, center = st.columns([1, 2.35], gap="large")
     with left:
         st.subheader("Inbox")
-        st.text_area("Request", key="desk_message", height=142, placeholder="Select an inbox request or type a new one.", on_change=invalidate)
-        dispatch_col, new_col = st.columns([1.2, 1])
-        with dispatch_col:
-            dispatch = st.button("Dispatch", type="primary", width="stretch", disabled=not state["desk_message"].strip())
-        with new_col:
-            st.button("New", help="Clear the editor for a new request", width="stretch", on_click=select_message, args=("",))
-        st.caption(f"{len(messages)} requests / select to load")
-        with st.container(height=360, key="inbox_list", border=False):
-            for message in messages:
+        query = st.text_input("Search inbox", placeholder="Search sender, order, or request…", key="inbox_search", label_visibility="collapsed")
+        filtered = [m for m in messages if query.casefold() in m.casefold()]
+        st.caption(f"{len(filtered)} requests · select to review")
+        with st.container(height=590, key="inbox_list", border=False):
+            for message in filtered:
                 rid = message.split()[0]
                 speaker_body = message.split("]", 1)[1].strip()
-                short = speaker_body[:72] + ("…" if len(speaker_body) > 72 else "")
-                st.button(f"{rid} / {short}", key="inbox_" + rid, help=message, width="stretch", on_click=select_message, args=(message,))
-    state["desk_controls"] = {key: state[key] for key in ("desk_today", "desk_preset", "desk_message")}
-    current_signature = signature(state["desk_message"], today, config, orders, workshops, queues, state["desk_revision"])
+                short = speaker_body[:112] + ("…" if len(speaker_body) > 112 else "")
+                st.button(f"{rid} · {short}", key="inbox_" + rid, width="stretch",
+                          type="primary" if state["desk_message"] == message else "secondary",
+                          on_click=select_message, args=(message,))
+            if not filtered:
+                st.info("No requests match this search.")
     with center:
-        st.subheader("Decision")
+        with st.container(border=True, key="request_composer"):
+            html('<div class="section-label">01 <span>Request intake</span></div>')
+            st.text_area("Request", key="desk_message", height=120, placeholder="Select a request from the inbox, or describe the order you need to send out.", on_change=invalidate)
+            dispatch_col, new_col, note_col = st.columns([1.2, .7, 2], vertical_alignment="center")
+            with dispatch_col:
+                dispatch = st.button("Dispatch", type="primary", width="stretch", disabled=not state["desk_message"].strip())
+            with new_col:
+                st.button("New", help="Clear the editor for a new request", width="stretch", on_click=select_message, args=("",))
+            with note_col:
+                st.caption("Dispatch prepares a preview. You confirm the allocation.")
+        state["desk_controls"] = {key: state[key] for key in ("desk_today", "desk_preset", "desk_message")}
+        current_signature = signature(state["desk_message"], today, config, orders, workshops, queues, state["desk_revision"])
+        html('<div class="section-label">02 <span>Review the decision</span></div>')
         if dispatch:
             invalidate()
             try:
-                with st.spinner("Checking request and workshop options"):
+                with st.status("Checking request and workshop options", expanded=True) as status:
+                    st.write("Extracting order details, checking restrictions, and estimating each eligible workshop.")
                     state["desk_preview"] = make_preview(state["desk_message"], today, config, orders, workshops, queues, state["desk_allocator"], state["desk_revision"])
+                    status.update(label="Request checked", state="complete", expanded=False)
             except Exception as error:
-                # Show actionable local errors, without echoing provider request headers.
                 from intake import IntakeError
                 state["desk_error"] = str(error) if isinstance(error, (IntakeError, ValueError)) else f"Request could not be processed ({type(error).__name__}). Check the API connection and try Dispatch again."
         if state.get("desk_error"):
@@ -447,12 +470,15 @@ def main():
         if preview:
             result_panel(preview, current_signature, workshops)
         elif not state.get("desk_error"):
-            html('<div class="empty-state">Select a request, then Dispatch.<br><br>The recommendation, return date and reason will appear here.</div>')
-    with right:
-        flags = set(state["desk_allocator"].shock_monitor.flags)
-        if state.get("desk_preview"):
-            flags.update(f["workshop_id"] for f in state["desk_preview"].response.decision_record["shock_flags"])
-        register_panel(workshops, queues, flags)
+            html('<div class="empty-state"><div class="empty-symbol">↗</div><h2>From request to ready.</h2>'
+                 '<p>Select a message and dispatch it to compare workshops, see return dates, and review the recommendation.</p>'
+                 '<div class="empty-steps"><span>01 &nbsp; Check request</span><span>02 &nbsp; Compare options</span><span>03 &nbsp; Confirm & record</span></div></div>')
+            st.caption("First time here? Try R09 for an allocation, R01 for clarification, or R08 for an ineligible workshop.")
+        with st.expander("Workshop queue snapshot"):
+            flags = set(state["desk_allocator"].shock_monitor.flags)
+            if preview:
+                flags.update(f["workshop_id"] for f in preview.response.decision_record["shock_flags"])
+            register_panel(workshops, queues, flags)
 
 
 if __name__ == "__main__":
