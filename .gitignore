@@ -11,6 +11,9 @@ records/**/*.jsonl
 /output/
 .pytest_cache/
 eval/cache/
+# Streamlit installation creates local editor skill links into .venv.
+/.agents/
+/.claude/
 
 # User-retained pre-v3 backups and duplicate reference files (not submission code).
 /data_old/

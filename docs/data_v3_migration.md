@@ -88,3 +88,39 @@ primary objective. This run does not establish Windows/cloud behaviour, real
 workshop integration, split execution, or the 90-second usability target.
 The personal video is preserved but still describes the older benchmark; its
 entry-point README identifies it as historical. No commit or push was made.
+
+## Recheck after merging ui-sim - 27 September 2026
+
+The Data v3 migration was saved in local commit `4215478` and merged with the
+teammate's `ui-sim` branch in `9cf1161`. The active inputs remain `data/` and
+`harness/`; neither the official inputs nor the `_old` backups were modified
+in this recheck. Optional stages mode remains off.
+
+The app now opens on **Simulation**, with separate **Dispatch**, **Workshop
+register**, and **Decision log** pages. The dashboard runs one seed for diagnostic
+inspection. Its eight metrics agree with the CLI at the same seed; use the
+CLI's ten paired seeds for course reporting. The merge fixed the new metric
+labels and the test's single-seed versus ten-seed comparison. The allocation
+formula and objective weights were not changed.
+
+Validation repeated using the frozen uv environment (Python 3.13.7):
+
+- **248 passed, 1 skipped** in pytest; the skip still requires human labels.
+- All **200 simulator trials / 20 averaged rows** reproduced the saved outputs;
+  normal and ten-seed shock baseline commands also completed.
+- All **30 mock inbox requests** completed with passed numerical faithfulness,
+  no operational errors and no False conditional checks. Cached replay had
+  **30 hits, zero misses** and reproduced the same rows.
+- All **30 Streamlit previews** passed with synthetic extraction, no live API
+  calls and no automatic audit writes. The suite separately checks confirmation,
+  log filtering, navigation and dashboard metric selection.
+- R20, R28 and R30 retained `none_makes_date`, numerical late ETAs and options.
+- The actual local Streamlit server loaded the Simulation page in Chrome,
+  showing 120 orders, 20 runs and the single-seed reporting notice.
+
+The personal handbook now explains the merged UI, uv/lockfile setup and new
+modules. It remains under Git-ignored `Apurwa/`; the previous edition is archived.
+Detailed rerun logs are in `Apurwa/validation/merged_v3/`. No live intake accuracy,
+Windows/cloud deployment or dispatcher timing claim follows from these checks.
+The human labels remain 0/30 complete. This section records the offline
+recheck before the subsequent repository sync.
