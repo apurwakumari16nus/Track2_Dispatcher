@@ -6,26 +6,27 @@
   "events": [
     {
       "workshop_id": "W2",
-      "expected": 5.3823529411764675,
-      "observed": 13.941176470588232,
-      "jump": 8.558823529411764,
-      "flagged_on_day": 33,
+      "expected": 9.441176470588236,
+      "observed": 23.441176470588232,
+      "jump": 13.999999999999996,
+      "flagged_on_day": 26,
       "status": "suspect",
-      "order_id": "ORD-047",
-      "date": "2026-02-03"
+      "order_id": "ORD-014",
+      "date": "2026-01-27"
     },
     {
       "workshop_id": "W2",
-      "expected": 5.3823529411764675,
-      "observed": 13.941176470588232,
-      "jump": 8.558823529411764,
-      "flagged_on_day": 33,
-      "cleared_on_day": 44,
+      "expected": 9.441176470588236,
+      "observed": 23.441176470588232,
+      "jump": 13.999999999999996,
+      "flagged_on_day": 26,
+      "cleared_on_day": 47,
       "expected_on_clear": 0.0,
-      "observed_on_clear": 2.941176470588232,
+      "observed_on_clear": 2.441176470588232,
       "status": "cleared",
-      "order_id": "ORD-012",
-      "date": "2026-02-14"
+      "order_id": "ORD-034",
+      "date": "2026-02-17"
     }
-  ]
+  ],
+  "caveat": "Queues can include future closure delay before day 30; flags are not proof of an observed closure."
 }

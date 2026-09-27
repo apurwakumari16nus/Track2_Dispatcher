@@ -74,9 +74,9 @@ without API calls.
 | Purpose | Command | What to expect |
 | --- | --- | --- |
 | Check the code | `python -m pytest -q` | Automated tests; no API calls by default. Human-label comparison skips while labels are incomplete. |
-| Compare all policies | `python eval/run_simulator.py` | 20 normal/shock runs; table, `eval/results.csv`, three charts in `eval/charts/`, and `eval/baseline_wins.md`. |
+| Compare all policies | `python eval/run_simulator.py` | 200 runs across ten paired seeds; 20 averaged rows, `eval/results.csv`, three charts in `eval/charts/`, and `eval/baseline_wins.md`. |
 | Run supplied baselines | `python harness/simulate.py` | Printed metrics for random, biggest-workshop and cheapest policies. |
-| Run baselines with a closure | `python harness/simulate.py --shock` | Same baselines with the simulated disruption. |
+| Run baselines with a closure | `python harness/simulate.py --shock --seeds 10` | Same baselines with the simulated disruption. |
 | Inspect shock detection | `python eval/shock_trace.py` | Per-day CSV printed to the terminal for random versus the robustness allocator. |
 | Check inbox using prepared extractions | `python eval/run_inbox.py --mock --output-dir Apurwa/validation/mock_inbox` | Synthetic results saved separately; no live model calls or model-accuracy claim. |
 | Evaluate live intake | `python eval/run_inbox.py` | Processes 30 requests; creates `eval/inbox_results.csv`, `eval/failure_cases.md`, and `eval/inbox_audit.json`. Cache misses call the API. |
@@ -130,11 +130,25 @@ evaluation, read [inbox_evaluation.md](inbox_evaluation.md).
 
 ## 6. What is proven, and what remains unfinished?
 
-The 18 September 2026 local check passed **224 tests**, with **one skipped** for
-incomplete human labels. All 20 simulator rows reproduced. The lateness allocator
-ties earliest-finish on all six metrics in both scenarios; do not claim it beats
-that heuristic. Prepared-extraction inbox and UI checks do not measure live LLM
-accuracy.
+The Data v3 migration was checked on 25 September 2026 with offline tests,
+200 simulator runs across ten paired seeds, and all 30 updated inbox requests
+through prepared extractions and the Streamlit test driver. See
+[data_v3_migration.md](data_v3_migration.md) for current evidence and limitations.
+The lateness allocator ties earliest-finish on all eight metrics; do not claim
+it beats that heuristic. The pure-defect preset fails the lateness guardrail.
+Prepared extractions do not measure live LLM accuracy.
+
+The inbox uses `workshops.csv` as the **1 April 2026** queue snapshot. The
+simulator independently reuses it on **1 January** for its replay of all orders.
+R20, R28 and R30 intentionally cannot meet their deadlines: show numbers and
+options. R07 is now a feasible request; old screenshots may show the old data.
+Keep optional stages mode off for our allocator/app. The supplied harness's
+future-adjusted queues can reveal a closure before it starts; describe monitor
+flags as simulated queue anomalies rather than real-world early warning.
+
+The evaluator saves eight metrics, individual seeded runs, paired changes,
+objective guardrails, source fingerprints and updated charts. Ten-seed shock
+averages are required; `--seeds 1` is only a quick diagnostic.
 
 Two human reviewers still need to complete and reconcile the
 [label templates](../eval/labeling/README.md) before final behaviour scoring.

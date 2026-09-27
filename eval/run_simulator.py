@@ -1,7 +1,7 @@
 """Reproduce the simulator evaluation matrix and report baseline wins honestly.
 
 Run from any directory: python /path/to/Track2_dispatch/eval/run_simulator.py
-Default outputs are beside this file. Use --seed and --output-dir for separate
+Default outputs are beside this file. Defaults to ten paired seeds. Use --seed, --seeds and --output-dir for separate
 experiments. CSV percentages are 0..100, and retain unrounded metric values.
 Baseline/heuristic rows have objective='none'; our rows have policy='allocator'
 and the corresponding PRESETS key. No LLM calls or simulator modifications.
@@ -13,6 +13,7 @@ import argparse
 from dataclasses import asdict
 import hashlib
 import math
+import json
 import os
 from pathlib import Path
 import sys
@@ -35,52 +36,115 @@ BASELINES = {
     "cheapest": cheapest,
     "earliest_finish": earliest_finish,
 }
-METRICS = ["mean_days", "p90_days", "pct_late", "pct_defect", "total_cost", "max_share"]
+METRIC_NAMES = {
+    "mean_days": "mean days", "p90_days": "p90 days", "pct_late": "% late",
+    "late_days": "late days", "pct_defect": "% defect", "pct_defect_pieces": "% def pcs",
+    "total_cost": "cost", "max_share": "max share",
+}
+METRICS = list(METRIC_NAMES)
 COLUMNS = ["policy", "objective", "shock", *METRICS]
 
 
 def summarize_outcomes(out: list[dict]) -> dict[str, float]:
-    """The arithmetic from Simulator.report(), before its display formatting.
+    """Rename the official v3 metrics; do not duplicate or reinterpret arithmetic.
 
-    In particular, sum SORTED durations and take days[int(0.9*n)] for p90.
-    Late/defective rates count batches; maximum share counts allocated pieces.
-    Do not replace these with pandas/numpy mean or interpolated quantiles.
-    Like report(), this expects a nonempty run with positive total pieces.
+    late_days averages positive lateness over ALL batches (on-time = zero).
+    pct_defect_pieces weights defective batches by their full piece counts.
+    p90 is the harness's sorted order statistic, not an interpolated quantile.
     """
-    days = sorted(o["turnaround"] for o in out)
-    n = len(out)
-    mean = sum(days) / n
-    p90 = days[int(0.9 * n)]
-    late = 100 * sum(o["late"] for o in out) / n
-    defect = 100 * sum(o["defective"] for o in out) / n
-    cost = sum(o["cost"] for o in out)
-    pieces = sum(o["pieces"] for o in out)
-    by_w = {}
-    for o in out:
-        by_w[o["workshop"]] = by_w.get(o["workshop"], 0) + o["pieces"]
-    share = 100 * max(by_w.values()) / pieces
-    return dict(zip(METRICS, [mean, p90, late, defect, cost, share], strict=True))
+    official = Simulator.metrics(out)
+    return {column: official[name] for column, name in METRIC_NAMES.items()}
 
 
-def run_evaluation(seed: int = 5105) -> pd.DataFrame:
-    """Run every comparison policy and every preset in both independent scenarios."""
+def run_trials(seed: int = 5105, seeds: int = 10) -> pd.DataFrame:
+    """One independent, default-mode run per policy, condition, and paired seed.
+
+    Construct stateful allocators inside the innermost loop. The harness's
+    average_over_seeds helper reuses supplied callables and cannot reset them.
+    Never pass a target or closure dates into an allocation policy.
+    """
+    if seeds < 1:
+        raise ValueError("seeds must be a positive count")
     rows = []
-    for shock in (False, True):
-        # The simulator resets queues and seeded randomness inside every run().
-        sim = Simulator(shock=shock, seed=seed)
-        for name, policy in BASELINES.items():
-            outcomes = sim.run(policy, name=name)
-            rows.append({"policy": name, "objective": "none", "shock": shock,
-                         **summarize_outcomes(outcomes)})
-        for objective, config in PRESETS.items():
-            # Never reuse history or monitor state across policies or scenarios.
-            outcomes = sim.run(Allocator(config), name=f"allocator:{objective}")
-            rows.append({"policy": "allocator", "objective": objective, "shock": shock,
-                         **summarize_outcomes(outcomes)})
-    result = pd.DataFrame(rows, columns=COLUMNS)
-    result.attrs.update(seed=seed, batch_count=len(sim.batches),
+    for current_seed in range(seed, seed + seeds):
+        for shock in (False, True):
+            sim = Simulator(shock=shock, seed=current_seed)
+            policies = [(name, "none", policy) for name, policy in BASELINES.items()]
+            policies += [("allocator", name, Allocator(config)) for name, config in PRESETS.items()]
+            for policy_name, objective, policy in policies:
+                name = f"allocator:{objective}" if policy_name == "allocator" else policy_name
+                outcomes = sim.run(policy, name=name)
+                rows.append({"seed": current_seed, "policy": policy_name,
+                             "objective": objective, "shock": shock,
+                             **summarize_outcomes(outcomes)})
+    result = pd.DataFrame(rows, columns=["seed", *COLUMNS])
+    result.attrs.update(seed=seed, seeds=seeds, stages=False, batch_count=len(sim.batches),
                         total_pieces=sum(b["pieces"] for b in sim.batches))
     return result
+
+
+def average_trials(trials: pd.DataFrame) -> pd.DataFrame:
+    """Arithmetic mean of each per-run metric, never a pooled-outcome percentile."""
+    result = trials.groupby(["policy", "objective", "shock"], sort=False)[METRICS].mean().reset_index()
+    result.attrs.update(trials.attrs)
+    return result[COLUMNS]
+
+
+def run_evaluation(seed: int = 5105, seeds: int = 10) -> pd.DataFrame:
+    """Return twenty averaged rows; run_trials retains all individual runs."""
+    return average_trials(run_trials(seed, seeds))
+
+
+def paired_changes(trials: pd.DataFrame) -> pd.DataFrame:
+    """Shock minus normal for matching seeds/policies; positive means worse."""
+    keys = ["seed", "policy", "objective"]
+    paired = trials[trials.shock].merge(trials[~trials.shock], on=keys,
+                                       suffixes=("_shock", "_normal"), validate="one_to_one")
+    result = paired[keys].copy()
+    for metric in METRICS:
+        result["delta_" + metric] = paired[metric + "_shock"] - paired[metric + "_normal"]
+    return result
+
+
+def objective_checks(results: pd.DataFrame) -> pd.DataFrame:
+    """Track v4 criteria against EACH comparator; guardrails use random_choice.
+
+    Lateness/robustness: no worse on both required measures, strictly better on
+    at least one. Fairness: smaller share, or tied share with lower lateness.
+    Defects: strictly lower piece-weighted exposure. Defect/fairness guardrails
+    apply within the scenario; robustness checks normal-run lateness. Hybrid
+    results stay in the metric tables: no invented course rule for a hybrid.
+    """
+    rows = []
+    normal = results[~results.shock].set_index(["policy", "objective"])
+    shocked = results[results.shock].set_index(["policy", "objective"])
+    def no_worse(a, b):
+        return a < b or tied(a, b)
+    for objective in ("lateness", "defect", "fairness", "robustness"):
+        for scenario in (("paired change",) if objective == "robustness" else ("normal", "shock")):
+            group = shocked if scenario == "shock" else normal
+            if ("allocator", objective) not in group.index:
+                continue
+            own = group.loc[("allocator", objective)]
+            guard = objective == "lateness" or no_worse(own.pct_late, group.loc[("random_choice", "none"), "pct_late"])
+            for baseline in BASELINES:
+                other = group.loc[(baseline, "none")]
+                if objective == "robustness":
+                    a = [shocked.loc[("allocator", objective), m] - own[m] for m in ("pct_late", "late_days")]
+                    b = [shocked.loc[(baseline, "none"), m] - other[m] for m in ("pct_late", "late_days")]
+                elif objective == "lateness":
+                    a, b = [own[m] for m in ("pct_late", "late_days")], [other[m] for m in ("pct_late", "late_days")]
+                elif objective == "defect":
+                    a, b = [own.pct_defect_pieces], [other.pct_defect_pieces]
+                else:
+                    a, b = [own.max_share], [other.max_share]
+                metric_win = all(no_worse(x, y) for x, y in zip(a, b)) and any(x < y and not tied(x, y) for x, y in zip(a, b))
+                if objective == "fairness" and tied(a[0], b[0]):
+                    metric_win = own.pct_late < other.pct_late and not tied(own.pct_late, other.pct_late)
+                rows.append({"objective": objective, "scenario": scenario, "comparator": baseline,
+                             "guardrail_passed": bool(guard), "required_metric_win": bool(metric_win),
+                             "qualifying_win": bool(guard and metric_win)})
+    return pd.DataFrame(rows)
 
 
 def label(row) -> str:
@@ -147,14 +211,15 @@ def baseline_report(results: pd.DataFrame, seed: int) -> str:
     winners, wins, ties = comparison_tables(results)
     lines = [
         "# Simulator evaluation: winners, baseline wins, and ties", "",
-        f"Seed: **{seed}**. Each policy runs on the same supplied orders under both scenarios.",
+        f"Mean over **{results.attrs.get('seeds', 1)} paired seeds**, starting at **{seed}**. "
+        "Each policy uses the same orders and matching normal/shock seeds; stages mode is off.",
         f"Batches per run: **{results.attrs.get('batch_count', 'unknown')}**; "
         f"pieces per run: **{results.attrs.get('total_pieces', 'unknown')}**.", "",
-        "All six simulator metrics use the exact arithmetic in `Simulator.report()`. "
+        "All eight simulator metrics use the official `Simulator.metrics()` arithmetic. "
         "CSV values are unrounded. Percentages use 0-100; `objective=none` identifies "
         "a supplied baseline or the earliest-finish heuristic. Every allocator preset "
         "starts with fresh history and a fresh shock monitor.", "",
-        "Lower is better for mean_days, p90_days, pct_late, pct_defect, total_cost, "
+        "Lower is better for mean_days, p90_days, pct_late, late_days, pct_defect, pct_defect_pieces, total_cost, "
         "and max_share. Derived fairness is `100 - max_share`, so higher is better. "
         "It measures concentration of pieces, not equality relative to workshop capacity. "
         "Fairness wins duplicate max_share wins and are not independent evidence.", "",
@@ -181,31 +246,59 @@ def baseline_report(results: pd.DataFrame, seed: int) -> str:
         equal = [row["objective"] for row in group[group["policy"] == "allocator"].to_dict("records")
                  if all(tied(row[m], heuristic[m]) for m in METRICS)]
         lines.append(f"- {'Shock' if shock else 'Normal'}: " + (
-            f"earliest_finish ties allocator preset(s) **{', '.join(equal)}** on all six metrics. "
-            "These results do not show those settings beating the ten-line heuristic."
-            if equal else "no allocator preset ties earliest_finish on all six metrics; see the per-metric comparisons above."))
+            f"earliest_finish ties allocator preset(s) **{', '.join(equal)}** on all eight metrics. "
+            "These results do not show those settings beating the simple earliest-finish heuristic."
+            if equal else "no allocator preset ties earliest_finish on all eight metrics; see the per-metric comparisons above."))
     lines += ["", "The allocator additionally supports configurable preferences, exclusions, "
               "decision evidence, and queue-anomaly monitoring. Those capabilities do not "
               "establish a scheduling improvement over a tied or better heuristic. "
               "Avoiding a suspect workshop in shock_trace.py is not itself proof of "
               "better aggregate turnaround.", "",
               "## Scope and reproducibility", "",
-              "This is one seeded simulator comparison, not a held-out natural-language "
+              "These are averages of per-run metrics over paired seeds, not a held-out natural-language "
               "evaluation or a statistical confidence claim. These supplied orders and "
               "seed 5105 have been used during development; report that use honestly. "
               "Additional seeds alone do not make these orders unseen. The final "
               "Evaluation.pdf still needs the chat evaluation and individual failure analysis.", "",
-              "Enabling shock consumes a random draw to select the target, shifting "
-              "subsequent defect draws versus the normal run. Normal/shock differences "
-              "therefore reflect both the closure and a changed rework sequence. The "
+              "The v3 harness uses a separate random stream for target selection; paired "
+              "normal/shock runs use matching defect draws. Different choices can still "
+              "produce different defect outcomes because workshop risks differ. The "
               "evaluator never passes the hidden target or closure dates to the allocator.", "",
               "The p90 is `sorted_days[int(0.9 * n)]`, not an interpolated percentile. "
-              "Late and defect rates count batches; max_share counts pieces. A lower "
+              "pct_late and pct_defect count batches; late_days averages lateness over all batches; pct_defect_pieces counts pieces in defective batches; max_share counts pieces. A lower "
               "unit-cost policy may win on spending while losing on delivery. There is "
               "no declared overall winner across conflicting metrics.", "",
-              f"Reproduce: `python eval/run_simulator.py --seed {seed}`. Use "
+              f"Reproduce: `python eval/run_simulator.py --seed {seed} --seeds {results.attrs.get('seeds', 1)}`. Use "
               "`--output-dir eval/seed_OTHER` to preserve separate experiments.", "",
               "### Objective settings used", ""]
+    # Display the same paired mean changes that the CSV exposes. With matching
+    # seeds, mean(shock-normal) equals mean(shock)-mean(normal).
+    normal = results[~results.shock].set_index(["policy", "objective"])
+    shocked = results[results.shock].set_index(["policy", "objective"])
+    deltas = (shocked[["pct_late", "late_days"]] - normal[["pct_late", "late_days"]]).rename(
+        columns={"pct_late": "delta_pct_late", "late_days": "delta_late_days"}).reset_index()
+    lines[-2:-2] = ["### Mean paired shock changes", "",
+        "Shock minus normal over matching seeds. Positive means worse; percentage "
+        "changes are percentage points. A negative change can reflect rerouting, "
+        "not a generally beneficial closure.", "", markdown_table(deltas, precision=10), ""]
+    checks = objective_checks(results)
+    lines[-2:-2] = [
+        "### Course objective criteria and guardrails", "",
+        "Lateness uses both pct_late and late_days. Defects use pct_defect_pieces. "
+        "Fairness uses max_share (a share tie can win with improved lateness). "
+        "Robustness uses shock-minus-normal pct_late and late_days. Defect and fairness "
+        "must not have higher pct_late than random in that scenario; robustness must "
+        "not have higher normal pct_late than random. A qualifying win needs the "
+        "required metric improvement AND its guardrail. Ties are not strict wins. "
+        "Hybrid presets have no invented pass rule and remain fully reported above.", "",
+        markdown_table(checks), "",
+        "### Queue-anomaly limitation", "",
+        "The official harness immediately adds future closure delay to an affected "
+        "queue. In the default robustness trace, the monitor flags W2 on day 26, "
+        "before closure starts on day 30. This is a response to a simulated queue "
+        "anomaly, not evidence of realistic advance detection. Rework can also "
+        "trigger flags. Preserve the official harness and disclose this caveat.", "",
+    ]
     lines += [markdown_table(pd.DataFrame([{"preset": key, **asdict(config)}
                                            for key, config in PRESETS.items()]), precision=10), "",
               "### Input and implementation fingerprints (SHA-256)", ""]
@@ -234,6 +327,7 @@ def make_charts(results: pd.DataFrame, directory: Path, seed: int) -> None:
     normal = results[~results["shock"]].reset_index(drop=True)
     shock = results[results["shock"]].reset_index(drop=True)
     labels = [label(row) for row in normal.to_dict("records")]
+    seed_label = f"mean of {results.attrs.get('seeds', 1)} seeds ({seed} onward)"
     count = len(labels)
     numbers = range(1, count + 1)
     palette = [plt.get_cmap("tab20")(i % 20) for i in range(count)]
@@ -248,7 +342,7 @@ def make_charts(results: pd.DataFrame, directory: Path, seed: int) -> None:
             ax.bar_label(bars, fmt="%.1f", padding=3, fontsize=8)
         ax.set(xticks=positions, xticklabels=list(numbers), ylim=(0, 108),
                xlabel="Policy / objective number (key below)", ylabel="Late batches (%)",
-               title=f"Lateness by policy: normal versus shock | seed {seed}")
+               title=f"Lateness by policy: normal versus shock | {seed_label}")
         ax.grid(axis="y", alpha=.2); ax.set_axisbelow(True); ax.legend(loc="upper left")
         fig.text(.07, .025, "\n".join(key[:(count + 1)//2]), fontsize=9, va="bottom")
         fig.text(.53, .025, "\n".join(key[(count + 1)//2:]), fontsize=9, va="bottom")
@@ -287,7 +381,7 @@ def make_charts(results: pd.DataFrame, directory: Path, seed: int) -> None:
                 axes[0].yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
             else:
                 axes[0].set_ylim(0, 104)
-            fig.suptitle(f"{title} | seed {seed}", fontsize=16, y=.96)
+            fig.suptitle(f"{title} | {seed_label}", fontsize=16, y=.96)
             fig.text(.5, .905, "One point per policy/objective per scenario. Grouped numbers mark exact overlaps; no jitter.", ha="center", fontsize=10)
             handles = [Line2D([], [], marker="o", linestyle="", color=c, markersize=7) for c in palette]
             fig.legend(handles, key, loc="lower center", bbox_to_anchor=(.5, .025), ncol=2, frameon=False, fontsize=9)
@@ -299,15 +393,33 @@ def make_charts(results: pd.DataFrame, directory: Path, seed: int) -> None:
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=5105)
+    parser.add_argument("--seeds", type=int, default=10, help="Positive number of paired seeds, starting at --seed")
     parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "eval")
     args = parser.parse_args(argv)
-    results = run_evaluation(args.seed)
+    if args.seeds < 1:
+        parser.error("--seeds must be positive")
+    trials = run_trials(args.seed, args.seeds)
+    results = average_trials(trials)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(args.output_dir / "results.csv", index=False)
+    trials.to_csv(args.output_dir / "results_per_seed.csv", index=False)
+    changes = paired_changes(trials)
+    changes.to_csv(args.output_dir / "shock_changes_per_seed.csv", index=False)
+    changes.groupby(["policy", "objective"], sort=False).mean(numeric_only=True).drop(columns="seed").reset_index().to_csv(
+        args.output_dir / "shock_changes.csv", index=False)
+    objective_checks(results).to_csv(args.output_dir / "objective_checks.csv", index=False)
+    metadata = {**trials.attrs, "seed_values": list(range(args.seed, args.seed + args.seeds)),
+                "aggregation": "arithmetic mean of per-run metrics; paired shock minus normal",
+                "metric_mapping": METRIC_NAMES,
+                "queue_snapshot": "workshops.csv reused as January 1 starting queue for replay",
+                "source_hashes": {str(path.relative_to(PROJECT_ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
+                    for path in [PROJECT_ROOT / f for f in ("data/orders.csv", "data/workshops.csv", "harness/simulate.py",
+                        "src/tools.py", "src/objectives.py", "src/allocator.py", "src/heuristic.py", "eval/run_simulator.py")]}}
+    (args.output_dir / "simulator_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     report = baseline_report(results, args.seed)
     (args.output_dir / "baseline_wins.md").write_text(report, encoding="utf-8")
     make_charts(results, args.output_dir / "charts", args.seed)
-    print(f"# Simulator results (seed {args.seed})\n")
+    print(f"# Simulator results (mean of {args.seeds} paired seeds starting at {args.seed})\n")
     print(markdown_table(results))
     print("\n" + report)
     print(f"Saved CSV, baseline report, and three charts in {args.output_dir}.", file=sys.stderr)

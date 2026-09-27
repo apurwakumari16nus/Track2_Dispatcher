@@ -15,6 +15,13 @@ current queued days, as supplied to the allocator. `today` and `batch.due_date`
 accept a Python `date` or an ISO `YYYY-MM-DD` string. Use the batch's `sent_date`
 as `today` when evaluating a simulator dispatch.
 
+The inbox uses `workshops.csv` as the **1 April 2026 snapshot**. The default
+simulator independently uses it as the **1 January 2026 starting queue**. Neither
+is reconstructed from the other. This tool contract supports the default
+whole-job mode; a nonempty `batch.from_stage` raises `NotImplementedError` in
+eligibility before a stage-incompatible choice can be made. Optional stages
+mode in the official harness is not an implemented agent feature.
+
 | name | input | output | purpose | non-goals | failure mode |
 | --- | --- | --- | --- | --- | --- |
 | `check_eligibility` | `batch`, `workshops` | List of `{workshop_id, name, eligible, reason}`, in workshop iteration order. Reasons are exactly `ok`, `suspended`, `cannot make <category>`, or `batch of N exceeds M-piece cap`. | Reproduce `simulate.eligible_workshops()`: reject any status other than `ACTIVE`, then unsupported category, then pieces above a non-null cap. Report the first failing rule for each workshop. | Does not rank workshops, inspect queues, enforce exclusions, split a batch, or detect closures absent from the profile. | Missing required batch keys raise `KeyError` when accessed. An unrecorded suspension or closure cannot be detected; stale profiles can report a workshop as eligible. |
@@ -118,12 +125,17 @@ python eval/shock_trace.py --output eval/shock_trace.csv --events eval/shock_eve
 Without `--output`, the CSV goes to stdout and diagnostic messages go to stderr.
 The script uses the existing robustness preset and seed 5105 by default, and
 compares separate simulator replays of `random_choice` and `Allocator`. Target
-identity is derived by the evaluator only, using the same first seeded draw as
-the harness; it is never passed to the allocator. `--seed` and `--objective`
+identity is derived by the evaluator only, using the separate `random.Random(seed + 6)` draw used by
+the v3 harness; it is never passed to the allocator. `--seed` and `--objective`
 allow other runs without assuming that W2 is always the target.
 
 The daily CSV includes zero-dispatch days, target pieces by policy, new and
 cleared flag counts, and end-of-day suspect state. `ours_pieces_while_suspect`
 distinguishes dispatches before and after detection on the same day.
 `shock_window` labels days 30 through 43; the workshop reopens on day 44. The
-harness actually delays work based on production start, not dispatch date.
+v3 harness delays work starting inside the closure and pauses work crossing
+its start. Its queue already includes that future delay: at seed 5105, the
+robustness monitor flags W2 on day 26 (expected 9.44, observed 23.44), before
+day 30, and clears on day 47. This is queue-anomaly detection, not demonstrated
+realistic early warning. Defect rework can cause anomalies too. A new allocator
+must be constructed for every seed/scenario so monitor history is not reused.

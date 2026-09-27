@@ -241,7 +241,7 @@ def select_message(message):
 
 def register_panel(workshops, queues, flags):
     st.subheader("Register")
-    st.caption("Current queues: local session projection")
+    st.caption("Starting queues: workshops.csv, 1 April 2026. Current values include this session’s confirmed work and elapsed days.")
     cards = []
     for wid, w in workshops.items():
         flag = '<span class="suspect">SUSPECT</span>' if wid in flags else ''

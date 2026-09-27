@@ -106,21 +106,29 @@ terminal at the repository root.
 | Live inbox evaluation | `python eval/run_inbox.py` | `.\.venv\Scripts\python.exe eval/run_inbox.py` |
 | Tests, no API calls by default | `python -m pytest -q` | `.\.venv\Scripts\python.exe -m pytest -q` |
 | Original simulator | `python harness/simulate.py` | `.\.venv\Scripts\python.exe harness/simulate.py` |
-| Original simulator with closure | `python harness/simulate.py --shock` | `.\.venv\Scripts\python.exe harness/simulate.py --shock` |
+| Original simulator with closure | `python harness/simulate.py --shock --seeds 10` | `.\.venv\Scripts\python.exe harness/simulate.py --shock --seeds 10` |
 
 **Simulator evaluation** runs random choice, greedy biggest, cheapest, earliest
-finish, and all six allocator presets with and without the shock (20 runs; seed
-5105). It prints a Markdown table and creates `eval/results.csv`,
+finish, and all six allocator presets with and without the shock over ten paired
+seeds, 5105–5114 (200 runs, 20 averaged rows; stages mode off). It prints a
+Markdown table and creates `eval/results.csv`,
 `eval/baseline_wins.md`, and these charts:
 
 - `eval/charts/lateness_by_policy.png`
 - `eval/charts/tradeoff_lateness_vs_cost.png`
 - `eval/charts/tradeoff_lateness_vs_fairness.png`
 
-Metrics use the simulator's report arithmetic. Percentages are on a 0–100 scale;
+Metrics use the official v3 `Simulator.metrics()` arithmetic, including
+`late_days` (mean lateness over all batches) and `pct_defect_pieces` (pieces in
+defective batches). `results_per_seed.csv` keeps all 200 runs;
+`shock_changes_per_seed.csv` and `shock_changes.csv` keep paired shock-minus-normal
+differences; `objective_checks.csv` checks Track v4 criteria and guardrails.
+`simulator_metadata.json` records seeds, mode, aggregation, and source hashes.
+Every run starts with a fresh allocator and shock monitor. Percentages are on a 0–100 scale;
 fairness in the chart is `100 - max_share`. The baseline report includes cases
-where our allocator loses. Use `--seed 42 --output-dir eval/seed_42` to keep an
-additional run separate from the default outputs.
+where our allocator loses. Use `--seed 42 --seeds 10 --output-dir eval/seed_42` to keep an
+additional experiment separate from the default outputs. `--seeds 1` is a quick
+diagnostic only; report ten-seed shock averages for the course.
 
 **Inbox evaluation** runs all 30 requests at the reference date 2026-04-01 with
 the lateness preset. It creates `eval/inbox_results.csv`, `eval/failure_cases.md`,
@@ -163,6 +171,31 @@ In PowerShell, set a flag with `$env:TRACK2_REQUIRE_LABELS = "1"`; on Mac use
 `export TRACK2_REQUIRE_LABELS=1`. Clear flags after use (`Remove-Item Env:NAME`
 on Windows or `unset NAME` on Mac).
 See [inbox evaluation details](docs/inbox_evaluation.md).
+
+## Course data version and interpretation
+
+The active `data/` and `harness/` use the supplied Data v3 release, interpreted
+against Spec v5 and Tracks v4. Old `_old` folders, if present locally, are backups
+and are not used. The official harness is preserved as supplied.
+
+For inbox decisions, `workshops.csv` is the **1 April 2026 queue snapshot**.
+The simulator independently reuses those numbers on **1 January 2026**, replaying
+all 120 orders as whole jobs, one workshop per batch. Do not derive one snapshot
+from the other. Queues and processing/lead numbers appear in the UI candidates.
+
+Nine inbox requests were revised; R20, R28 and R30 are deliberately infeasible.
+The response must show the late ETA and options, requiring explicit confirmation.
+Optional `--stages` works in the supplied harness, but our tools/app/evaluator
+support the default whole-job mode only and reject stage dispatch explicitly.
+
+Current ten-seed results: the lateness preset ties earliest-finish; pure defect
+reduces piece-weighted defect exposure but fails the random-policy lateness
+guardrail. See `eval/baseline_wins.md` for all comparisons. The simulator can
+expose future closure delay through its queues (W2 flagged on day 26 with the
+default robustness trace, before closure on day 30). This is simulated queue
+anomaly detection, not proof of realistic advance outage detection.
+
+See [migration and validation notes](docs/data_v3_migration.md).
 
 ## Architecture
 

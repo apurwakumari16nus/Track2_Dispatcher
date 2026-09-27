@@ -11,3 +11,9 @@ records/**/*.jsonl
 /output/
 .pytest_cache/
 eval/cache/
+
+# User-retained pre-v3 backups and duplicate reference files (not submission code).
+/data_old/
+/harness_old/
+/Factory_Primer_old.md
+/pdfs/Factory_Primer.pdf

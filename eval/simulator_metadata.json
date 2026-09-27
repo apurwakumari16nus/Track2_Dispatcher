@@ -1,0 +1,41 @@
+{
+  "seed": 5105,
+  "seeds": 10,
+  "stages": false,
+  "batch_count": 120,
+  "total_pieces": 93500,
+  "seed_values": [
+    5105,
+    5106,
+    5107,
+    5108,
+    5109,
+    5110,
+    5111,
+    5112,
+    5113,
+    5114
+  ],
+  "aggregation": "arithmetic mean of per-run metrics; paired shock minus normal",
+  "metric_mapping": {
+    "mean_days": "mean days",
+    "p90_days": "p90 days",
+    "pct_late": "% late",
+    "late_days": "late days",
+    "pct_defect": "% defect",
+    "pct_defect_pieces": "% def pcs",
+    "total_cost": "cost",
+    "max_share": "max share"
+  },
+  "queue_snapshot": "workshops.csv reused as January 1 starting queue for replay",
+  "source_hashes": {
+    "data/orders.csv": "0880af9742fe7cc0923c5009e2de48a0bedb57b78cc294e35a1c9721fe0311f8",
+    "data/workshops.csv": "d7e1c97d3d338a2b5aef8e35f167e3582f22c4526e9c736c5b4c8125505ec59e",
+    "harness/simulate.py": "b845804ad1229f593627b6ef1a6482258331178dbc4ec535274103fc3244593b",
+    "src/tools.py": "4f1621b079e3dc43a41879300aa2142c057b3b09586b85cf8eab2250644fa423",
+    "src/objectives.py": "a0f018221e6b2c784b5520da0ad0b002ba2cd47ce4f3b884b2c2bbd37b111d3b",
+    "src/allocator.py": "c543eb93c93467669c90e81c83946abdf65ccd23f8acfadc8f93350b6aa0ae49",
+    "src/heuristic.py": "730c3cebb9c5279f904806a9bce1de398e709a3a630a352f05ee1f75f2a44469",
+    "eval/run_simulator.py": "bdaa5d16248c1031d54fefe072444b0a0a2faa73a11ce35a207c96f9936f8e1c"
+  }
+}

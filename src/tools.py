@@ -67,7 +67,12 @@ def _as_date(value: date | str) -> date:
 def check_eligibility(
     batch: Mapping[str, Any], workshops: Mapping[str, Workshop]
 ) -> list[dict[str, Any]]:
-    """Explain eligibility in the same rule order as eligible_workshops()."""
+    """Explain default whole-job eligibility; optional stage dispatch is unsupported."""
+    if batch.get("from_stage"):
+        raise NotImplementedError(
+            "Optional stages mode is not supported by the allocation tools. "
+            "Use the default orders.csv/workshops.csv whole-job mode."
+        )
     results = []
     for workshop in workshops.values():
         if workshop.status != "ACTIVE":

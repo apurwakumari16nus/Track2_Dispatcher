@@ -3,6 +3,7 @@
 from copy import deepcopy
 from datetime import date
 import json
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture
 def setup(monkeypatch, tmp_path):
     fixture = json.loads((ROOT / "tests/fixtures/intake_extractions.json").read_text())
+    assert fixture["dispatch_requests_sha256"] == hashlib.sha256((ROOT / "data/dispatch_requests.txt").read_bytes()).hexdigest()
     calls = []
     def fake(prompt, message):
         calls.append(message)
@@ -59,7 +61,7 @@ def test_stale_or_nonallocating_preview_cannot_write(setup):
     preview, _ = prepare(setup)
     with pytest.raises(ValueError, match="Inputs changed"):
         app.confirm_preview(preview, "changed", {})
-    for rid in ("R01", "R02", "R05", "R16"):
+    for rid in ("R01", "R02", "R05"):
         preview, _ = prepare(setup, rid)
         with pytest.raises(ValueError):
             app.confirm_preview(preview, preview.signature, {})

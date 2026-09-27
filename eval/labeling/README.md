@@ -8,6 +8,16 @@ the independent reviews and reconciliation now, record the actual timing and
 prior exposure to system outputs, and freeze labels before final scoring.
 Additional unseen requests should be reserved for held-out evaluation.
 
+## Active source version
+
+Use the active `data/` folder (Data v3), not `data_old/`. Nine messages changed:
+R04, R06, R07, R16, R17, R22, R23, R26 and R27. Read all 30 again against the
+current files. The workshop queues are the **1 April 2026 snapshot** for this
+exercise; do not run the January simulator to obtain them. Record this version
+and the inbox SHA-256 in the reconciliation notes when freezing labels.
+R20, R28 and R30 are deliberately infeasible: require numerical disclosure and
+options, not silent acceptance. Agree on behaviour labels independently.
+
 ## Files and roles
 
 | File | Use |

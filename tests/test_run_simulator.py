@@ -10,7 +10,7 @@ import sys
 import pandas as pd
 
 from objectives import PRESETS, ObjectiveConfig
-from simulate import Simulator
+from simulate import Simulator, print_table
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("run_simulator", ROOT / "eval/run_simulator.py")
@@ -22,25 +22,26 @@ def test_metrics_match_hand_calculation_and_report_output():
     # Descending durations expose the distinction from interpolated p90. Pieces
     # deliberately differ: W2's piece share is 95%, but its batch share is 50%.
     outcomes = [{"turnaround": float(10 - i), "late": i < 3, "defective": i < 2,
-                 "cost": float(i + 1), "pieces": 910 if i == 9 else 10,
+                 "days_late": 2 if i < 3 else 0, "cost": float(i + 1), "pieces": 910 if i == 9 else 10,
                  "workshop": "W1" if i < 5 else "W2"} for i in range(10)]
     metrics = runner.summarize_outcomes(outcomes)
     assert metrics == {"mean_days": 5.5, "p90_days": 10.0, "pct_late": 30.0,
-                       "pct_defect": 20.0, "total_cost": 55.0, "max_share": 95.0}
+                       "late_days": 0.6, "pct_defect": 20.0, "pct_defect_pieces": 2.0, "total_cost": 55.0, "max_share": 95.0}
     sim = Simulator()
     sim.results = {"hand_case": outcomes}
     captured = io.StringIO()
     with redirect_stdout(captured):
         sim.report()
     line = (f"{'hand_case':<16}{metrics['mean_days']:>10.1f}{metrics['p90_days']:>10.1f}"
-            f"{metrics['pct_late']:>7.0f}%{metrics['pct_defect']:>9.0f}%"
+            f"{metrics['pct_late']:>7.0f}%{metrics['late_days']:>11.1f}{metrics['pct_defect']:>9.0f}%"
+            f"{metrics['pct_defect_pieces']:>10.0f}%"
             f"{metrics['total_cost']:>12,.0f}{metrics['max_share']:>10.0f}%")
     assert captured.getvalue().splitlines()[-1] == line
 
 
 def test_mean_uses_sorted_python_sum_and_retains_unrounded_rates():
     outcomes = [{"turnaround": value, "late": i == 0, "defective": i == 0,
-                 "cost": 1.0, "pieces": 1, "workshop": "W1"}
+                 "days_late": 1 if i == 0 else 0, "cost": 1.0, "pieces": 1, "workshop": "W1"}
                 for i, value in enumerate([1e16, 1.0, 1.0])]
     result = runner.summarize_outcomes(outcomes)
     assert result["mean_days"] == sum([1.0, 1.0, 1e16]) / 3
@@ -63,7 +64,7 @@ def test_matrix_uses_every_preset_fresh_state_and_matches_real_report(monkeypatc
         return out
 
     monkeypatch.setattr(Simulator, "run", capture_report)
-    first = runner.run_evaluation()
+    first = runner.run_evaluation(seeds=1)
     assert list(first.columns) == runner.COLUMNS
     assert len(first) == 2 * (4 + len(PRESETS))
     assert not first.isna().any().any()
@@ -75,10 +76,11 @@ def test_matrix_uses_every_preset_fresh_state_and_matches_real_report(monkeypatc
     for row in first.to_dict("records"):
         name = runner.label(row)
         line = (f"{name:<16}{row['mean_days']:>10.1f}{row['p90_days']:>10.1f}"
-                f"{row['pct_late']:>7.0f}%{row['pct_defect']:>9.0f}%"
+                f"{row['pct_late']:>7.0f}%{row['late_days']:>11.1f}{row['pct_defect']:>9.0f}%"
+                f"{row['pct_defect_pieces']:>10.0f}%"
                 f"{row['total_cost']:>12,.0f}{row['max_share']:>10.0f}%")
         assert reports[(row["shock"], name)] == line
-    pd.testing.assert_frame_equal(first, runner.run_evaluation())
+    pd.testing.assert_frame_equal(first, runner.run_evaluation(seeds=1))
 
 
 def test_report_enumerates_each_win_and_preserves_ties():
@@ -101,7 +103,7 @@ def test_report_enumerates_each_win_and_preserves_ties():
     best_mean = winners[winners["metric"] == "mean_days"].iloc[0]
     assert best_mean["best_policy_or_objective"] == "earliest_finish, allocator:fast"
     assert best_mean["best_value"] == 3
-    assert len(ties) == 22  # five unchanged metrics (including fairness), plus two ties
+    assert len(ties) == 30  # seven unchanged metrics (including fairness), plus two ties
     # A difference hidden by two-decimal display rounding must still be a win.
     frame.loc[0, "pct_late"] = 4.9999
     _, wins, _ = runner.comparison_tables(frame)
@@ -128,11 +130,59 @@ def test_cli_from_other_directory_writes_csv_report_and_matplotlib_charts(tmp_pa
     assert "| policy | objective | shock |" in completed.stdout
     report = (destination / "baseline_wins.md").read_text()
     assert report in completed.stdout
-    assert "earliest_finish ties allocator preset(s) **lateness** on all six metrics" in report
+    assert "earliest_finish ties allocator preset(s) **lateness** on all eight metrics" in report
     assert "### Normal:" in report and "### Shock:" in report
     assert "Input and implementation fingerprints" in report
+    assert "Mean paired shock changes" in report
+    trials = pd.read_csv(destination / "results_per_seed.csv", keep_default_na=False)
+    assert len(trials) == 200
+    changes = pd.read_csv(destination / "shock_changes_per_seed.csv", keep_default_na=False)
+    pd.testing.assert_frame_equal(changes, runner.paired_changes(trials), check_exact=False, atol=1e-10)
+    assert len(pd.read_csv(destination / "shock_changes.csv")) == 10
+    assert len(pd.read_csv(destination / "objective_checks.csv")) == 28
+    import json
+    metadata = json.loads((destination / "simulator_metadata.json").read_text())
+    assert metadata["seed_values"] == list(range(5105, 5115)) and metadata["stages"] is False
     from PIL import Image
     for name in ["lateness_by_policy.png", "tradeoff_lateness_vs_cost.png", "tradeoff_lateness_vs_fairness.png"]:
         with Image.open(destination / "charts" / name) as image:
             image.verify()
         assert (destination / "charts" / name).stat().st_size > 10000
+
+
+def test_ten_paired_seeds_match_independent_runs_without_state_leakage():
+    trials = runner.run_trials()
+    assert len(trials) == 200
+    assert set(trials.seed) == set(range(5105, 5115))
+    assert not trials.duplicated(["seed", "policy", "objective", "shock"]).any()
+    # A reused monitor would fail when the next run resets to day zero.
+    from allocator import Allocator
+    for seed in (5105, 5114):
+        for shock in (False, True):
+            sim = Simulator(seed=seed, shock=shock)
+            expected = runner.summarize_outcomes(sim.run(Allocator(PRESETS["robustness"]), "fresh"))
+            row = trials[(trials.seed == seed) & (trials.shock == shock) & (trials.objective == "robustness")].iloc[0]
+            assert {m: row[m] for m in runner.METRICS} == expected
+    average = runner.average_trials(trials)
+    changes = runner.paired_changes(trials)
+    assert len(changes) == 100
+    for row in average.to_dict("records"):
+        sample = trials[(trials.policy == row["policy"]) & (trials.objective == row["objective"]) & (trials.shock == row["shock"])]
+        for metric in runner.METRICS:
+            assert runner.tied(row[metric], sum(sample[metric]) / 10)
+    checks = runner.objective_checks(average)
+    assert not checks[checks.objective == "defect"].guardrail_passed.any()
+    assert not checks[(checks.objective == "lateness") & (checks.comparator == "earliest_finish")].qualifying_win.any()
+
+
+def test_pairing_uses_seed_keys_not_row_order():
+    trials = runner.run_trials(seeds=2)
+    expected = runner.paired_changes(trials).sort_values(["seed", "policy", "objective"]).reset_index(drop=True)
+    actual = runner.paired_changes(trials.sample(frac=1, random_state=4)).sort_values(["seed", "policy", "objective"]).reset_index(drop=True)
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+def test_seed_count_must_be_positive():
+    import pytest
+    with pytest.raises(ValueError, match="positive"):
+        runner.run_trials(seeds=0)

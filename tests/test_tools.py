@@ -259,3 +259,11 @@ def test_zero_capacity_raises_zero_division_error(tool, batch, workshops, queues
             tool(batch, "W2", workshops, queues, "2026-04-01")
         else:
             tool(batch, "W2", workshops, queues)
+
+
+def test_optional_stage_inputs_fail_explicitly_in_default_tools():
+    import pytest
+    from simulate import load_workshops
+    from tools import check_eligibility
+    with pytest.raises(NotImplementedError, match="stages mode"):
+        check_eligibility({"category": "TOPS", "pieces": 600, "from_stage": "ASSEMBLY"}, load_workshops(stages=True))

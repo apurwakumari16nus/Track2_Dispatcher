@@ -494,7 +494,7 @@ def main(argv=None):
     (args.output_dir / "failure_cases.md").write_text(failure_report(results, details, "mock" if args.mock else mode), encoding="utf-8")
     write_json(args.output_dir / "inbox_audit.json", {
         "mode": mode, "model": model, "today": TODAY.isoformat(), "objective": "lateness",
-        "queue_policy": "independent queue0 snapshot per request",
+        "queue_policy": "workshops.csv current_queue_days as the 2026-04-01 snapshot; independent per request",
         "input_hashes": {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in {
             "inbox": ROOT / "data/dispatch_requests.txt", "orders": ROOT / "data/orders.csv",
             "workshops": ROOT / "data/workshops.csv", "labels": args.labels}.items()},

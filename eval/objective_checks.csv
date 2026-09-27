@@ -1,0 +1,29 @@
+objective,scenario,comparator,guardrail_passed,required_metric_win,qualifying_win
+lateness,normal,random_choice,True,True,True
+lateness,normal,greedy_biggest,True,True,True
+lateness,normal,cheapest,True,True,True
+lateness,normal,earliest_finish,True,False,False
+lateness,shock,random_choice,True,True,True
+lateness,shock,greedy_biggest,True,True,True
+lateness,shock,cheapest,True,True,True
+lateness,shock,earliest_finish,True,False,False
+defect,normal,random_choice,False,True,False
+defect,normal,greedy_biggest,False,True,False
+defect,normal,cheapest,False,True,False
+defect,normal,earliest_finish,False,True,False
+defect,shock,random_choice,False,True,False
+defect,shock,greedy_biggest,False,True,False
+defect,shock,cheapest,False,True,False
+defect,shock,earliest_finish,False,True,False
+fairness,normal,random_choice,True,True,True
+fairness,normal,greedy_biggest,True,True,True
+fairness,normal,cheapest,True,True,True
+fairness,normal,earliest_finish,True,True,True
+fairness,shock,random_choice,True,True,True
+fairness,shock,greedy_biggest,True,True,True
+fairness,shock,cheapest,True,True,True
+fairness,shock,earliest_finish,True,True,True
+robustness,paired change,random_choice,True,True,True
+robustness,paired change,greedy_biggest,True,True,True
+robustness,paired change,cheapest,True,True,True
+robustness,paired change,earliest_finish,True,True,True

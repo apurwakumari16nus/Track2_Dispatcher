@@ -6,12 +6,13 @@ From the project root:
 
 The simulator always runs with shock=True. Diagnostics go to stderr, keeping
 stdout suitable for CSV redirection. The evaluator reproduces the simulator's
-initial seeded draw ONLY to label the target, never to inform either policy.
+separate seed+6 draw ONLY to label the target, never to inform either policy.
 Defaults: seed 5105 and the existing robustness preset, without tuned weights.
 
 shock_window labels calendar days 30 <= day < 44 (reopening on day 44). The
-actual harness delays a batch when its PRODUCTION START falls in the window,
-which can differ from its dispatch day. Same-day dispatches can precede and
+v3 harness delays work starting inside the window and pauses work crossing its
+start. It immediately includes that future delay in the queue: a flag can occur
+before day 30. This is queue-anomaly evidence, not realistic advance detection. Same-day dispatches can precede and
 follow detection: ours_pieces_while_suspect counts only those chosen after the
 monitor has flagged the target. A suspect may later recover and receive work.
 """
@@ -45,7 +46,7 @@ def run_trace(seed: int = 5105, objective: str = "robustness") -> dict:
     """Run independent policy replays, returning daily rows and detection evidence."""
     sim = Simulator(shock=True, seed=seed)
     day0 = sim.batches[0]["sent_date"]
-    target = random.Random(seed).choice([
+    target = random.Random(seed + 6).choice([
         w.workshop_id for w in sim.workshops.values() if w.status == "ACTIVE"
     ])
     allocator = Allocator(PRESETS[objective])
@@ -104,6 +105,7 @@ def run_trace(seed: int = 5105, objective: str = "robustness") -> dict:
         "shocked_workshop_name": sim.workshops[target].name,
         "rows": rows,
         "events": events,
+        "caveat": "Queues can include future closure delay before day 30; flags are not proof of an observed closure.",
     }
 
 

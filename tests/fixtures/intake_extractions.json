@@ -1,6 +1,6 @@
 {
   "description": "Synthetic LLM EXTRACTION overrides for CI. Not human gold labels; never copy into eval/labels.csv. Merge each request with defaults.",
-  "dispatch_requests_sha256": "ffb566389665fb27a6045aab605236d7cdfa6f64ae4c24e6423cb506522bc04f",
+  "dispatch_requests_sha256": "dd00a2db398e4acaea1becf82137b6d7526c746621c28af5534806105d50117a",
   "defaults": {
     "request_id": null,
     "sender": null,
@@ -45,11 +45,11 @@
     },
     "R04": {
       "sender": "Boss",
-      "order_id": "ORD-029",
-      "pieces": 1500,
+      "order_id": "ORD-041",
+      "pieces": 600,
       "product": "Beanie",
       "category": "ACCESSORIES",
-      "due_date_text": "Apr 01",
+      "due_date_text": "Apr 21",
       "request_id": "R04"
     },
     "R05": {
@@ -60,25 +60,25 @@
     },
     "R06": {
       "sender": "Chen",
-      "order_id": "ORD-061",
-      "pieces": 800,
-      "customer": "Harbor Knits",
-      "product": "Scarf",
+      "order_id": "ORD-096",
+      "pieces": 1000,
+      "customer": "TrendCart",
+      "product": "Beanie",
       "category": "ACCESSORIES",
-      "due_date_text": "Apr 05",
+      "due_date_text": "Apr 17",
       "request_id": "R06"
     },
     "R07": {
       "sender": "Ravi",
-      "order_id": "ORD-020",
-      "pieces": 1200,
-      "product": "Vest",
+      "order_id": "ORD-063",
+      "pieces": 100,
+      "product": "Cardigan",
       "category": "TOPS",
-      "due_date_text": "Mar 31",
+      "due_date_text": "Apr 29",
       "must_make_date": true,
       "constraints": [
         {
-          "text": "just make Mar 31",
+          "text": "just make Apr 29",
           "imposed_by": "Ravi",
           "relayed_by": null
         }
@@ -166,16 +166,16 @@
     },
     "R16": {
       "sender": "Chen",
-      "order_id": "ORD-114",
-      "pieces": 2000,
-      "customer": "Northwind Apparel",
-      "product": "Hoodie",
+      "order_id": "ORD-024",
+      "pieces": 300,
+      "customer": "Loom & Leaf",
+      "product": "Vest",
       "category": "TOPS",
-      "due_date_text": "Mar 23",
+      "due_date_text": "Apr 15",
       "must_make_date": true,
       "constraints": [
         {
-          "text": "Needs to ship Mar 23",
+          "text": "Needs to ship Apr 15",
           "imposed_by": "Chen",
           "relayed_by": null
         }
@@ -184,12 +184,12 @@
     },
     "R17": {
       "sender": "Ravi",
-      "order_id": "ORD-120",
-      "pieces": 1500,
+      "order_id": "ORD-017",
+      "pieces": 800,
       "customer": "TrendCart",
-      "product": "Vest",
+      "product": "Cardigan",
       "category": "TOPS",
-      "due_date_text": "Mar 17",
+      "due_date_text": "Apr 10",
       "request_id": "R17"
     },
     "R18": {
@@ -242,22 +242,22 @@
     },
     "R22": {
       "sender": "Ravi",
-      "order_id": "ORD-083",
-      "pieces": 1000,
-      "customer": "Maple & Co",
+      "order_id": "ORD-040",
+      "pieces": 1200,
+      "customer": "Loom & Leaf",
       "product": "Hoodie",
       "category": "TOPS",
-      "due_date_text": "Mar 23",
+      "due_date_text": "Apr 21",
       "request_id": "R22"
     },
     "R23": {
       "sender": "Priya",
-      "order_id": "ORD-093",
-      "pieces": 100,
-      "customer": "Maple & Co",
-      "product": "Beanie",
+      "order_id": "ORD-005",
+      "pieces": 500,
+      "customer": "TrendCart",
+      "product": "Scarf",
       "category": "ACCESSORIES",
-      "due_date_text": "Mar 29",
+      "due_date_text": "Apr 20",
       "split_allowed": true,
       "constraints": [
         {
@@ -296,22 +296,22 @@
     },
     "R26": {
       "sender": "Chen",
-      "order_id": "ORD-107",
-      "pieces": 2000,
-      "customer": "Northwind Apparel",
+      "order_id": "ORD-010",
+      "pieces": 1000,
+      "customer": "Cotton Club",
       "product": "Cardigan",
       "category": "TOPS",
-      "due_date_text": "Mar 16",
+      "due_date_text": "Apr 25",
       "request_id": "R26"
     },
     "R27": {
       "sender": "Ravi",
-      "order_id": "ORD-055",
+      "order_id": "ORD-095",
       "pieces": 800,
-      "customer": "Cotton Club",
-      "product": "Crewneck sweater",
+      "customer": "Bright Basics",
+      "product": "Hoodie",
       "category": "TOPS",
-      "due_date_text": "Mar 31",
+      "due_date_text": "Apr 26",
       "preference": "lowest_defect",
       "constraints": [
         {

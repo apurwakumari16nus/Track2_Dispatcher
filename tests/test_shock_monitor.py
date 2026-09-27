@@ -181,16 +181,66 @@ def test_real_shock_trace_emits_clean_csv_and_detects_without_target_input(tmp_p
 
     assert evidence["shocked_workshop_id"] == "W2"
     assert evidence["shocked_workshop_name"] == "SteadyHands"
-    assert detections[0]["flagged_on_day"] == 33
+    # v3 adds a future mid-job closure to the queue immediately: evidence is
+    # visible on day 26, before closure begins. Preserve/disclose this limitation.
+    assert detections[0]["flagged_on_day"] == 26
     assert detections[0]["workshop_id"] == "W2"
-    assert detections[0]["expected"] == pytest.approx(5.3823529411764675)
-    assert detections[0]["observed"] == pytest.approx(13.941176470588232)
-    assert recoveries[0]["cleared_on_day"] == 44
+    assert detections[0]["expected"] == pytest.approx(9.441176470588232)
+    assert detections[0]["observed"] == pytest.approx(23.441176470588232)
+    assert detections[0]["jump"] == pytest.approx(14)
+    assert recoveries[0]["cleared_on_day"] == 47
+    assert "future closure" in evidence["caveat"]
     assert [int(row["day"]) for row in rows] == list(range(len(rows)))
     assert sum(int(row["ours_pieces_while_suspect"]) for row in rows) == 0
-    strictly_after_detection = [row for row in rows if 33 < int(row["day"]) < 44]
-    assert sum(int(row["random_pieces"]) for row in strictly_after_detection) > 0
-    assert sum(int(row["ours_pieces"]) for row in strictly_after_detection) == 0
-    assert int(rows[33]["ours_pieces"]) > 0  # Sent before detection on that day.
-    assert int(rows[44]["ours_pieces"]) > 0  # Recovery permits work again.
-    assert "W2 flagged on day 33" in result.stderr
+    while_closed = [row for row in rows if 30 <= int(row["day"]) < 44]
+    assert sum(int(row["random_pieces"]) for row in while_closed) > 0
+    assert sum(int(row["ours_pieces"]) for row in while_closed) == 0
+    assert int(rows[26]["ours_pieces"]) > 0  # Allocation preceding same-day detection.
+    assert "W2 flagged on day 26" in result.stderr
+
+
+def test_trace_labels_match_actual_harness_target_across_ten_seeds():
+    import importlib.util
+    import random
+    from simulate import Simulator
+    spec = importlib.util.spec_from_file_location("trace_review", Path(__file__).resolve().parents[1] / "eval/shock_trace.py")
+    trace = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(trace)
+    for seed in range(5105, 5115):
+        # Independent observation: probe each workshop with a defect-free job
+        # starting on day 31. Only the actual target incurs the closure delay.
+        sim = Simulator(shock=True, seed=seed)
+        source = sim.workshops
+        sim.workshops = {wid: replace(w, defect_rate=0, queue0=0) for wid, w in source.items()}
+        day0 = date(2026, 1, 1)
+        sim.batches = [{"order_id": "START", "category": "TOPS", "pieces": 1, "sent_date": day0, "due_date": day0 + timedelta(days=100)},
+                       {"order_id": "PROBE", "category": "TOPS", "pieces": 1, "sent_date": day0 + timedelta(days=31), "due_date": day0 + timedelta(days=100)}]
+        delayed = []
+        for wid, w in sim.workshops.items():
+            if w.status != "ACTIVE":
+                continue
+            sim.batches[0]["category"] = sim.batches[1]["category"] = next(iter(w.makes))
+            out = sim.run(lambda batch, workshops, queues: wid, "probe")
+            if out[1]["turnaround"] > w.lead_days + 1 / w.capacity + 1:
+                delayed.append(wid)
+        result = trace.run_trace(seed)
+        assert delayed == [result["shocked_workshop_id"]]
+
+
+def test_official_mid_job_closure_pauses_work_and_keeps_defect_stream_paired():
+    from simulate import Simulator
+    day0 = date(2026, 1, 1)
+    outputs = []
+    for shock in (False, True):
+        sim = Simulator(shock=shock, seed=5105)
+        sim.workshops = {"W2": replace(sim.workshops["W2"], capacity=100, queue0=0, defect_rate=0, lead_days=0)}
+        sim.batches = [{"order_id": "START", "category": "TOPS", "pieces": 100, "sent_date": day0, "due_date": day0 + timedelta(days=100)},
+                       {"order_id": "CROSS", "category": "TOPS", "pieces": 600, "sent_date": day0 + timedelta(days=28), "due_date": day0 + timedelta(days=100)}]
+        outputs.append(sim.run(lambda batch, workshops, queues: "W2", "fixed"))
+    assert outputs[0][1]["turnaround"] == 6
+    assert outputs[1][1]["turnaround"] == 20  # Finish on day 48, not day 34.
+    normal, shocked = Simulator(), Simulator(shock=True)
+    normal.workshops = {wid: replace(w, defect_rate=.5) for wid, w in normal.workshops.items()}
+    shocked.workshops = dict(normal.workshops)
+    from heuristic import earliest_finish
+    assert [o["defective"] for o in normal.run(earliest_finish, "fixed-risk")] == [o["defective"] for o in shocked.run(earliest_finish, "fixed-risk")]

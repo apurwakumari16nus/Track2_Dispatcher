@@ -73,7 +73,8 @@ they are reviewed. No human labels or expected behaviours are taken from fixture
 
 Every request calls the standalone `agent.handle()` with **2026-04-01** and
 `PRESETS['lateness']`. Each gets fresh history and the same `Workshop.queue0`
-snapshot. This evaluates independent inbox requests, not a sequential dispatch
+snapshot, read directly from `workshops.csv` as **1 April 2026**. The January
+simulator replay is separate and is not used to derive this snapshot. This evaluates independent inbox requests, not a sequential dispatch
 simulation. The agent still applies its per-request objective overrides.
 
 The reference checks do not reuse the agent's parsed fields or candidate list
@@ -124,3 +125,14 @@ python -m pytest tests/test_run_inbox.py -q
 Tests cover all thirty inbox lines, byte-identical cached CSV replay, model/prompt/
 message invalidation, cached refusals, corrupt entries, independent decision and
 constraint checks, missing labels, operational errors, and complete failure reports.
+
+
+## Data v3 revision
+
+Nine requests changed: R04, R06, R07, R16, R17, R22, R23, R26 and R27. Their
+synthetic extraction fields and input fingerprint were reviewed together.
+Messages, prompts and fixture contents are cache-key inputs; old extractions
+cannot be silently reused for changed messages. R20, R28 and R30 remain
+intentionally impossible; inspect their numerical warnings and alternatives.
+All human label files remain human work: re-review the updated source, record
+the data version, and do not copy synthetic fixture expectations into labels.
