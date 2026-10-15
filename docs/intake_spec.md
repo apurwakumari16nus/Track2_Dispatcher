@@ -7,12 +7,16 @@ estimate completion times, calculate costs, or decide whether splitting works.
 
 ## Use
 
-Run `uv sync`. Set `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL` in the
-project's `.env` or shell environment. The chosen model must support strict JSON
-Schema and temperature zero. There is no implicit model selection or fallback
-to unstructured text. The request uses OpenAI's
-[structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
-through Chat Completions, with `temperature=0` and `store=False`.
+Run `uv sync`. Set `LLM_PROVIDER` (`anthropic`, the default, or `openai`) plus
+that provider's key and model in the project's `.env` or shell environment:
+`ANTHROPIC_API_KEY` and `ANTHROPIC_INTAKE_MODEL`, or `OPENAI_API_KEY` and
+`OPENAI_INTAKE_MODEL`. There is no implicit model selection or fallback to
+unstructured text. The Anthropic path uses the Claude Messages API with a
+JSON-schema [structured output](https://platform.claude.com/docs/en/build-with-claude/structured-outputs);
+numeric and length schema keywords that Claude rejects are stripped from the wire
+schema and enforced by Pydantic afterwards, and no temperature is sent because
+current Claude models reject a non-default value. The OpenAI path uses Chat
+Completions with strict JSON Schema, `temperature=0` and `store=False`.
 
 From the project root:
 

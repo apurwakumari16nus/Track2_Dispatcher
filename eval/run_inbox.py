@@ -68,9 +68,10 @@ class CachedLLM:
     they never silently trigger a paid replacement call. Transport/configuration
     failures are not cached. Provider refusals with response evidence are cached.
     """
-    def __init__(self, directory, model, *, call=None, offline=False, fixture=None):
+    def __init__(self, directory, model, *, call=None, offline=False, fixture=None, provider="anthropic"):
         self.directory = Path(directory)
         self.model = model
+        self.provider = provider
         self.call = call or intake._call_llm
         self.offline = offline
         self.fixture = fixture
@@ -79,9 +80,10 @@ class CachedLLM:
 
     def __call__(self, prompt, message):
         if not self.model:
-            raise intake.IntakeError("OPENAI_INTAKE_MODEL is not configured; no live evaluation was performed")
-        request = {"version": 1, "provider": "synthetic-fixture" if self.fixture else "openai",
-                   "model": self.model, "temperature": 0, "system_prompt": prompt, "message": message,
+            model_var = intake.PROVIDERS[self.provider][1]
+            raise intake.IntakeError(f"{model_var} is not configured; no live evaluation was performed")
+        request = {"version": 1, "provider": "synthetic-fixture" if self.fixture else self.provider,
+                   "model": self.model, "temperature": 0 if self.fixture or self.provider == "openai" else None, "system_prompt": prompt, "message": message,
                    "fixture_hash": digest(self.fixture) if self.fixture else None}
         key = self.last_key = digest(request)
         path = self.directory / f"{key}.json"
@@ -468,7 +470,7 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=ROOT / "eval")
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "eval/cache")
     parser.add_argument("--labels", type=Path, default=ROOT / "eval/labels.csv")
-    parser.add_argument("--model", help="OpenAI model; overrides OPENAI_INTAKE_MODEL")
+    parser.add_argument("--model", help="Intake model; overrides the LLM_PROVIDER's *_INTAKE_MODEL")
     parser.add_argument("--offline", action="store_true", help="Reuse existing matching cache only; never call the API")
     parser.add_argument("--mock", action="store_true", help="Explicit synthetic-fixture dry run; not live LLM evaluation")
     args = parser.parse_args(argv)
@@ -482,10 +484,11 @@ def main(argv=None):
         fixture = json.loads((ROOT / "tests/fixtures/intake_extractions.json").read_text())
         if fixture["dispatch_requests_sha256"] != hashlib.sha256((ROOT / "data/dispatch_requests.txt").read_bytes()).hexdigest():
             raise ValueError("Inbox changed; review the synthetic fixture before using mock mode")
+    provider, model = intake.llm_settings()
     if args.model:
-        os.environ["OPENAI_INTAKE_MODEL"] = args.model
-    model = "synthetic-fixture" if args.mock else os.environ.get("OPENAI_INTAKE_MODEL", "").strip()
-    cache = CachedLLM(args.cache_dir, model, offline=args.offline, fixture=fixture)
+        os.environ[intake.PROVIDERS[provider][1]] = model = args.model
+    model = "synthetic-fixture" if args.mock else model
+    cache = CachedLLM(args.cache_dir, model, offline=args.offline, fixture=fixture, provider=provider)
     orders, workshops = pd.read_csv(ROOT / "data/orders.csv"), load_workshops()
     results, details = run_evaluation(messages, labels, orders, workshops, cache)
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -493,13 +496,14 @@ def main(argv=None):
     mode = "mock" if args.mock else "live/cache-only" if args.offline else "live/cached"
     (args.output_dir / "failure_cases.md").write_text(failure_report(results, details, "mock" if args.mock else mode), encoding="utf-8")
     write_json(args.output_dir / "inbox_audit.json", {
-        "mode": mode, "model": model, "today": TODAY.isoformat(), "objective": "lateness",
+        "mode": mode, "provider": "synthetic-fixture" if args.mock else provider, "model": model, "today": TODAY.isoformat(), "objective": "lateness",
         "queue_policy": "workshops.csv current_queue_days as the 2026-04-01 snapshot; independent per request",
         "input_hashes": {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in {
             "inbox": ROOT / "data/dispatch_requests.txt", "orders": ROOT / "data/orders.csv",
             "workshops": ROOT / "data/workshops.csv", "labels": args.labels}.items()},
         "requests": details})
-    print(f"Mode: {mode}; human labels: {results.expected_behaviour.ne('').sum()}/{len(results)}; temperature: 0")
+    temperature = 0 if args.mock or provider == "openai" else "provider default (Claude rejects temperature=0)"
+    print(f"Mode: {mode}; model: {model}; human labels: {results.expected_behaviour.ne('').sum()}/{len(results)}; temperature: {temperature}")
     print("Grouped by human expected behaviour; each rate shows its scored denominator. Missing human labels are not accuracy measurements.")
     print(summary_table(results))
     print("Diagnostic breakdown by actual behaviour (unlabeled checks are conditional):")

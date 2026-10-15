@@ -158,20 +158,90 @@ def build_system_prompt(today: date, orders_df, workshops) -> str:
     )
 
 
+PROVIDERS = {
+    "anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_INTAKE_MODEL"),
+    "openai": ("OPENAI_API_KEY", "OPENAI_INTAKE_MODEL"),
+}
+# Structured outputs reject numeric/length constraints; Python validation keeps them.
+_UNSUPPORTED_SCHEMA_KEYS = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+                            "multipleOf", "minLength", "maxLength", "minItems", "maxItems"}
+
+
+def llm_settings() -> tuple[str, str]:
+    """Return (provider, model) from LLM_PROVIDER and that provider's variables.
+
+    LLM_PROVIDER defaults to anthropic. The model is blank when unset; callers
+    report the missing configuration instead of choosing a model themselves.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    provider = os.environ.get("LLM_PROVIDER", "anthropic").strip().lower() or "anthropic"
+    if provider not in PROVIDERS:
+        raise IntakeError(f"LLM_PROVIDER must be one of {sorted(PROVIDERS)}, not {provider!r}")
+    return provider, os.environ.get(PROVIDERS[provider][1], "").strip()
+
+
+def _anthropic_schema(node):
+    """Copy JSON_SCHEMA without keywords that Claude structured outputs reject."""
+    if isinstance(node, dict):
+        return {k: _anthropic_schema(v) for k, v in node.items() if k not in _UNSUPPORTED_SCHEMA_KEYS}
+    if isinstance(node, list):
+        return [_anthropic_schema(v) for v in node]
+    return node
+
+
 def _call_llm(system_prompt: str, message: str) -> LLMReply:
     """Single provider boundary, replaced with a fixture in normal CI.
 
-    Configure OPENAI_API_KEY and OPENAI_INTAKE_MODEL. The chosen model must
-    support strict JSON Schema and temperature=0; never silently drop either.
+    Set LLM_PROVIDER (anthropic or openai) plus that provider's API key and
+    intake model in .env. Both paths constrain the reply to JSON_SCHEMA and
+    never silently drop that constraint.
+    """
+    provider, model = llm_settings()
+    key_var, model_var = PROVIDERS[provider]
+    if not model or not os.environ.get(key_var):
+        raise IntakeError(f"Set {key_var} and {model_var} for live intake")
+    if provider == "anthropic":
+        return _call_anthropic(model, system_prompt, message)
+    return _call_openai(model, system_prompt, message)
+
+
+def _call_anthropic(model: str, system_prompt: str, message: str) -> LLMReply:
+    """Claude Messages API with JSON-schema structured output.
+
+    Current Claude models reject non-default temperature, so none is sent.
+    fallbacks="default" lets the API re-run a safety-declined request on
+    Anthropic's recommended fallback model; metadata records which model served.
+    See https://platform.claude.com/docs/en/build-with-claude/structured-outputs .
+    """
+    from anthropic import Anthropic
+
+    with Anthropic(timeout=60.0, max_retries=2) as client:
+        response = client.beta.messages.create(
+            model=model, max_tokens=4096, system=system_prompt,
+            messages=[{"role": "user", "content": message}],
+            output_config={"format": {"type": "json_schema",
+                                      "schema": _anthropic_schema(JSON_SCHEMA)}},
+            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        )
+    metadata = {"provider": "anthropic", "model": response.model, "response_id": response.id,
+                "temperature": None, "stop_reason": response.stop_reason,
+                "usage": response.usage.model_dump() if response.usage else None}
+    text = next((b.text for b in response.content if b.type == "text"), None)
+    if response.stop_reason != "end_turn" or not text:
+        raise IntakeError("LLM refused or returned an incomplete extraction",
+                          raw_response=text, metadata=metadata)
+    return LLMReply(text, metadata)
+
+
+def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
+    """OpenAI Chat Completions with strict JSON Schema and temperature=0.
+
     See https://developers.openai.com/api/docs/guides/structured-outputs .
     """
-    from dotenv import load_dotenv
     from openai import OpenAI
 
-    load_dotenv(PROJECT_ROOT / ".env", override=False)
-    model = os.environ.get("OPENAI_INTAKE_MODEL", "").strip()
-    if not model or not os.environ.get("OPENAI_API_KEY"):
-        raise IntakeError("Set OPENAI_API_KEY and OPENAI_INTAKE_MODEL for live intake")
     with OpenAI(timeout=30.0, max_retries=2) as client:
         response = client.chat.completions.create(
             model=model, temperature=0, store=False,
@@ -181,7 +251,7 @@ def _call_llm(system_prompt: str, message: str) -> LLMReply:
                 "name": "dispatch_intake", "strict": True, "schema": JSON_SCHEMA,
             }},
         )
-    metadata = {"model": response.model, "response_id": response.id, "temperature": 0,
+    metadata = {"provider": "openai", "model": response.model, "response_id": response.id, "temperature": 0,
                 "usage": response.usage.model_dump() if response.usage else None}
     if not response.choices:
         raise IntakeError("LLM returned no completion", metadata=metadata)

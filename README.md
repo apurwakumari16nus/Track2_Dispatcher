@@ -13,8 +13,8 @@ for the project overview, setup, run commands, app walkthrough, and code map.
 - **Python 3.11+**, 64-bit; check the version before creating the environment.
 - **uv** package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/)).
 - **Git**, a terminal, and internet access to install packages.
-- An **OpenAI API key**, available API credit, and access to the configured model
-  for live requests. No key is needed for the simulator or ordinary tests.
+- An **Anthropic API key** (default provider) or an OpenAI key, available API credit,
+  and access to the configured model for live requests. No key is needed for the simulator or ordinary tests.
 
 The quick start targets **under 10 minutes once these prerequisites are ready**;
 download speed and API availability affect timing. Evaluating all 30 live inbox
@@ -62,15 +62,20 @@ These Windows commands do not require activation or an execution-policy change.
 In the `.env` file opened above, save these settings, replacing the key placeholder:
 
 ```dotenv
-OPENAI_API_KEY=your-api-key-here
-OPENAI_INTAKE_MODEL=gpt-4.1-mini-2025-04-14
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=your-api-key-here
+ANTHROPIC_INTAKE_MODEL=claude-sonnet-5-5
 ```
 
-The example uses a versioned GPT-4.1 mini model with structured-output support.
-See the [official OpenAI model documentation](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
-An alternative model must support Chat Completions, strict JSON Schema, and
-`temperature=0`. The app loads `.env` automatically; existing environment values
-take precedence. Never commit `.env` or your real API key.
+The default provider is Anthropic. Intake calls the Claude Messages API with a
+JSON-schema structured output, so the reply is always the extraction form; see the
+[Claude structured outputs guide](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
+Current Claude models reject a non-default temperature, so none is sent; the
+evaluator's reply cache is what makes repeated runs reproducible. To use OpenAI
+instead, set `LLM_PROVIDER=openai`, `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL`
+(a model with Chat Completions, strict JSON Schema and `temperature=0`, for
+example `gpt-4.1-mini-2025-04-14`). The app loads `.env` automatically; existing
+environment values take precedence. Never commit `.env` or your real API key.
 
 From the repository root:
 
@@ -299,12 +304,13 @@ Human labels must be written independently rather than copied from system output
 3. Select repository **apurwakumari16nus/Track2_Dispatcher**, branch **main**
    (or your actual deployment branch), and main file path **src/app.py**.
 4. Open **Advanced settings** and select **Python 3.11 or newer**, preferably
-   the same minor version tested locally. The current local checks used 3.14.
+   the same minor version tested locally. The current local checks used 3.13.
 5. In **Secrets**, paste the following TOML with your real key:
 
    ```toml
-   OPENAI_API_KEY = "your-api-key-here"
-   OPENAI_INTAKE_MODEL = "gpt-4.1-mini-2025-04-14"
+   LLM_PROVIDER = "anthropic"
+   ANTHROPIC_API_KEY = "your-api-key-here"
+   ANTHROPIC_INTAKE_MODEL = "claude-sonnet-5-5"
    ```
 
 6. Save the advanced settings and click **Deploy**. Cloud installs the root
@@ -313,7 +319,7 @@ Human labels must be written independently rather than copied from system output
 
 These steps follow the official [deployment guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy).
 Use root-level secret keys exactly as shown: Streamlit exposes them as environment
-variables, which intake already reads. Do not put them inside an `[openai]` table.
+variables, which intake already reads. Do not put them inside a nested table.
 To rotate a key, update the app's Secrets in its settings. See the official
 [Cloud secrets guide](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management)
 and [environment-variable behaviour](https://docs.streamlit.io/develop/concepts/connections/secrets-management).
@@ -327,7 +333,7 @@ service needs shared queue state and durable external record storage.
 - **Wrong Python / missing package:** run `uv sync`; `uv run ...` then selects
   the project interpreter automatically. Use `uv python install 3.13` if no
   compatible Python is available locally.
-- **Missing API/model setting:** save both `.env` fields, or both root-level Cloud
+- **Missing API/model setting:** save the provider's key and model in `.env`, or as root-level Cloud
   secrets. Model access, invalid keys, quota, and connection errors are reported
   separately from a business decision to decline a request.
 - **Inbox accuracy is blank / one test skips:** finish the human labels; mock

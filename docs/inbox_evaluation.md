@@ -6,9 +6,11 @@ From the project root with the virtual environment active:
 python eval/run_inbox.py
 ```
 
-Live mode requires `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL` in `.env` or the
-environment. `--model MODEL` overrides the configured model. The provider request
-uses intake's existing strict schema and temperature zero. Human behaviour
+Live mode requires `LLM_PROVIDER` and that provider's key and model in `.env` or
+the environment (`ANTHROPIC_API_KEY` and `ANTHROPIC_INTAKE_MODEL` by default).
+`--model MODEL` overrides the configured model. The provider request uses
+intake's existing JSON schema; OpenAI runs at temperature zero, Claude at its
+default because it rejects an explicit zero. The cache key records the provider. Human behaviour
 accuracy requires completed `eval/labels.csv`; the runner never fills those labels.
 
 ## Outputs
