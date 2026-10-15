@@ -1,6 +1,6 @@
 # Dispatch workspace redesign
 
-Based on Track 2 in Capstone_Project_Tracks_v2.pdf, pages 4–7.
+Based on Track 2 in Capstone_Project_Tracks_v4.pdf, pages 4–7.
 
 The brief calls for a dispatcher who can compare eligibility, estimates and the
 recommendation at a glance, then leave an auditable decision. The interface now

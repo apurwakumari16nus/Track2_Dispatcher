@@ -58,8 +58,9 @@ folder may be called `Track2_dispatch`; a new clone uses `Track2_Dispatcher`.
 **Run all commands below from the repository root**, where `pyproject.toml` and
 `uv.lock` live. Use `uv run` on every platform; activation is unnecessary.
 
-For live intake only, edit `.env` and fill in both `OPENAI_API_KEY` and
-`OPENAI_INTAKE_MODEL`. The README provides a model configuration example.
+For live intake only, edit `.env` and fill in `LLM_PROVIDER` plus that provider's
+key and model (`ANTHROPIC_API_KEY` and `ANTHROPIC_INTAKE_MODEL` by default).
+The README provides a model configuration example.
 Never commit your key. You can run tests and the simulator without these values.
 
 ## 3. Which command should I run?

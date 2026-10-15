@@ -5,8 +5,11 @@ altair==6.3.0
     # via streamlit
 annotated-types==0.8.0
     # via pydantic
+anthropic==1.13.0
+    # via track2-dispatcher
 anyio==4.15.1
     # via
+    #   anthropic
     #   httpx2
     #   openai
     #   starlette
@@ -29,6 +32,8 @@ contourpy==1.4.0 ; python_full_version >= '3.12'
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
+docstring-parser==0.18.0
+    # via anthropic
 fonttools==4.65.0
     # via matplotlib
 h11==0.16.0
@@ -40,7 +45,9 @@ httpcore2==2.13.0 ; sys_platform != 'emscripten'
 httptools==0.8.0
     # via streamlit
 httpx2==2.13.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 httpx2-jsfetch==1.0 ; python_full_version >= '3.12' and sys_platform == 'emscripten'
     # via httpx2
 idna==3.20
@@ -55,7 +62,9 @@ jinja2==3.1.6
     #   altair
     #   pydeck
 jiter==0.17.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 jsonschema==4.26.0
     # via altair
 jsonschema-specifications==2025.9.1
@@ -105,6 +114,7 @@ pyarrow==25.0.1
     # via streamlit
 pydantic==2.13.5
     # via
+    #   anthropic
     #   openai
     #   track2-dispatcher
 pydantic-core==2.46.5
@@ -138,7 +148,9 @@ rpds-py==2026.6.3
 six==1.17.0
     # via python-dateutil
 sniffio==1.3.1
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 starlette==1.6.0
     # via streamlit
 streamlit==1.63.0
@@ -152,6 +164,7 @@ truststore==0.10.4 ; sys_platform != 'emscripten'
 typing-extensions==4.16.0
     # via
     #   altair
+    #   anthropic
     #   anyio
     #   httpx2
     #   openai

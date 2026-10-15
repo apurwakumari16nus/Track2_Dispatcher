@@ -7,7 +7,8 @@ uv run streamlit run src/app.py
 ```
 
 The first screen needs only the supplied CSV files. Dispatch uses live intake,
-so configure `OPENAI_API_KEY` and `OPENAI_INTAKE_MODEL` in `.env` first. The UI
+so configure `LLM_PROVIDER` and its key and model in `.env` first
+(`ANTHROPIC_API_KEY` and `ANTHROPIC_INTAKE_MODEL` by default). The UI
 never substitutes synthetic replies when configuration is missing. It displays
 an actionable error and leaves the audit log unchanged.
 
