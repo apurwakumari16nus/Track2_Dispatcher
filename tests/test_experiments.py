@@ -41,7 +41,7 @@ def test_lab_seed_controls_and_page_navigation():
     assert app.radio(key="desk_page").value == "Dispatch"  # Dispatch is the landing page.
     app.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not app.exception
-    assert len(app.get("vega_lite_chart")) >= 8
+    assert len(app.get("vega_lite_chart")) >= 5
     assert app.session_state["desk_saved"] == {}
     app.number_input(key="lab_seed").set_value(42).run()
     assert app.session_state["lab_bundle"]["seed"] == 5105
@@ -51,12 +51,9 @@ def test_lab_seed_controls_and_page_navigation():
     app.selectbox(key="lab_focus").set_value("fairness").run()
     app.radio(key="lab_scenario").set_value("Shock").run()
     assert not app.exception
-    for metric in ("late_days", "pct_defect_pieces"):
-        app.selectbox(key="lab_metric").set_value(metric).run()
-        assert not app.exception
-        assert app.selectbox(key="lab_metric").value == metric
     text = " ".join(m.value for m in app.markdown)
-    assert "Single-seed diagnostic" in text and "course figures use ten seeds" in text
+    assert "single-seed diagnostic" in text and "official ten-seed results are under Course Evidence" in text
+    assert "Tie" in text or "tie" in text
     assert "Accuracy not reported yet" in text  # Course evidence never shows an unsupported accuracy.
     app.radio(key="desk_page").set_value("Dispatch").run()
     assert not app.exception

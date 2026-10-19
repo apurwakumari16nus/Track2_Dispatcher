@@ -1,5 +1,8 @@
 # Product UI v2
 
+> Superseded by [Product UI v3](product_ui_v3.md): light canvas, simpler Dispatch,
+> decision inspector, Guided demo. Backend notes below still apply.
+
 The app is now a four-area operations product built on the same backend.
 The visual language comes from `Presentation_Group01_Sprint1.pptx`: midnight
 navy, cyan, teal and cobalt, green for human confirmation, amber and coral for

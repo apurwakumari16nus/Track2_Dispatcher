@@ -1,29 +1,34 @@
-# Midnight navy theme derived from Presentation_Group01_Sprint1.pptx.
-# Component styling lives in src/ui/theme.css.
+# Light operational canvas with a navy shell. Component styling: src/ui/theme.css.
 [theme]
-base = "dark"
-primaryColor = "#4ED9E6"
-backgroundColor = "#07111F"
-secondaryBackgroundColor = "#102235"
-textColor = "#F4F7FB"
-borderColor = "#1F3A56"
-linkColor = "#7F9CFF"
+base = "light"
+primaryColor = "#3E5FD9"
+backgroundColor = "#F6F8FB"
+secondaryBackgroundColor = "#EEF3F7"
+textColor = "#142334"
+borderColor = "#C9D4DE"
+linkColor = "#3E5FD9"
 font = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Aptos, system-ui, sans-serif"
 codeFont = "'SF Mono', ui-monospace, Menlo, Consolas, monospace"
 baseFontSize = 15
 baseRadius = "10px"
 buttonRadius = "10px"
 showWidgetBorder = true
-showSidebarBorder = true
-dataframeHeaderBackgroundColor = "#0D1B2C"
-dataframeBorderColor = "#1F3A56"
-codeBackgroundColor = "#0A1726"
-greenColor = "#4AD889"
-orangeColor = "#F4BB55"
-redColor = "#FF7068"
-blueColor = "#7F9CFF"
-violetColor = "#A391FF"
-chartCategoricalColors = ["#4ED9E6", "#7F9CFF", "#23C9A7", "#F4BB55", "#FF7068", "#A391FF", "#B4C0CD"]
+showSidebarBorder = false
+dataframeHeaderBackgroundColor = "#F8FAFC"
+dataframeBorderColor = "#DDE5EC"
+codeBackgroundColor = "#F8FAFC"
+greenColor = "#177D4A"
+orangeColor = "#8F5A0B"
+redColor = "#B83A33"
+blueColor = "#3E5FD9"
+chartCategoricalColors = ["#4F6FE8", "#12998A", "#E8692F", "#8B6CE0", "#2E8BC0"]
+
+[theme.sidebar]
+backgroundColor = "#091A2D"
+secondaryBackgroundColor = "#0E2238"
+textColor = "#E8EEF5"
+borderColor = "#21364F"
+primaryColor = "#3ACED8"
 
 [client]
 toolbarMode = "minimal"

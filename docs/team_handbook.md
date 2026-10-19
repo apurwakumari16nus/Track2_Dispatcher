@@ -86,7 +86,7 @@ existing matching cache without new API calls; it does **not** create mock repli
 Do not set `TRACK2_INTAKE_REAL_LLM=1` for ordinary offline tests.
 
 The app opens on **Dispatch**; the other areas are Workshop Network, Simulation
-Lab and Audit Trail (see [Product UI v2](product_ui_v2.md)). The Lab's single-seed
+Lab and Audit Trail (see [Product UI v3](product_ui_v3.md)). The Lab's single-seed
 views are diagnostics; its Course evidence tab and the CLI comparison above supply
 the required ten-seed means. Both use the same eight official metrics.
 

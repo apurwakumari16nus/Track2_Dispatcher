@@ -58,7 +58,9 @@ def rehearsal_app(monkeypatch, tmp_path):
 def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at, tmp = rehearsal_app
     assert "REHEARSAL MODE" in " ".join(m.value for m in at.markdown)
-    at.button(key="scenario_R09").click().run()
+    at.button(key="scenario_R09").click().run()  # Guided demo loads the request; the dispatcher runs it.
+    assert "desk_preview" not in at.session_state
+    at.button(key="desk_dispatch").click().run()
     assert not at.exception and at.session_state["desk_preview"].source == "fixture"
     at.button(key="desk_confirm").click().run()
     assert not at.exception
@@ -78,8 +80,9 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
 def test_impossible_deadline_offers_real_split_preview(rehearsal_app):
     at, _ = rehearsal_app
     at.button(key="scenario_R30").click().run()
-    assert "No eligible workshop meets the requested date" in " ".join(m.value for m in at.markdown)
-    assert at.button(key="desk_confirm").label == "Accept late return and confirm"
+    at.button(key="desk_dispatch").click().run()
+    assert "No eligible workshop can meet 5 Apr." in " ".join(m.value for m in at.markdown)
+    assert at.button(key="desk_confirm").label == "Accept late return"
     at.button(key="desk_split").click().run()
     assert not at.exception
     split = next(iter(at.session_state["desk_splits"].values()))
@@ -95,10 +98,19 @@ def test_every_page_renders_and_network_answers_the_register_question(rehearsal_
     at.radio(key="desk_page").set_value("Workshop Network").run()
     assert not at.exception
     text = " ".join(m.value for m in at.markdown)
-    assert "workshops can take 1,500 tops" in text and "Suspended" in text
-    at.segmented_control(key="net_view").set_value("Matrix").run()
-    assert not at.exception
+    assert "Fastest for 1,500 tops" in text and "Suspended" in text and "can take this batch" in text
+    at.segmented_control(key="net_category").set_value("ACCESSORIES").run()
+    assert not at.exception and "can make accessories" in " ".join(m.value for m in at.markdown)
     at.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not at.exception
     at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception
+
+
+def test_objective_scorecard_is_computed_from_committed_results():
+    data = evidence.load()
+    cards = {r["objective"]: r for r in evidence.objective_scorecard(data["results"], data["checks"])}
+    assert cards["lateness"]["verdict"] == "Beats supplied baselines, ties earliest finish"
+    assert cards["fairness"]["verdict"] == "Qualifies" and cards["robustness"]["verdict"] == "Qualifies"
+    assert cards["defect"]["verdict"] == "Fails lateness guardrail" and cards["defect"]["tone"] == "risk"
+    assert cards["hybrid_lateness_fairness"]["verdict"] == "Reported, no course pass rule"
