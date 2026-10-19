@@ -1,10 +1,32 @@
+# Midnight navy theme derived from Presentation_Group01_Sprint1.pptx.
+# Component styling lives in src/ui/theme.css.
 [theme]
-base = "light"
-primaryColor = "#146c63"
-backgroundColor = "#f5f8f8"
-secondaryBackgroundColor = "#edf2f2"
-textColor = "#172d32"
-font = "sans serif"
+base = "dark"
+primaryColor = "#4ED9E6"
+backgroundColor = "#07111F"
+secondaryBackgroundColor = "#102235"
+textColor = "#F4F7FB"
+borderColor = "#1F3A56"
+linkColor = "#7F9CFF"
+font = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Aptos, system-ui, sans-serif"
+codeFont = "'SF Mono', ui-monospace, Menlo, Consolas, monospace"
+baseFontSize = 15
+baseRadius = "10px"
+buttonRadius = "10px"
+showWidgetBorder = true
+showSidebarBorder = true
+dataframeHeaderBackgroundColor = "#0D1B2C"
+dataframeBorderColor = "#1F3A56"
+codeBackgroundColor = "#0A1726"
+greenColor = "#4AD889"
+orangeColor = "#F4BB55"
+redColor = "#FF7068"
+blueColor = "#7F9CFF"
+violetColor = "#A391FF"
+chartCategoricalColors = ["#4ED9E6", "#7F9CFF", "#23C9A7", "#F4BB55", "#FF7068", "#A391FF", "#B4C0CD"]
+
+[client]
+toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false

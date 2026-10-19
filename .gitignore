@@ -20,3 +20,6 @@ eval/cache/
 /harness_old/
 /Factory_Primer_old.md
 /pdfs/Factory_Primer.pdf
+
+# App-recorded model replies for rehearsal replay (contain chat text).
+records/rehearsal_cache/

@@ -35,11 +35,13 @@ def test_audit_replay_matches_automatic_choices(shock):
         }
 
 
-def test_dashboard_default_seed_controls_and_page_navigation():
+def test_lab_seed_controls_and_page_navigation():
     app = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=30).run()
     assert not app.exception
-    assert app.radio(key="desk_page").value == "Simulation"
-    assert len(app.get("vega_lite_chart")) == 5
+    assert app.radio(key="desk_page").value == "Dispatch"  # Dispatch is the landing page.
+    app.radio(key="desk_page").set_value("Simulation Lab").run()
+    assert not app.exception
+    assert len(app.get("vega_lite_chart")) >= 8
     assert app.session_state["desk_saved"] == {}
     app.number_input(key="lab_seed").set_value(42).run()
     assert app.session_state["lab_bundle"]["seed"] == 5105
@@ -53,13 +55,28 @@ def test_dashboard_default_seed_controls_and_page_navigation():
         app.selectbox(key="lab_metric").set_value(metric).run()
         assert not app.exception
         assert app.selectbox(key="lab_metric").value == metric
-    assert "Single-seed diagnostic" in " ".join(c.value for c in app.caption)
+    text = " ".join(m.value for m in app.markdown)
+    assert "Single-seed diagnostic" in text and "course figures use ten seeds" in text
+    assert "Accuracy not reported yet" in text  # Course evidence never shows an unsupported accuracy.
     app.radio(key="desk_page").set_value("Dispatch").run()
     assert not app.exception
-    app.radio(key="desk_page").set_value("Simulation").run()
+    app.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not app.exception
     assert app.session_state["lab_bundle"]["seed"] == 42
     assert app.number_input(key="lab_seed").value == 42
     assert app.selectbox(key="lab_focus").value == "fairness"
     assert app.radio(key="lab_scenario").value == "Shock"
     assert app.session_state["desk_saved"] == {}
+
+
+def test_sandbox_runs_custom_weights_without_touching_presets():
+    before = {k: v for k, v in PRESETS.items()}
+    app = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=30)
+    app.session_state["desk_page"] = "Simulation Lab"
+    app.run()
+    app.slider(key="sb_defect").set_value(0.3).run()
+    app.button(key="sb_run").click().run()
+    assert not app.exception
+    assert app.session_state["sb_result"]["weights"] == (0.5, 0.3, 0.5, 0.0, 0.0)
+    assert "Sandbox weights" in " ".join(m.value for m in app.markdown)
+    assert PRESETS == before

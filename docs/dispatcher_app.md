@@ -1,5 +1,9 @@
 # Dispatcher app
 
+> Updated by [Product UI v2](product_ui_v2.md): the app now opens on Dispatch,
+> the register is the Workshop Network, and the log is the Audit Trail. The
+> preview, confirmation and persistence rules below are unchanged.
+
 From the repository root, run:
 
 ```bash
