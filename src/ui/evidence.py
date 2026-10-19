@@ -163,3 +163,42 @@ def language_status() -> dict:
     return {"requests": total or 30, "final_labels": final, "reviewer_1": r1, "reviewer_2": r2,
             "reconciliation": status, "inbox_run": run, "mix": behaviour_mix(),
             "accuracy_reportable": final == (total or 30) and final > 0}
+
+
+def objective_scorecard(results: pd.DataFrame, checks: pd.DataFrame) -> list[dict]:
+    """One verdict per allocator objective, computed from the committed files.
+
+    Course objectives use objective_checks.csv (all comparators, every scenario).
+    Hybrids have no course pass rule, so they are reported, not judged.
+    """
+    random_n = row(results, "random_choice", "none", False)
+    out = []
+    for objective in ("lateness", "fairness", "robustness", "defect", "hybrid_lateness_fairness", "hybrid_lateness_defect"):
+        normal, shocked = row(results, "allocator", objective, False), row(results, "allocator", objective, True)
+        part = checks[checks.objective == objective]
+        matrix = {(r["scenario"], r["comparator"]): r["outcome"] for r in check_matrix(results, part)} if len(part) else {}
+        if objective == "lateness":
+            ties = [c for (s, c), o in matrix.items() if o == "tie"]
+            verdict, tone = ("Beats supplied baselines, ties earliest finish", "muted") if ties else ("Qualifies", "ok")
+            detail = f"{normal.pct_late:.2f}% late in normal runs, {shocked.pct_late:.2f}% under shock."
+        elif not len(part):
+            verdict, tone = "Reported, no course pass rule", "muted"
+            detail = f"{normal.pct_late:.1f}% late, largest workshop share {normal.max_share:.1f}%."
+        elif not part.guardrail_passed.all():
+            verdict, tone = "Fails lateness guardrail", "risk"
+            detail = (f"Lowest defect exposure, {normal.pct_defect_pieces:.1f}% of pieces, but {normal.pct_late:.1f}% late "
+                      f"against {random_n.pct_late:.1f}% for random.")
+        elif part.qualifying_win.all():
+            verdict, tone = "Qualifies", "ok"
+            if objective == "fairness":
+                detail = f"Largest workshop share {normal.max_share:.1f}% against {random_n.max_share:.1f}% for random, with lateness no worse."
+            else:
+                change = shocked.pct_late - normal.pct_late
+                changes = results[results.shock].set_index(["policy", "objective"]).pct_late - results[~results.shock].set_index(["policy", "objective"]).pct_late
+                smallest = change <= changes.min() + 1e-12
+                detail = f"Shock changes late batches by {change:+.2f} points" + (", the smallest change of any policy." if smallest else ".")
+        else:
+            verdict, tone = "Mixed", "warn"
+            detail = "Qualifies against some comparators only."
+        out.append({"objective": objective, "label": OBJECTIVE_LABELS[objective], "verdict": verdict, "tone": tone, "detail": detail})
+    return out

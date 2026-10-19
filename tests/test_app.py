@@ -141,14 +141,15 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     assert not records.DEFAULT_PATH.exists()
     at.button(key="inbox_R30").click().run()
     assert at.text_area(key="desk_message").value == setup[3]["R30"]
-    next(b for b in at.button if b.label == "Dispatch").click().run()
+    at.button(key="desk_dispatch").click().run()
     assert not at.exception and not records.DEFAULT_PATH.exists()
     assert len(setup[4]) == 1
-    assert "ALLOCATE" in " ".join(m.value for m in at.markdown)
+    assert "Recommendation ready" in " ".join(m.value for m in at.markdown)
     assert not at.button(key="desk_confirm").disabled
     at.button(key="desk_confirm").click().run()
     assert not at.exception and len(records.load()) == 1
-    assert at.button(key="desk_confirm").disabled
+    keys = [b.key for b in at.button]
+    assert "desk_confirm" not in keys and "desk_view_audit" in keys  # Confirmed state replaces the action.
     at.run()
     assert len(records.load()) == 1 and len(setup[4]) == 1
     at.radio(key="desk_page").set_value("Audit Trail").run()
@@ -160,18 +161,20 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     assert at.text_area(key="desk_message").value == setup[3]["R30"]
 
 
-@pytest.mark.parametrize("rid,verdict", [("R01", "NEEDS CLARIFICATION"), ("R02", "CANNOT ANSWER"), ("R08", "REFUSED")])
+@pytest.mark.parametrize("rid,verdict", [("R01", "I need one detail before I can continue."),
+                                         ("R02", "not available in the supplied data"),
+                                         ("R08", "cannot accept this batch")])
 def test_streamlit_behaviour_banners_and_no_automatic_writes(setup, rid, verdict):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
     at.button(key="inbox_" + rid).click().run()
-    next(b for b in at.button if b.label == "Dispatch").click().run()
+    at.button(key="desk_dispatch").click().run()
     assert not at.exception
     assert verdict in " ".join(m.value for m in at.markdown)
     confirm = [b for b in at.button if b.key == "desk_confirm"]
     if rid == "R08":
-        assert confirm and not confirm[0].disabled and confirm[0].label == "Accept alternative and confirm"
+        assert confirm and not confirm[0].disabled and confirm[0].label == "Accept alternative"
     else:
         assert not confirm  # Replies, not allocations: there is nothing to confirm.
     assert not records.DEFAULT_PATH.exists()
@@ -182,7 +185,7 @@ def test_streamlit_editing_request_invalidates_old_confirmation(setup):
     at.session_state["desk_page"] = "Dispatch"
     at.run()
     at.button(key="inbox_R30").click().run()
-    next(b for b in at.button if b.label == "Dispatch").click().run()
+    at.button(key="desk_dispatch").click().run()
     at.text_area(key="desk_message").set_value("A different request").run()
     assert "desk_confirm" not in [b.key for b in at.button]
     assert "desk_preview" not in at.session_state
@@ -208,7 +211,7 @@ def test_register_explores_eligibility_without_calling_model_or_saving(setup):
     at.run()
     at.radio(key="desk_page").set_value("Workshop Network").run()
     assert not at.exception
-    assert "suspended" in " ".join(m.value for m in at.markdown)
+    assert "Suspended" in " ".join(m.value for m in at.markdown)
     at.number_input[0].set_value(100).run()
     assert not at.exception
     assert not setup[4] and not records.DEFAULT_PATH.exists()

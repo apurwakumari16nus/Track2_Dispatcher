@@ -125,14 +125,37 @@ def make_preview(message, today, config, orders, workshops, queues, allocator, r
     return Preview(response, current_signature, uuid4().hex, accepted, next_queues, today, block, agent_calls, source)
 
 
+@dataclass(frozen=True)
+class ConfirmState:
+    """Whether a preview may be confirmed now. One rule for the button and the write."""
+
+    state: str  # "confirmed", "stale", "blocked" or "ready"
+    reason: str = ""
+
+    @property
+    def ready(self) -> bool:
+        return self.state == "ready"
+
+
+def confirm_state(preview, current_signature, saved) -> ConfirmState:
+    if preview.token in saved:
+        return ConfirmState("confirmed", "Decision confirmed. Audit record created. Queue updated.")
+    if preview.signature != current_signature:
+        return ConfirmState("stale", "Inputs changed after this preview. Run the decision again.")
+    if preview.block_reason or preview.accepted_allocator is None:
+        return ConfirmState("blocked", preview.block_reason or "No allocation is available.")
+    if not (preview.response.faithfulness or {}).get("passed"):
+        return ConfirmState("blocked", "The explanation failed its numerical evidence check.")
+    return ConfirmState("ready")
+
+
 def confirm_preview(preview, current_signature, saved, *, append=None):
     """Validate first; append once; caller adopts new state only after success."""
-    if preview.token in saved:
+    status = confirm_state(preview, current_signature, saved)
+    if status.state == "confirmed":
         return saved[preview.token]
-    if preview.signature != current_signature:
-        raise ValueError("Inputs changed. Dispatch again before confirming.")
-    if preview.block_reason or preview.accepted_allocator is None:
-        raise ValueError(preview.block_reason or "No allocation is available.")
+    if not status.ready:
+        raise ValueError(status.reason)
     response = deepcopy(preview.response)
     response.allocation_committed = True
     response.explanation_text = "CONFIRMED ALLOCATION. The dispatcher accepted this recommendation.\n\nOriginal preview:\n" + response.explanation_text
@@ -159,7 +182,8 @@ def filtered_records(rows, workshop=None, sender=None):
             and (not sender or row.get("sender") == sender)]
 
 
-SESSION_DEFAULTS = {"desk_message": "", "desk_preset": "lateness", "desk_page": "Dispatch", "desk_source": "live"}
+SESSION_DEFAULTS = {"desk_message": "", "desk_preset": "lateness", "desk_page": "Dispatch", "desk_source": "live",
+                    "presentation_mode": False}
 
 
 def init_session(state, workshops) -> None:
@@ -173,7 +197,7 @@ def init_session(state, workshops) -> None:
 def reset_session(state, workshops, *, clear_rehearsal_log=True) -> None:
     """Fresh allocator, queues and previews. The live audit log is never touched."""
     for key in [k for k in state.keys() if k.startswith(("desk_", "inbox_", "net_", "audit_"))
-                and k not in {"desk_page", "desk_source"}]:
+                and k not in {"desk_page", "desk_source", "presentation_mode"}]:
         del state[key]
     state.pop("kept_controls", None)
     if clear_rehearsal_log:

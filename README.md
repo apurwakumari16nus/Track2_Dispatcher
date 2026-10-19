@@ -24,12 +24,13 @@ requests is a separate step. No Java, database, Node.js, or GPU is required.
 
 The app opens on **Dispatch** and has four areas: **Dispatch**, **Workshop
 Network**, **Simulation Lab** and **Audit Trail**. See
-[Product UI v2](docs/product_ui_v2.md) for the page structure and what changed,
+[Product UI v3](docs/product_ui_v3.md) for the page structure and what changed,
 [demo readiness](docs/demo_readiness.md) for recording, and the
 [storyboard draft](docs/demo_storyboard_draft.md). The Simulation Lab needs no
 API key; its **Course evidence** tab reads the committed ten-seed results.
 Dispatch reads requests with the live model, or with a clearly labelled
-rehearsal source (recorded model replies, or the synthetic test fixtures).
+rehearsal source chosen in **System settings** (recorded model replies, or the
+synthetic test fixtures). The sidebar's **Guided demo** loads the demo requests.
 
 ### Mac — Terminal (or Linux)
 
@@ -90,13 +91,14 @@ terminal running; use **Ctrl+C** to stop it.
 
 For an inbox check, stay on **Dispatch** with **01/04/2026** and the **Minimise
 lateness** objective, select an inbox request (or a scenario shortcut such as
-R09) and click **Dispatch**. Review the recommendation, the candidate panel and
-the decision explorer (Summary, Candidates, Why this won, Evidence, Execution
-trace). **Confirm** writes one local entry to `records/decisions.jsonl`; Dispatch
+R09) and click **Run decision**. Review the recommendation and top alternatives,
+then open **Decision details** (Why this won, Why not another, Score breakdown,
+Evidence trace). **Confirm** writes one local entry to `records/decisions.jsonl`; Dispatch
 alone writes none. Rehearsal sources write to `records/rehearsal_decisions.jsonl`
 instead. The **Audit Trail** shows saved entries. Confirmation does not send a
-message to a workshop. Without an API key, choose **Rehearsal · fixtures** in the
-sidebar to try every page; those extractions are test fixtures, not model output.
+message to a workshop. Without an API key, choose **Rehearsal: test fixtures** in the
+sidebar's System settings to try every page; those extractions are test fixtures,
+not model output.
 
 Always run commands from the repository root. Keep `data/` beside `harness/`:
 the unchanged simulator reads its inputs from `harness/../data/`.
