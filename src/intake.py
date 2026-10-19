@@ -9,6 +9,8 @@ Labels are not read by this module or included in the prompt.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 import json
@@ -191,6 +193,25 @@ def _anthropic_schema(node):
     return node
 
 
+_EXTRACTION_SOURCE: ContextVar = ContextVar("intake_extraction_source", default=None)
+
+
+@contextmanager
+def extraction_source(call):
+    """Route this context's raw extraction to call(system_prompt, message).
+
+    The app uses this for its labelled rehearsal sources and stage display.
+    It is context-local, so concurrent Streamlit sessions cannot share a source.
+    Only the origin of the raw JSON reply changes: schema validation and every
+    Python post-check below run unchanged.
+    """
+    token = _EXTRACTION_SOURCE.set(call)
+    try:
+        yield
+    finally:
+        _EXTRACTION_SOURCE.reset(token)
+
+
 def _call_llm(system_prompt: str, message: str) -> LLMReply:
     """Single provider boundary, replaced with a fixture in normal CI.
 
@@ -318,7 +339,7 @@ def parse_request(message: str, today: date, orders_df, workshops) -> ParsedRequ
     if orders_df["order_id"].isna().any() or orders_df["order_id"].astype(str).str.casefold().duplicated().any():
         raise ValueError("orders_df must contain unique non-null order IDs")
 
-    reply = _call_llm(build_system_prompt(today, orders_df, workshops), message)
+    reply = (_EXTRACTION_SOURCE.get() or _call_llm)(build_system_prompt(today, orders_df, workshops), message)
     raw = None
     try:
         raw = json.loads(reply.content)

@@ -15,6 +15,7 @@ from allocator import Allocator
 import intake
 from objectives import PRESETS
 import records
+import rehearsal
 from simulate import load_workshops
 import tools
 
@@ -32,6 +33,7 @@ def setup(monkeypatch, tmp_path):
         return intake.LLMReply(json.dumps(raw), {"model": "synthetic-fixture"})
     monkeypatch.setattr(intake, "_call_llm", fake)
     monkeypatch.setattr(records, "DEFAULT_PATH", tmp_path / "records/decisions.jsonl")
+    monkeypatch.setattr(rehearsal, "RECORD_DIR", tmp_path / "rehearsal_cache")
     orders, shops, messages = app.load_inputs()
     return orders, shops, {wid: w.queue0 for wid, w in shops.items()}, {m.split()[0]: m for m in messages}, calls
 
@@ -149,9 +151,9 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     assert at.button(key="desk_confirm").disabled
     at.run()
     assert len(records.load()) == 1 and len(setup[4]) == 1
-    at.radio(key="desk_page").set_value("Decision log").run()
+    at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception
-    assert at.selectbox(key="desk_log_sender").options == ["All senders", "Mei"]
+    assert at.multiselect(key="audit_sender").options == ["Mei"]
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception and len(records.load()) == 1
     assert at.date_input(key="desk_today").value == app.TODAY
@@ -167,7 +169,11 @@ def test_streamlit_behaviour_banners_and_no_automatic_writes(setup, rid, verdict
     next(b for b in at.button if b.label == "Dispatch").click().run()
     assert not at.exception
     assert verdict in " ".join(m.value for m in at.markdown)
-    assert at.button(key="desk_confirm").disabled is (rid != "R08")
+    confirm = [b for b in at.button if b.key == "desk_confirm"]
+    if rid == "R08":
+        assert confirm and not confirm[0].disabled and confirm[0].label == "Accept alternative and confirm"
+    else:
+        assert not confirm  # Replies, not allocations: there is nothing to confirm.
     assert not records.DEFAULT_PATH.exists()
 
 
@@ -189,7 +195,7 @@ def test_streamlit_date_and_objective_survive_log_navigation(setup):
     at.run()
     at.date_input(key="desk_today").set_value(date(2026, 4, 3)).run()
     at.selectbox(key="desk_preset").set_value("fairness").run()
-    at.radio(key="desk_page").set_value("Decision log").run()
+    at.radio(key="desk_page").set_value("Audit Trail").run()
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception
     assert at.date_input(key="desk_today").value == date(2026, 4, 3)
@@ -200,7 +206,7 @@ def test_register_explores_eligibility_without_calling_model_or_saving(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.radio(key="desk_page").set_value("Workshop register").run()
+    at.radio(key="desk_page").set_value("Workshop Network").run()
     assert not at.exception
     assert "suspended" in " ".join(m.value for m in at.markdown)
     at.number_input[0].set_value(100).run()
