@@ -1,5 +1,7 @@
 # Product UI v3
 
+> Superseded by [product_ui_v4.md](product_ui_v4.md). Kept for the design history.
+
 The second productization pass. Same deterministic backend, a calmer product.
 v2 proved the features; v3 makes them usable by a dispatcher under time
 pressure. It replaces [product_ui_v2.md](product_ui_v2.md) as the current guide.

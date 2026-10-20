@@ -255,43 +255,83 @@ def constraint_sources(record: dict, workshop_id: str, name: str) -> list[str]:
     return out
 
 
+PRIORITY = {"lateness": "an earlier return", "defect": "a lower defect risk", "fairness": "spreading work across workshops",
+            "robustness": "avoiding flagged or concentrated workshops", "cost": "a lower cost per piece"}
+
+
+def _facts(chosen: dict, row: dict) -> list[str]:
+    """Deterministic differences between another eligible workshop and the winner."""
+    out = []
+    gap = row["total_days"] - chosen["total_days"]
+    if late_days(row) != late_days(chosen):
+        out.append(f"{days(abs(late_days(row) - late_days(chosen)))} {'more' if late_days(row) > late_days(chosen) else 'less'} late")
+    elif abs(gap) >= .05:
+        out.append(f"Returns {abs(gap):.1f} days {'later' if gap > 0 else 'earlier'} (back {short_date(row['eta_date'])})")
+    else:
+        out.append(f"Returns at the same time (back {short_date(row['eta_date'])})")
+    if abs(row["total_cost"] - chosen["total_cost"]) > 1e-9:
+        cheaper = row["total_cost"] < chosen["total_cost"]
+        out.append(f"{'Lower' if cheaper else 'Higher'} cost: {row['total_cost']:,.0f} against {chosen['total_cost']:,.0f}")
+    if abs(row["expected_defect_rate"] - chosen["expected_defect_rate"]) > 1e-12:
+        lower = row["expected_defect_rate"] < chosen["expected_defect_rate"]
+        out.append(f"{'Lower' if lower else 'Higher'} defect risk: {row['expected_defect_rate']:.0%} against {chosen['expected_defect_rate']:.0%}")
+    out.append("Can make this category, may take work and fits the batch")
+    return out
+
+
 def why_not(record: dict, workshop_id: str, workshops: dict) -> dict:
-    """Deterministic reason this workshop is not the recommendation."""
+    """Deterministic verdict on why this workshop is not the recommendation.
+
+    Returns status, tone, verdict (Eligible, Not eligible, Excluded), headline,
+    facts and a one-line result. Every value comes from the recorded decision.
+    """
     name = workshops[workshop_id].name if workshop_id in workshops else workshop_id
     chosen = chosen_row(record)
+    base = {"name": name, "row": None, "facts": [], "result": "", "detail": []}
     if record.get("chosen_workshop") == workshop_id:
-        return {"status": "chosen", "tone": "info", "headline": "This is the recommendation", "detail": [], "row": chosen}
+        return {**base, "status": "chosen", "tone": "info", "verdict": "Recommended", "headline": "This is the recommendation", "row": chosen,
+                "result": "Selected under the current objective."}
     eligibility = {row["workshop_id"]: row for row in eligibility_rows(record)}
     check = eligibility.get(workshop_id)
     if check is not None and not check["eligible"]:
         headline = "Suspended: may not take new work" if check["reason"] == "suspended" else ineligible_headline(check["reason"])
-        return {"status": "ineligible", "tone": "risk", "headline": headline,
-                "detail": [reason_text(check["reason"]), f"Eligibility tool result: {check['reason']}."], "row": None}
+        return {**base, "status": "ineligible", "tone": "risk", "verdict": "Not eligible", "headline": headline,
+                "facts": [reason_text(check["reason"])], "detail": [reason_text(check["reason"]), f"Eligibility tool result: {check['reason']}."],
+                "result": "Ruled out before scoring. Eligibility is checked first, for every workshop."}
     rows = {row["workshop_id"]: row for row in inventory(record)}
     row = rows.get(workshop_id)
     if row is None:
-        return {"status": "not_evaluated", "tone": "muted", "headline": "Not evaluated",
-                "detail": ["No workshops were estimated because the request needs a reply first."], "row": None}
+        return {**base, "status": "not_evaluated", "tone": "muted", "verdict": "Not evaluated", "headline": "Not evaluated",
+                "detail": ["No workshops were estimated because the request needs a reply first."],
+                "result": "No workshops are evaluated until the request can be allocated."}
     if row.get("exclusion_reason") == "Excluded by request":
         sources = constraint_sources(record, workshop_id, name)
-        return {"status": "excluded", "tone": "risk", "headline": "Excluded by the requester",
-                "detail": sources or ["The request excluded this workshop."], "row": row}
+        return {**base, "status": "excluded", "tone": "risk", "verdict": "Excluded", "headline": "Excluded by the requester", "row": row,
+                "facts": sources or ["The request excluded this workshop."], "detail": sources or ["The request excluded this workshop."],
+                "result": "Removed before scoring because the requester excluded it."}
     if row.get("exclusion_reason") == "Misses required due date":
-        return {"status": "misses_date", "tone": "warn", "headline": "Misses the required date",
-                "detail": [f"Back {short_date(row['eta_date'])}, {days(late_days(row))} after {short_date(row['due_date'])}. "
-                           "The request requires meeting the date, and on-time options exist."], "row": row}
+        text = (f"Back {short_date(row['eta_date'])}, {days(late_days(row))} after {short_date(row['due_date'])}. "
+                "The request requires meeting the date, and on-time options exist.")
+        return {**base, "status": "misses_date", "tone": "warn", "verdict": "Eligible", "headline": "Misses the required date", "row": row,
+                "facts": [text], "detail": [text], "result": "Not selected because the request requires an on-time return."}
     if chosen is None:
-        return {"status": "not_evaluated", "tone": "muted", "headline": "No recommendation", "detail": [], "row": row}
+        return {**base, "status": "not_evaluated", "tone": "muted", "verdict": "Eligible", "headline": "No recommendation", "row": row}
     if record.get("awkward_case") == "none_makes_date":
         headline = f"More days late: {late_days(row)} against {late_days(chosen)}" if late_days(row) > late_days(chosen) else "Same lateness, slower finish"
-        return {"status": "later", "tone": "warn", "headline": headline,
-                "detail": [f"Back {short_date(row['eta_date'])} against {short_date(chosen['eta_date'])} for {chosen['name']}. "
-                           "When every option is late, the least-late option is recommended."], "row": row}
+        detail = (f"Back {short_date(row['eta_date'])} against {short_date(chosen['eta_date'])} for {chosen['name']}. "
+                  "When every option is late, the least-late option is recommended.")
+        return {**base, "status": "later", "tone": "warn", "verdict": "Eligible", "headline": headline, "row": row,
+                "facts": _facts(chosen, row), "detail": [detail],
+                "result": "Not selected because, when every option is late, the least-late return wins."}
     config = effective_config(record["objective_name"])
-    return {"status": "outscored", "tone": "muted", "headline": "Higher configured score",
+    term = deciding_term(chosen, row, config)
+    objective = objective_label(record["objective_name"]).lower()
+    result = (f"Not selected because the {objective} objective prioritises {PRIORITY[term]}." if term else
+              "Not selected: the scores tie and the tie-break favoured " + chosen["name"] + ".")
+    return {**base, "status": "outscored", "tone": "muted", "verdict": "Eligible", "headline": "Higher configured score", "row": row,
+            "facts": _facts(chosen, row), "result": result, "term": term,
             "detail": [f"Score {row['score']:.5f} against {chosen['score']:.5f} for {chosen['name']}. Lower is better.",
-                       comparison_sentence(chosen, row, config)],
-            "term": deciding_term(chosen, row, config), "row": row}
+                       comparison_sentence(chosen, row, config)]}
 
 
 def workshop_status(check: dict, eta: dict | None, flagged: bool) -> tuple[str, str]:
@@ -382,7 +422,7 @@ def trace_steps(response: dict, *, agent_calls: int | None, replayed: bool, conf
     actor, label = source_label(parsed.get("llm_metadata") or {})
     raw = parsed.get("raw_llm_json") or {}
     facts = [f"{k.replace('_', ' ')} {raw[k]}" for k in ("order_id", "pieces", "category", "due_date_text", "preference") if raw.get(k)]
-    add("extract", "Request extracted", actor, "done",
+    add("extract", "Request parsed", actor, "done",
         label + (". Found " + ", ".join(facts) + "." if facts else ". No order facts stated."),
         {"structured_extraction": raw, "reply_metadata": parsed.get("llm_metadata")})
 
@@ -407,29 +447,29 @@ def trace_steps(response: dict, *, agent_calls: int | None, replayed: bool, conf
         add("eligibility", "Eligibility checked", "python", "done",
             f"{sum(r['eligible'] for r in latest)} of {len(latest)} workshops can make, may take and fit this batch.", latest)
         excluded = record.get("constraints_applied", {}).get("exclude") or []
-        add("candidates", f"{len(record.get('candidates', []))} candidates remain", "python", "done",
+        add("candidates", f"{len(record.get('candidates', []))} candidates remained", "python", "done",
             "After request exclusions: " + (", ".join(excluded) if excluded else "none") + ".",
             [{"workshop_id": r["workshop_id"], "name": r["name"]} for r in record.get("candidates", [])])
         etas = _calls(record, {"estimate_eta"}, agent)
-        add("eta", "Return dates calculated", "python", "done" if etas else "skipped",
+        add("eta", "ETA calculated", "python", "done" if etas else "skipped",
             "Queue + pieces ÷ capacity + transport, for every candidate.", [c.get("output") for c in etas])
         costs = _calls(record, {"estimate_cost"}, agent)
         add("cost", "Costs calculated", "python", "done" if costs else "skipped",
             "Pieces × price per piece, for every candidate.", [c.get("output") for c in costs])
         config = effective_config(record["objective_name"])
         weights = ", ".join(f"{TERM_LABELS[t].lower()} {getattr(config, 'w_' + t):g}" for t in TERMS if getattr(config, "w_" + t))
-        add("score", "Objective scores calculated", "python", "done",
+        add("score", "Objective scores computed", "python", "done",
             f"{objective_label(record['objective_name'])}: {weights or 'no weights'}.",
             [{"workshop_id": r["workshop_id"], "score": r["score"], "score_terms": r["score_terms"]} for r in record.get("candidates", [])])
         chosen = chosen_row(record)
-        add("select", "Winner selected", "python", "done",
+        add("select", "Recommendation selected", "python", "done",
             (f"{chosen['name']}. {record['reason_chosen'].split(':', 1)[0]}." if chosen else
              "No whole-batch candidate remains after exclusions. Escalate."),
             {"chosen_workshop": record.get("chosen_workshop"), "reason": record.get("reason_chosen"),
              "constraints": record.get("constraints_applied"), "awkward_case": record.get("awkward_case")})
     else:
-        for key, title in (("eligibility", "Eligibility checked"), ("candidates", "Candidates"), ("eta", "Return dates calculated"),
-                           ("cost", "Costs calculated"), ("score", "Objective scores calculated"), ("select", "Winner selected")):
+        for key, title in (("eligibility", "Eligibility checked"), ("candidates", "Candidates remained"), ("eta", "ETA calculated"),
+                           ("cost", "Costs calculated"), ("score", "Objective scores computed"), ("select", "Recommendation selected")):
             add(key, title, "python", "skipped", skipped)
 
     probes = _calls(record, {"overload_probe"}, agent)
@@ -452,7 +492,7 @@ def trace_steps(response: dict, *, agent_calls: int | None, replayed: bool, conf
             [c.get("output") for c in replay if c["tool"] in {"candidates", "overload_probe"}])
     audit = response.get("faithfulness") or {}
     numbers = audit.get("numbers_in_text", [])
-    add("verify", "Numerical explanation verified", "python", "done" if audit.get("passed") else "blocked",
+    add("verify", "Explanation verified", "python", "done" if audit.get("passed") else "blocked",
         f"All {len(numbers)} numbers, dates and IDs in the explanation match tool outputs." if audit.get("passed")
         else "Unsupported values: " + ", ".join(audit.get("unmatched", [])), audit)
 
@@ -465,9 +505,11 @@ def trace_steps(response: dict, *, agent_calls: int | None, replayed: bool, conf
     return steps
 
 
-STAGES = [("understand", "Understand", "Structured extraction"), ("validate", "Validate", "Order and request type"),
-          ("evaluate", "Evaluate workshops", "Eligibility and estimates"), ("decide", "Decide", "Scoring and ranking"),
-          ("verify", "Verify", "Evidence check")]
+STAGES = [("understand", "Understand", "Structured extraction by the language model"),
+          ("validate", "Validate", "Order lookup and request type, in Python"),
+          ("evaluate", "Evaluate", "Eligibility, queues, ETA and cost for every workshop"),
+          ("decide", "Decide", "Objective scoring and ranking"),
+          ("verify", "Verify", "Every number in the explanation checked against tool outputs")]
 STAGE_MEMBERS = {"understand": {"extract"}, "validate": {"validate", "order"},
                  "evaluate": {"eligibility", "candidates", "eta", "cost"}, "decide": {"score", "select", "capacity", "split"},
                  "verify": {"replay", "verify"}}

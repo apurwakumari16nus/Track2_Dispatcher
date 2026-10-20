@@ -58,10 +58,17 @@ def rehearsal_app(monkeypatch, tmp_path):
 def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at, tmp = rehearsal_app
     assert "REHEARSAL MODE" in " ".join(m.value for m in at.markdown)
-    at.button(key="scenario_R09").click().run()  # Guided demo loads the request; the dispatcher runs it.
-    assert "desk_preview" not in at.session_state
+    at.button(key="demo_start").click().run()  # Guided demo loads R09; the dispatcher still evaluates it.
+    assert "desk_preview" not in at.session_state and at.session_state["desk_message"].startswith("R09 ")
+    assert "DEMO 1 OF 6" in " ".join(m.value for m in at.markdown)
     at.button(key="desk_dispatch").click().run()
     assert not at.exception and at.session_state["desk_preview"].source == "fixture"
+    text = " ".join(m.value for m in at.markdown)
+    assert "Recommended workshop" in text and "Nimble Needle" in text
+    at.button(key="desk_inspect").click().run()  # The inspector reads the preview; it never changes it.
+    text = " ".join(m.value for m in at.markdown)
+    assert not at.exception and "Why this decision" in text and "Final score, lower wins" in text
+    assert not records.DEFAULT_PATH.exists() and not desk.REHEARSAL_LOG.exists()
     at.button(key="desk_confirm").click().run()
     assert not at.exception
     assert len(records.load(desk.REHEARSAL_LOG)) == 1 and not records.DEFAULT_PATH.exists()
@@ -71,6 +78,9 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception and at.segmented_control(key="audit_log").value == "rehearsal"
     assert "Nimble Needle" in " ".join(m.value for m in at.markdown)
+    at.button(key="audit_open_0").click().run()
+    text = " ".join(m.value for m in at.markdown)
+    assert not at.exception and "Original request" in text and "Why this workshop" in text
     at.radio(key="desk_page").set_value("Dispatch").run()
     at.button(key="demo_reset").click().run()
     assert not at.exception and at.session_state["desk_saved"] == {} and not desk.REHEARSAL_LOG.exists()
@@ -79,7 +89,7 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
 
 def test_impossible_deadline_offers_real_split_preview(rehearsal_app):
     at, _ = rehearsal_app
-    at.button(key="scenario_R30").click().run()
+    at.button(key="inbox_R30").click().run()
     at.button(key="desk_dispatch").click().run()
     assert "No eligible workshop can meet 5 Apr." in " ".join(m.value for m in at.markdown)
     assert at.button(key="desk_confirm").label == "Accept late return"
@@ -105,6 +115,24 @@ def test_every_page_renders_and_network_answers_the_register_question(rehearsal_
     assert not at.exception
     at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception
+
+
+def test_guided_demo_steps_through_real_cases_without_running_them(rehearsal_app):
+    at, _ = rehearsal_app
+    at.button(key="demo_start").click().run()
+    seen = []
+    for _ in range(5):
+        seen.append(at.session_state["desk_message"].split(" ", 1)[0])
+        assert "desk_preview" not in at.session_state  # The tour loads a case; it never evaluates or confirms it.
+        at.button(key="demo_next").click().run()
+        assert not at.exception
+    assert seen == ["R09", "R01", "R08", "R02", "R30"]
+    assert at.session_state["desk_page"] == "Audit Trail" and at.session_state["demo_step"] == 5
+    assert not [b for b in at.button if b.key == "demo_next"]
+    at.button(key="demo_prev").click().run()
+    assert at.session_state["desk_page"] == "Dispatch" and at.session_state["desk_message"].startswith("R30 ")
+    at.button(key="demo_exit").click().run()
+    assert "demo_step" not in at.session_state and not [b for b in at.button if b.key == "demo_prev"]
 
 
 def test_objective_scorecard_is_computed_from_committed_results():

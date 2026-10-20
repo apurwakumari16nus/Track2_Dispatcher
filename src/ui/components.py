@@ -1,8 +1,10 @@
-"""Small HTML builders and the shared chart grammar. Presentation only.
+"""Quick Response Desk component library. Presentation only.
 
 Builders return escaped HTML strings so pages can compose them; html() renders.
 Every dynamic value passes through esc(). Keep markup on one line: Markdown
-treats indented lines as code blocks. Status is always text plus colour.
+treats indented lines as code blocks. Status is always a word plus colour.
+Widgets cannot live inside HTML, so surfaces that hold widgets are keyed
+Streamlit containers styled in theme.css (st-key-rec, st-key-request, ...).
 """
 
 from __future__ import annotations
@@ -14,14 +16,14 @@ from pathlib import Path
 import streamlit as st
 
 CSS_PATH = Path(__file__).with_name("theme.css")
-# Chart palette validated for the light surface (dataviz validate_palette.js, all pairs).
-OURS, BENCH, SHOCK, CONTEXT, CONTEXT_2 = "#4F6FE8", "#12998A", "#E8692F", "#B7C2CE", "#D5DDE6"
+# Chart palette, validated for colour-blind separation and 3:1 contrast on the light surface.
+OURS, BENCH, SHOCK, SLATE, SLATE_LIGHT, BEAM = "#5F78F5", "#149E8B", "#E8692F", "#A8B5C3", "#D6DEE7", "#48D9E6"
 TERM_CLASS = {"lateness": "t-lateness", "defect": "t-defect", "fairness": "t-fairness", "robustness": "t-robustness", "cost": "t-cost"}
+STAGE_ICONS = {"done": "✓", "blocked": "!", "active": "", "idle": "", "skipped": ""}
 PRESENTATION_CSS = """
 [class*="st-key-dev_"] { display: none !important; }
-.block-container, [data-testid="stMainBlockContainer"] { max-width: 1600px; padding-top: 1.8rem; }
 [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarHeader"] button { display: none !important; }
-[data-testid="stVerticalBlock"] { gap: 1.15rem; }
+.block-container, [data-testid="stMainBlockContainer"] { padding-top: 1.8rem; }
 """
 
 
@@ -34,30 +36,88 @@ def html(markup: str) -> None:
 
 
 def inject_css(presentation: bool = False) -> None:
-    css = CSS_PATH.read_text(encoding="utf-8") + (PRESENTATION_CSS if presentation else "")
-    html("<style>" + css + "</style>")
+    html("<style>" + CSS_PATH.read_text(encoding="utf-8") + (PRESENTATION_CSS if presentation else "") + "</style>")
 
 
-def tag(text: str, tone: str = "muted", *, dot: bool = True) -> str:
-    return f'<span class="tag {tone}{"" if dot else " plain"}">{esc(text)}</span>'
+# Atoms ----------------------------------------------------------------------
+
+def status_pill(text: str, tone: str = "muted") -> str:
+    """tone: ok, info, warn, risk, muted, beam-pill, dark, dark-green, dark-amber, dark-muted, dark-risk."""
+    return f'<span class="pill {tone}">{esc(text)}</span>'
+
+
+def verdict_badge(text: str, kind: str = "tie") -> str:
+    """kind: tie, win, loss. Large, uppercase, used once per comparison."""
+    return f'<span class="verdict {kind}">{esc(text)}</span>'
 
 
 def banner(title: str, text: str = "", tone: str = "info") -> str:
     return f'<div class="banner {tone}" role="status"><div><b>{esc(title)}</b>{esc(text)}</div></div>'
 
 
-def page_head(eyebrow: str, title: str, sub: str = "") -> None:
-    html(f'<div class="eyebrow">{esc(eyebrow)}</div><div class="page-title">{esc(title)}</div>'
-         + (f'<div class="page-sub">{esc(sub)}</div>' if sub else ""))
+def page_head(eyebrow: str, title: str, lede: str = "") -> None:
+    html(f'<div class="eyebrow">{esc(eyebrow)}</div><div class="display">{esc(title)}</div>'
+         + (f'<div class="lede">{esc(lede)}</div>' if lede else ""))
 
 
-def h3(title: str, note: str = "") -> None:
-    html(f'<div class="h3">{esc(title)}</div>' + (f'<div class="note">{esc(note)}</div>' if note else ""))
+def section(title: str, note: str = "") -> None:
+    html(f'<div class="title">{esc(title)}</div>' + (f'<div class="meta" style="font-size:13px;margin-top:2px">{esc(note)}</div>' if note else ""))
 
 
-def tile(label: str, value: str, comparison: str = "", badge: str = "", kind: str = "") -> str:
-    return (f'<div class="tile {kind}"><small>{esc(label)}</small><strong>{esc(value)}</strong>'
-            f'<div class="cmp">{comparison}</div>{badge}</div>')
+def metric_tile(label: str, value: str, note: str = "") -> str:
+    return f'<div class="kpi"><small>{esc(label)}</small><strong>{esc(value)}</strong><span>{note}</span></div>'
+
+
+def glass_panel(inner: str, *, beam: bool = False, style: str = "") -> str:
+    return f'<div class="glass{" beam" if beam else ""}" style="{style}">{inner}</div>'
+
+
+def fact(label: str, value) -> str:
+    return f'<span class="fact">{esc(label)} <b>{esc(value)}</b></span>'
+
+
+# Composites -----------------------------------------------------------------
+
+def decision_stage(stages) -> str:
+    """Five-step process strip. stages: (key, label, detail, status)."""
+    cells = []
+    for i, (_, label, detail, status) in enumerate(stages):
+        line = '<span class="line"></span>' if i < len(stages) - 1 else ""
+        cells.append(f'<div class="stage {status}" title="{esc(detail)}"><span class="node">{STAGE_ICONS.get(status, "")}</span>'
+                     f'<span class="lbl">{esc(label)}</span>{line}</div>')
+    return f'<div class="strip" role="list" aria-label="Decision stages">{"".join(cells)}</div>'
+
+
+def candidate_row(name: str, sub: str, eta: str, spare: int | None, cost: str, tone: str) -> str:
+    spare_text = "n/a" if spare is None else f"{spare:+d}"
+    cls = "neg" if spare is not None and spare < 0 else ""
+    return (f'<div class="alt"><span class="nm"><span class="dot {tone}"></span><span style="min-width:0"><b>{esc(name)}</b>'
+            f'<div class="meta">{esc(sub)}</div></span></span><span class="r">{esc(eta)}</span>'
+            f'<span class="r {cls}">{spare_text}</span><span class="r">{esc(cost)}</span></div>')
+
+
+def weight_bars(config, terms, labels) -> str:
+    """Objective weights as luminous bars; zero weights are drawn muted."""
+    rows = []
+    for t in terms:
+        w = getattr(config, "w_" + t)
+        rows.append(f'<div class="wbar{"" if w else " off"}"><span>{esc(labels[t])}</span><div class="trk"><span style="width:{w * 100:.0f}%"></span></div>'
+                    f'<span class="v">{w:.2f}</span></div>')
+    return f'<div class="wbars">{"".join(rows)}</div>'
+
+
+def score_bars(breakdown: list[dict], chosen_id: str | None, terms, labels) -> str:
+    """Stacked weighted-term bars per candidate on dark; widths relative to the largest score."""
+    top = max((item["score"] for item in breakdown), default=0) or 1
+    rows = []
+    for item in breakdown:
+        segs = "".join(f'<span class="{TERM_CLASS[p["term"]]}" style="width:{p["contribution"] / top * 100:.2f}%" '
+                       f'title="{esc(p["label"])}: {p["contribution"]:.6f}"></span>' for p in item["parts"] if p["contribution"] > 0)
+        cls = " win" if item["workshop_id"] == chosen_id else ""
+        rows.append(f'<div class="sbar{cls}"><span>{esc(item["name"])}</span><div class="trk">{segs}</div><span class="v">{item["score"]:.5f}</span></div>')
+    active = [t for t in terms if any(p["term"] == t and p["active"] for item in breakdown for p in item["parts"])]
+    legend = "".join(f'<span><i class="{TERM_CLASS[t]}"></i>{esc(labels[t])}</span>' for t in active)
+    return f'<div class="sbars">{"".join(rows)}</div><div class="dk-legend">{legend}</div>'
 
 
 def table(headers, rows, *, right=(), classes=None, max_height: int | None = None) -> str:
@@ -71,45 +131,26 @@ def table(headers, rows, *, right=(), classes=None, max_height: int | None = Non
     return f'<div class="dt-wrap"{style}><table class="dt"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
-def load_bar(days: float, top: float) -> str:
-    share = max(min(days / top, 1), .02) if top else .02
-    return (f'<div class="load"><div class="load-bar"><span class="{"high" if days >= 4 else ""}" style="width:{share:.0%}"></span></div>'
-            f'<b>{days:.1f} d</b></div>')
-
-
 def json_block(value, *, height: int | None = None) -> None:
     text = json.dumps(value, indent=2, ensure_ascii=False, default=str, allow_nan=False)
     st.code(text, language="json", wrap_lines=True, height=height)
 
 
-def score_bars(breakdown: list[dict], chosen_id: str | None, terms, labels) -> str:
-    """Stacked weighted-term bars; widths relative to the largest score shown."""
-    top = max((item["score"] for item in breakdown), default=0) or 1
-    rows = []
-    for item in breakdown:
-        segs = "".join(f'<span class="{TERM_CLASS[p["term"]]}" style="width:{p["contribution"] / top * 100:.2f}%" '
-                       f'title="{esc(p["label"])}: {p["contribution"]:.6f}"></span>' for p in item["parts"] if p["contribution"] > 0)
-        cls = " chosen" if item["workshop_id"] == chosen_id else ""
-        rows.append(f'<div class="bar-row{cls}"><span class="nm">{esc(item["name"])}</span><div class="bar-track">{segs}</div>'
-                    f'<span class="val">{item["score"]:.5f}</span></div>')
-    active = [t for t in terms if any(p["term"] == t and p["active"] for item in breakdown for p in item["parts"])]
-    legend = "".join(f'<span><i class="{TERM_CLASS[t]}"></i>{esc(labels[t])}</span>' for t in active)
-    return f'<div class="bars">{"".join(rows)}</div><div class="legend" style="margin-top:10px">{legend}</div>'
+# Charts -----------------------------------------------------------------------
 
-
-# Charts ---------------------------------------------------------------------
-
-FONT = "Inter, -apple-system, Segoe UI, sans-serif"
-AXIS = {"labelFontSize": 13, "titleFontSize": 13, "titleFontWeight": 500, "labelColor": "#5D6C7B", "titleColor": "#5D6C7B",
-        "gridColor": "#EEF2F6", "domain": False, "tickColor": "#DDE5EC", "labelFont": FONT, "titleFont": FONT}
+FONT = "Inter, -apple-system, Segoe UI, Arial, sans-serif"
+AXIS = {"labelFontSize": 12.5, "titleFontSize": 12, "titleFontWeight": 600, "labelColor": "#617182", "titleColor": "#8695A6",
+        "gridColor": "#E9EEF4", "gridDash": [2, 3], "domain": False, "ticks": False, "labelPadding": 8, "titlePadding": 12,
+        "labelFont": FONT, "titleFont": FONT}
 
 
 def chart(data, spec: dict, *, height: int = 300) -> None:
-    """Light, transparent Vega-Lite chart; exact values stay in tooltips."""
+    """Shared chart theme: transparent, quiet axes, product palette; exact values in tooltips."""
     st.vega_lite_chart(data, {
-        "height": height, "background": "transparent", "padding": {"left": 4, "right": 14, "top": 8, "bottom": 4},
+        "height": height, "background": "transparent", "padding": {"left": 4, "right": 16, "top": 10, "bottom": 4},
         "config": {"view": {"stroke": None}, "axis": AXIS,
-                   "legend": {"labelFontSize": 13, "labelColor": "#5D6C7B", "title": None, "orient": "top", "symbolSize": 90, "labelFont": FONT},
-                   "text": {"color": "#142334", "fontSize": 12.5, "font": FONT}},
+                   "legend": {"labelFontSize": 12.5, "labelColor": "#617182", "title": None, "orient": "top", "symbolSize": 80,
+                              "labelFont": FONT, "symbolStrokeWidth": 0},
+                   "text": {"color": "#122233", "fontSize": 12.5, "font": FONT}},
         **spec,
     }, width="stretch", theme=None)

@@ -1,34 +1,34 @@
-# Light operational canvas with a navy shell. Component styling: src/ui/theme.css.
+# Quick Response Desk: light canvas, midnight navy shell. Component styling: src/ui/theme.css.
 [theme]
 base = "light"
-primaryColor = "#3E5FD9"
-backgroundColor = "#F6F8FB"
-secondaryBackgroundColor = "#EEF3F7"
-textColor = "#142334"
-borderColor = "#C9D4DE"
-linkColor = "#3E5FD9"
-font = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Aptos, system-ui, sans-serif"
+primaryColor = "#4561E0"
+backgroundColor = "#F4F7FA"
+secondaryBackgroundColor = "#EDF2F7"
+textColor = "#122233"
+borderColor = "#CBD6E1"
+linkColor = "#4561E0"
+font = "Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Arial, sans-serif"
 codeFont = "'SF Mono', ui-monospace, Menlo, Consolas, monospace"
 baseFontSize = 15
-baseRadius = "10px"
-buttonRadius = "10px"
+baseRadius = "12px"
+buttonRadius = "12px"
 showWidgetBorder = true
 showSidebarBorder = false
-dataframeHeaderBackgroundColor = "#F8FAFC"
-dataframeBorderColor = "#DDE5EC"
-codeBackgroundColor = "#F8FAFC"
-greenColor = "#177D4A"
-orangeColor = "#8F5A0B"
-redColor = "#B83A33"
-blueColor = "#3E5FD9"
-chartCategoricalColors = ["#4F6FE8", "#12998A", "#E8692F", "#8B6CE0", "#2E8BC0"]
+dataframeHeaderBackgroundColor = "#F7F9FC"
+dataframeBorderColor = "#E1E8EF"
+codeBackgroundColor = "#F7F9FC"
+greenColor = "#167F4C"
+orangeColor = "#8C5A06"
+redColor = "#B53A33"
+blueColor = "#4561E0"
+chartCategoricalColors = ["#5F78F5", "#149E8B", "#E8692F", "#8B6CE0", "#2E8BC0"]
 
 [theme.sidebar]
-backgroundColor = "#091A2D"
-secondaryBackgroundColor = "#0E2238"
-textColor = "#E8EEF5"
+backgroundColor = "#071524"
+secondaryBackgroundColor = "#0B1F32"
+textColor = "#EAF1F8"
 borderColor = "#21364F"
-primaryColor = "#3ACED8"
+primaryColor = "#48D9E6"
 
 [client]
 toolbarMode = "minimal"

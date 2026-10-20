@@ -2,9 +2,9 @@
 
 Four areas: Dispatch (default), Workshop Network, Simulation Lab, Audit Trail.
 The model only reads requests; Python validates, estimates, scores and selects;
-a person confirms. Dispatch is a preview: only the explicit confirmation writes
-an audit row and updates this session's queue. No workshop is ever contacted.
-Session logic lives in desk.py; presentation lives in ui/.
+a person confirms. Evaluating a request is a preview: only the explicit
+confirmation writes an audit row and updates this session's queue. No workshop
+is ever contacted. Session logic lives in desk.py; presentation lives in ui/.
 """
 
 from __future__ import annotations
@@ -27,52 +27,60 @@ from ui import audit, dispatch, explain, lab, network
 from ui.components import banner, esc, html, inject_css
 
 PAGES = ["Dispatch", "Workshop Network", "Simulation Lab", "Audit Trail"]
+ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Simulation Lab": ":material/science:",
+         "Audit Trail": ":material/verified_user:"}
 # Streamlit drops a widget's state on runs where it is not drawn (other pages).
 # These values are restored when the page that owns them is shown again.
 KEEP = ("desk_today", "desk_preset", "desk_message", "inbox_search",
-        "net_category", "net_pieces", "net_due",
+        "net_category", "net_pieces", "net_due", "net_view",
         "lab_seed", "lab_focus", "lab_scenario", "lab_late", "lab_order",
         "sb_lateness", "sb_defect", "sb_fairness", "sb_robustness", "sb_cost",
         "audit_log", "audit_q", "audit_sender", "audit_workshop", "audit_kind", "audit_day")
-DEMO = [("R09", "Normal allocation", "A complete request with a speed preference."),
-        ("R01", "Clarification", "Two orders match. The desk asks which one."),
-        ("R08", "Refused workshop", "The suggested workshop is over its batch cap."),
-        ("R02", "Unanswerable request", "Asks for data the desk does not hold."),
-        ("R30", "Impossible deadline", "No workshop can make the date."),
-        ("R28", "Already late", "The due date has already passed.")]
+TOUR = [("R09", "Normal allocation", "Press Evaluate request, open Why this decision, then confirm."),
+        ("R01", "Clarification", "Press Evaluate request. The desk asks which order is meant."),
+        ("R08", "Refused workshop", "Press Evaluate request. FreshStart is refused with its reason."),
+        ("R02", "Unanswerable request", "Press Evaluate request. The desk names the missing data."),
+        ("R30", "Impossible deadline", "Press Evaluate request, then preview a two-workshop split."),
+        (None, "Audit trail", "Open the confirmed record and its evidence.")]
 SOURCE_LABELS = {"live": "Live model", "cached": "Rehearsal: recorded model replies", "fixture": "Rehearsal: test fixtures"}
 
 
-def load_demo(message):
-    st.session_state["desk_page"] = "Dispatch"
-    dispatch.select_message(message)
+def tour_go(step, messages):
+    state = st.session_state
+    state["demo_step"] = step
+    rid = TOUR[step][0]
+    if rid is None:
+        state["desk_page"] = "Audit Trail"
+        return
+    line = next((m for m in messages if m.startswith(rid + " ")), "")
+    state["desk_page"] = "Dispatch"
+    dispatch.select_message(line)
 
 
-def guided_demo(state, messages):
-    lines = {m.split()[0]: m for m in messages}
-    with st.popover("Guided demo", icon=":material/play_circle:", width="stretch"):
-        html('<div class="h3">Guided demo</div><div class="note">Loads a supplied request into Dispatch. '
-             'Every step uses the real decision engine; nothing is scripted.</div>')
-        for rid, name, note in DEMO:
-            if rid in lines:
-                st.button(f"**{name}**  {rid}\n{note}", key=f"scenario_{rid}", width="stretch", on_click=load_demo, args=(lines[rid],))
-        source = rehearsal.SOURCES[state["desk_source"]]
-        html('<div class="note" style="margin-top:8px">Extraction: ' + esc(SOURCE_LABELS[source.key]) + '. Change it in System settings.</div>')
-        saved = list(state["desk_saved"].values())
-        steps = [("Choose Normal allocation", state["desk_message"] == lines.get("R09")),
-                 ("Run decision and watch the five stages", bool(state.get("desk_outcomes", {}).get("R09"))),
-                 ("Open Decision details, then Why this won", bool(state.get("desk_outcomes", {}).get("R09"))),
-                 ("Confirm the allocation", any(r.get("parsed_request", {}).get("request_id") == "R09" for r in saved)),
-                 ("Open Audit Trail and find the record", state.get("audit_visited", False))]
-        html('<div class="h3" style="margin-top:14px;font-size:15px">Normal allocation walkthrough</div>'
-             + "".join(f'<div class="note" style="display:flex;gap:10px"><span style="width:16px;color:{"var(--green-ink)" if done else "var(--text-4)"}">'
-                       f'{"✓" if done else "○"}</span>{esc(text)}</div>' for text, done in steps))
+def tour_exit():
+    st.session_state.pop("demo_step", None)
 
 
-def system_settings(state, orders, workshops, messages):
+def demo_controller(messages):
+    """Floating product-tour controller. Every step runs the real decision engine."""
+    step = st.session_state.get("demo_step")
+    if step is None:
+        return
+    rid, name, hint = TOUR[step]
+    with st.container(key="demo_ctl", horizontal=True):
+        html(f'<div class="demo-label"><em>DEMO {step + 1} OF {len(TOUR)}</em><b>{esc(name)}</b>'
+             f'{(" " + esc(rid)) if rid else ""}<small>{esc(hint)}</small></div>')
+        st.button("Previous", key="demo_prev", on_click=tour_go, args=(max(step - 1, 0), messages), disabled=step == 0)
+        if step < len(TOUR) - 1:
+            st.button("Next", key="demo_next", on_click=tour_go, args=(step + 1, messages))
+        st.button("Exit", key="demo_exit", on_click=tour_exit)
+
+
+def system_details(state, orders, workshops, messages):
     live = rehearsal.live_status()
-    with st.popover("System settings", icon=":material/tune:", width="stretch"):
-        html('<div class="h3">System settings</div>')
+    with st.popover("System details", icon=":material/tune:", width="stretch"):
+        html('<div class="title" style="font-size:17px">System details</div>'
+             '<div class="meta" style="font-size:13px;margin-bottom:6px">How requests are read. Allocation logic is always live.</div>')
         st.radio("Request reading", list(rehearsal.SOURCES), key="desk_source", format_func=SOURCE_LABELS.get,
                  on_change=dispatch.invalidate,
                  captions=["Reads each request with the configured model.",
@@ -83,8 +91,8 @@ def system_settings(state, orders, workshops, messages):
         rows = [("Language model", live["model"] if live["ready"] else "Not configured"),
                 ("Recorded replies", f"{recorded} of {len(messages)} inbox requests"),
                 ("Queue snapshot", explain.long_date(state["desk_queue_date"])),
-                ("Workshops", f"{len(workshops)} loaded")]
-        html('<dl class="kv" style="grid-template-columns:150px 1fr;font-size:13.5px">'
+                ("Confirmed this session", str(len(state["desk_saved"])))]
+        html('<dl class="kv" style="grid-template-columns:160px 1fr;font-size:13.5px;margin:6px 0 8px">'
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in rows) + "</dl>")
         st.toggle("Presentation mode", key="presentation_mode",
                   help="Hides developer detail and Streamlit chrome for screen recording. Calculations do not change.")
@@ -95,12 +103,13 @@ def system_settings(state, orders, workshops, messages):
 
 def sidebar(state, orders, workshops, messages):
     with st.sidebar:
-        html('<div class="wordmark"><i></i><b>Quick Response Desk</b><span>Subcontracting Operations</span></div>')
+        html('<div class="wordmark"><b><i></i>QUICK RESPONSE</b><span>Subcontracting Desk</span></div>')
         with st.container(key="nav"):
-            st.radio("Navigate", PAGES, key="desk_page", label_visibility="collapsed")
+            st.radio("Navigate", PAGES, key="desk_page", label_visibility="collapsed", format_func=lambda p: f"{ICONS[p]} {p}")
         html('<div class="side-spacer"></div>')
-        guided_demo(state, messages)
-        system_settings(state, orders, workshops, messages)
+        st.button("Guided demo", key="demo_start", icon=":material/play_circle:", width="stretch",
+                  on_click=tour_go, args=(0, messages))
+        system_details(state, orders, workshops, messages)
 
 
 def mode_banner(state):
@@ -138,10 +147,10 @@ def main():
     elif page == "Simulation Lab":
         lab.render(workshops)
     elif page == "Audit Trail":
-        state["audit_visited"] = True
         audit.render(workshops)
     else:
         dispatch.render(orders, workshops, messages)
+    demo_controller(messages)
     state["kept_controls"] = {key: state[key] for key in KEEP if key in state}
     if page != "Simulation Lab":
         lab.prewarm()  # Cached once per server; the page is already drawn.
