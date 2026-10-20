@@ -24,13 +24,13 @@ requests is a separate step. No Java, database, Node.js, or GPU is required.
 
 The app opens on **Dispatch** and has four areas: **Dispatch**, **Workshop
 Network**, **Simulation Lab** and **Audit Trail**. See
-[Product UI v3](docs/product_ui_v3.md) for the page structure and what changed,
+[Product UI v4](docs/product_ui_v4.md) for the design system and page structure,
 [demo readiness](docs/demo_readiness.md) for recording, and the
 [storyboard draft](docs/demo_storyboard_draft.md). The Simulation Lab needs no
 API key; its **Course evidence** tab reads the committed ten-seed results.
 Dispatch reads requests with the live model, or with a clearly labelled
-rehearsal source chosen in **System settings** (recorded model replies, or the
-synthetic test fixtures). The sidebar's **Guided demo** loads the demo requests.
+rehearsal source chosen in **System details** (recorded model replies, or the
+synthetic test fixtures). The sidebar's **Guided demo** steps through the demo requests.
 
 ### Mac — Terminal (or Linux)
 
@@ -90,14 +90,14 @@ Open **http://localhost:8501** if the browser does not open automatically. Keep 
 terminal running; use **Ctrl+C** to stop it.
 
 For an inbox check, stay on **Dispatch** with **01/04/2026** and the **Minimise
-lateness** objective, select an inbox request (or a scenario shortcut such as
-R09) and click **Run decision**. Review the recommendation and top alternatives,
-then open **Decision details** (Why this won, Why not another, Score breakdown,
+lateness** objective, select an inbox request (for example
+R09) and click **Evaluate request**. Review the recommendation and alternatives,
+then press **Why this decision?** (Why this won, Why not another, Score breakdown,
 Evidence trace). **Confirm** writes one local entry to `records/decisions.jsonl`; Dispatch
 alone writes none. Rehearsal sources write to `records/rehearsal_decisions.jsonl`
 instead. The **Audit Trail** shows saved entries. Confirmation does not send a
 message to a workshop. Without an API key, choose **Rehearsal: test fixtures** in the
-sidebar's System settings to try every page; those extractions are test fixtures,
+sidebar's System details to try every page; those extractions are test fixtures,
 not model output.
 
 Always run commands from the repository root. Keep `data/` beside `harness/`:

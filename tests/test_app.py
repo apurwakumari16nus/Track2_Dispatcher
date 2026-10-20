@@ -144,7 +144,7 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     at.button(key="desk_dispatch").click().run()
     assert not at.exception and not records.DEFAULT_PATH.exists()
     assert len(setup[4]) == 1
-    assert "Recommendation ready" in " ".join(m.value for m in at.markdown)
+    assert "Least-late option" in " ".join(m.value for m in at.markdown)
     assert not at.button(key="desk_confirm").disabled
     at.button(key="desk_confirm").click().run()
     assert not at.exception and len(records.load()) == 1
