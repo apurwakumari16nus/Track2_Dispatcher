@@ -101,15 +101,34 @@ def system_details(state, orders, workshops, messages):
                        "The live audit log is never touched.")
 
 
+def session_card(state) -> str:
+    """Live context for the shell: how requests are read and what this session has done."""
+    source, live = state["desk_source"], rehearsal.live_status()
+    if source == "cached":
+        dot, head, sub = "rehearsal", "Rehearsal mode", "Recorded model replies. Allocation is live."
+    elif source == "fixture":
+        dot, head, sub = "rehearsal", "Rehearsal mode", "Test fixtures, not model output. Allocation is live."
+    elif live["ready"]:
+        dot, head, sub = "live", "Live model", live["model"]
+    else:
+        dot, head, sub = "off", "Model not configured", "Switch to rehearsal in System details."
+    queue = state["desk_queue_date"]
+    return (f'<div class="side-card"><div class="sc-head"><i class="{dot}"></i>{esc(head)}</div><div class="sc-sub">{esc(sub)}</div>'
+            f'<div class="sc-grid"><div><small>Queues as of</small><b>{queue.day} {queue:%b}</b></div>'
+            f'<div><small>Confirmed</small><b>{len(state["desk_saved"])}</b></div></div></div>')
+
+
 def sidebar(state, orders, workshops, messages):
     with st.sidebar:
-        html('<div class="wordmark"><b><i></i>QUICK RESPONSE</b><span>Subcontracting Desk</span></div>')
+        html('<div class="brand"><div class="brand-word"><i></i>Quick Response</div><div class="brand-sub">Subcontracting desk</div></div>'
+             '<div class="side-label">Operations</div>')
         with st.container(key="nav"):
             st.radio("Navigate", PAGES, key="desk_page", label_visibility="collapsed", format_func=lambda p: f"{ICONS[p]} {p}")
-        html('<div class="side-spacer"></div>')
-        st.button("Guided demo", key="demo_start", icon=":material/play_circle:", width="stretch",
-                  on_click=tour_go, args=(0, messages))
-        system_details(state, orders, workshops, messages)
+        with st.container(key="side_foot"):
+            html(session_card(state))
+            st.button("Guided demo", key="demo_start", icon=":material/play_circle:", width="stretch",
+                      on_click=tour_go, args=(0, messages))
+            system_details(state, orders, workshops, messages)
 
 
 def mode_banner(state):

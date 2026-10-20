@@ -72,8 +72,10 @@ def glass_panel(inner: str, *, beam: bool = False, style: str = "") -> str:
     return f'<div class="glass{" beam" if beam else ""}" style="{style}">{inner}</div>'
 
 
-def fact(label: str, value) -> str:
-    return f'<span class="fact">{esc(label)} <b>{esc(value)}</b></span>'
+def fact(label: str, value, *, mono: bool = False) -> str:
+    """A labelled value chip; mono=True sets identifiers in Geist Mono."""
+    cls = ' class="id"' if mono else ""
+    return f'<span class="fact">{esc(label)} <b{cls}>{esc(value)}</b></span>'
 
 
 # Composites -----------------------------------------------------------------

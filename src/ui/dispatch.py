@@ -92,12 +92,12 @@ def live_stages(active: str):
 
 def render(orders, workshops, messages):
     state = st.session_state
-    head, bar = st.columns([1.05, 1], vertical_alignment="bottom")
+    head, bar = st.columns([1.25, 1], vertical_alignment="bottom")
     with head:
         html('<div class="eyebrow">Dispatch</div><div class="display">Quick Response Subcontracting Desk</div>')
     with bar:
         with st.container(key="cmdbar"):
-            date_col, objective_col, ready_col = st.columns([1, 1.35, 1.05], vertical_alignment="bottom")
+            date_col, objective_col, ready_col = st.columns([.95, 1.2, 1.15], vertical_alignment="bottom")
             with date_col:
                 today = st.date_input("Scenario date", key="desk_today", min_value=state["desk_queue_date"], on_change=invalidate,
                                       format="DD/MM/YYYY")
@@ -174,7 +174,7 @@ def request_surface(message, orders) -> bool:
     with st.container(key="request"):
         if rid:
             html(f'<div class="msg-head"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
-                 f'<span>{esc(time)}, request {esc(rid)}</span></div></div><div class="msg-text">{esc(body)}</div>')
+                 f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div></div><div class="msg-text">{esc(body)}</div>')
         else:
             html('<div class="msg-head"><div class="avatar">+</div><div><b>New request</b><br>'
                  '<span>Type or paste the chat message</span></div></div><div style="height:10px"></div>')
@@ -182,7 +182,7 @@ def request_surface(message, orders) -> bool:
                          placeholder="For example: ORD-045, 150 vests for Cotton Club, due Apr 09. Fastest turnaround please.")
         if on_file is not None:
             html('<div class="facts"><span class="eyebrow">On file</span>'
-                 + fact("Order", on_file["order_id"]) + fact("Customer", on_file["customer"]) + fact("Product", on_file["product"])
+                 + fact("Order", on_file["order_id"], mono=True) + fact("Customer", on_file["customer"]) + fact("Product", on_file["product"])
                  + fact("Pieces", f"{int(on_file['pieces']):,}") + fact("Due", explain.long_date(str(on_file["due_date"])))
                  + fact("Stage", str(on_file["current_stage"]).capitalize()) + "</div>")
         edit_col, new_col, run_col = st.columns([2.6, .9, 1.15], vertical_alignment="center")
@@ -297,7 +297,7 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     state_cls = "rec-done" if confirmed else "rec-late" if awkward else ""
     with st.container(key="rec"):
         html(f'<div class="{state_cls}"><div class="rec-top"><span class="rec-eyebrow">{esc(label)}</span>{evidence}</div>'
-             f'<div class="rec-name">{esc(chosen["name"])}</div><div class="rec-sub">Workshop {esc(chosen["workshop_id"])}, makes {esc(makes)}</div>'
+             f'<div class="rec-name">{esc(chosen["name"])}</div><div class="rec-sub">Workshop <span class="id">{esc(chosen["workshop_id"])}</span>, makes {esc(makes)}</div>'
              f'<div class="rec-metrics">{tiles}</div>'
              f'<div class="rec-why"><small>Why this won</small><p>{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
              f'<div class="rec-obj">Objective: {esc(objective)}</div></div></div>')
