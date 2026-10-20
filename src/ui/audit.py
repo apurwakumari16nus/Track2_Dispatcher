@@ -144,7 +144,7 @@ def ledger(found, workshops):
         for i, row in enumerate(found):
             record = row.get("decision_record", {})
             passed = (row.get("faithfulness") or {}).get("passed")
-            cells = [f'<div class="lg-cell m">{esc(when(row))}</div>', f'<div class="lg-cell"><b>{esc(record.get("order_id") or "None")}</b></div>',
+            cells = [f'<div class="lg-cell m">{esc(when(row))}</div>', f'<div class="lg-cell"><b class="id">{esc(record.get("order_id") or "None")}</b></div>',
                      f'<div class="lg-cell">{esc(row.get("sender") or "Unknown")}</div>',
                      f'<div class="lg-cell"><b>{esc(workshop_name(record.get("chosen_workshop"), workshops))}</b></div>',
                      f'<div class="lg-cell m">{esc(explain.objective_label(record.get("objective_name", "")))}</div>',

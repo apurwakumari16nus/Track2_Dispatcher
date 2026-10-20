@@ -20,8 +20,30 @@ Tokens live at the top of `src/ui/theme.css`; Streamlit's base theme is in
 | `--green`, `--amber`, `--coral` | #45D18A, #F3B84B, #F56F67 | Confirm, late, refused/suspended |
 | `--text`, `--text-muted` | #122233, #617182 | Ink |
 
-Type scale: page title 34px, section 18 to 20px, hero metrics 34 to 54px, body
-14 to 16px, eyebrows and meta 11 to 12px uppercase with wide tracking.
+**Typography.** One variable family with two voices, self-hosted so the app looks
+the same online, offline and on every machine:
+
+- **Mona Sans** (GitHub, SIL OFL 1.1, weight 200 to 900, width 75 to 125%). Display
+  text and figures use the expanded width (112 to 125%) with tracking tightened as
+  size grows (-0.025 to -0.04em); reading text stays at normal width, weight 430.
+- **Geist Mono** (Vercel, SIL OFL 1.1) marks identifiers and scores: request IDs,
+  order IDs, workshop IDs, objective scores.
+- Files: `src/static/fonts/` (121 KB in total, licences beside them), served by
+  Streamlit static serving and declared in `.streamlit/config.toml` and `theme.css`.
+
+| Style | Size | Weight | Width |
+| --- | --- | --- | --- |
+| Display (page title) | 40px | 720 | 112% |
+| Hero name | 52px | 740 | 118% |
+| Hero and KPI figures | 32 to 60px | 680 to 720 | 118 to 125% |
+| Section title | 21px | 660 | 106% |
+| Body | 15 to 20px | 430 to 460 | 100% |
+| Labels and meta | 12 to 13px | 500 to 600 | 100% |
+
+Labels are sentence case. Uppercase is kept for six deliberate signals only: the
+process strip, the hero label, the duel labels, verdict badges, the rehearsal
+banner and the demo step counter. Tabular figures are used only where columns must align, because Mona
+Sans' tabular zero carries a dot.
 
 **Signature: the decision beam.** A 1px cyan to teal luminous edge, drawn with a
 masked gradient border. It appears only on the active, selected, recommended or
@@ -44,8 +66,14 @@ CSS (`st-key-rec`, `st-key-request`, `st-key-cmdbar`, `st-key-ledger`, ...).
 
 ## Pages
 
-**Shell.** Navy sidebar with a wordmark, icon navigation (selected item: soft
-glass plus a cyan left edge), then Guided demo and System details at the foot.
+**Shell.** The sidebar is a floating navy slab, inset 12px from the window with
+24px corners, lit by two soft radial lights and a faint dot texture at the top
+(the same texture as the network map). It holds a typographic wordmark, two
+groups (Operations: Dispatch, Workshop Network; Evidence: Simulation Lab, Audit
+Trail) with each icon in its own tile, the beam on the active item only, and a
+session card pinned to the foot: how requests are read (live model, rehearsal or
+not configured, with a status dot), the queue date and confirmations this
+session. Guided demo and System details sit below it.
 
 **Dispatch.** Title, then a glass command bar: scenario date, objective, and a
 "System ready" control that opens details on demand. Inbox on the left. On the
@@ -127,7 +155,7 @@ slide in from the right. `prefers-reduced-motion` turns all of it off.
       and are shown as supplied).
 - [x] Honest copy: ties are ties, the guardrail failure is shown, accuracy is
       "not reported yet", fixtures are labelled, no workshop is contacted.
-- [x] Checked at 1920 x 1080, and at 1440 x 900 in presentation mode.
+- [x] Checked at 1920 x 1080 and 1440 x 900.
 - [ ] Not checked: Safari, Windows fonts, browser zoom other than 100%.
 
 ## Technical notes

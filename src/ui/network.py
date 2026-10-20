@@ -73,7 +73,7 @@ def node_card(wid, w, check, estimate, state, flagged, queue, top, fastest_id) -
     cls = {"hit": " hit", "off": " off", "down": " off down"}.get(state, "")
     makes = " and ".join(sorted(m.lower() for m in w.makes))
     return (f'<div class="node-card{cls}"><div class="nc-top"><div><div class="nc-name">{esc(w.name)}</div>'
-            f'<div class="nc-id">{esc(wid)}, makes {esc(makes)}</div></div></div><div class="nc-pills">{pills}</div>{eta}'
+            f'<div class="nc-id"><span class="id">{esc(wid)}</span>, makes {esc(makes)}</div></div></div><div class="nc-pills">{pills}</div>{eta}'
             f'<div class="nc-grid"><div><small>Capacity</small><b>{w.capacity:,}/day</b></div><div><small>Per piece</small><b>{w.cost:g}</b></div>'
             f'<div><small>Defect</small><b>{w.defect_rate:.0%}</b></div></div>'
             f'<div><div class="nc-q"><small>Queue</small><span>{queue:.1f} days</span></div>'
