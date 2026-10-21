@@ -1,183 +1,220 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950" font-family="Helvetica, Arial, sans-serif">
-  <defs>
-    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/>
-    </marker>
-    <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
-    </marker>
-    <style>
-      .t  { font-size: 19px; font-weight: 700; fill: #111827; }
-      .b  { font-size: 14px; fill: #1f2937; }
-      .s  { font-size: 12px; fill: #4b5563; }
-      .c  { font-size: 10.5px; fill: #6b7280; font-family: Menlo, Consolas, monospace; }
-      .tt { font-size: 14px; font-weight: 700; fill: #1e3a5f; }
-      .lbl{ font-size: 13px; fill: #374151; }
-      .h  { font-size: 17px; font-weight: 700; fill: #1e3a5f; }
-    </style>
-  </defs>
-
-  <rect width="1600" height="950" fill="#ffffff"/>
-
-  <!-- Title + legend -->
-  <text x="20" y="42" font-size="26" font-weight="700" fill="#1e3a5f">System Architecture — LLM Intake + Rule-Based Dispatcher</text>
-  <rect x="1300" y="24" width="18" height="18" rx="3" fill="#ede4fb" stroke="#7c4dcc"/>
-  <text x="1325" y="38" class="lbl">LLM</text>
-  <rect x="1375" y="24" width="18" height="18" rx="3" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="1400" y="38" class="lbl">Rule-based (no LLM)</text>
-
-  <!-- Tools container -->
-  <rect x="150" y="70" width="1080" height="160" rx="12" fill="#f3f7fc" stroke="#9db4d3" stroke-dasharray="6 5"/>
-  <text x="690" y="97" text-anchor="middle" class="h">8 Tools (rule-based, no LLM)</text>
-  <rect x="167" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="228" y="134" text-anchor="middle" class="tt">Eligibility</text>
-  <text x="228" y="156" text-anchor="middle" class="s">can make? allowed?</text>
-  <text x="228" y="172" text-anchor="middle" class="s">under batch cap?</text>
-  <text x="228" y="200" text-anchor="middle" class="c">check_eligibility</text>
-  <rect x="299" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="360" y="134" text-anchor="middle" class="tt">Candidate List</text>
-  <text x="360" y="156" text-anchor="middle" class="s">eligible shops with</text>
-  <text x="360" y="172" text-anchor="middle" class="s">ETA + cost, sorted</text>
-  <text x="360" y="200" text-anchor="middle" class="c">candidates</text>
-  <rect x="431" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="492" y="134" text-anchor="middle" class="tt">Queue Check</text>
-  <text x="492" y="156" text-anchor="middle" class="s">days of work</text>
-  <text x="492" y="172" text-anchor="middle" class="s">already held</text>
-  <text x="492" y="200" text-anchor="middle" class="c">queue_check</text>
-  <rect x="563" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="624" y="134" text-anchor="middle" class="tt">ETA Estimate</text>
-  <text x="624" y="156" text-anchor="middle" class="s">queue + make</text>
-  <text x="624" y="172" text-anchor="middle" class="s">+ transport</text>
-  <text x="624" y="200" text-anchor="middle" class="c">estimate_eta</text>
-  <rect x="695" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="756" y="134" text-anchor="middle" class="tt">Cost Estimate</text>
-  <text x="756" y="156" text-anchor="middle" class="s">pieces × rate</text>
-  <text x="756" y="172" text-anchor="middle" class="s">per workshop</text>
-  <text x="756" y="200" text-anchor="middle" class="c">estimate_cost</text>
-  <rect x="827" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="888" y="134" text-anchor="middle" class="tt">Overload Probe</text>
-  <text x="888" y="156" text-anchor="middle" class="s">queue impact if</text>
-  <text x="888" y="172" text-anchor="middle" class="s">we send it here</text>
-  <text x="888" y="200" text-anchor="middle" class="c">overload_probe</text>
-  <rect x="959" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="1020" y="134" text-anchor="middle" class="tt">Split Estimate</text>
-  <text x="1020" y="156" text-anchor="middle" class="s">fastest legal</text>
-  <text x="1020" y="172" text-anchor="middle" class="s">two-shop split</text>
-  <text x="1020" y="200" text-anchor="middle" class="c">estimate_split</text>
-  <rect x="1091" y="110" width="122" height="105" rx="8" fill="#e6f0fb" stroke="#4a78b5"/>
-  <text x="1152" y="134" text-anchor="middle" class="tt">Order Lookup</text>
-  <text x="1152" y="156" text-anchor="middle" class="s">real matching orders</text>
-  <text x="1152" y="172" text-anchor="middle" class="s">for follow-up Qs</text>
-  <text x="1152" y="200" text-anchor="middle" class="c">order_options</text>
-
-  <!-- Allocator (decision, not a tool) -->
-  <rect x="1265" y="70" width="315" height="160" rx="12" fill="#dbe8f8" stroke="#2f5f9e" stroke-width="1.8"/>
-  <text x="1422" y="100" text-anchor="middle" class="t">Allocator</text>
-  <text x="1422" y="119" text-anchor="middle" class="s">picks the workshop</text>
-  <text x="1283" y="146" class="b">• Scores each candidate by</text>
-  <text x="1295" y="164" class="b">objective weights (config)</text>
-  <text x="1283" y="187" class="b">• Least-late fallback if none on time</text>
-  <text x="1283" y="210" class="b">• Closure monitor flags stuck queues</text>
-
-  <!-- Tools <-> Dispatcher -->
-  <line x1="700" y1="234" x2="700" y2="286" stroke="#1f2937" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <text x="712" y="265" class="lbl">tool calls / results</text>
-  <!-- Allocator <-> Dispatcher -->
-  <line x1="935" y1="287" x2="1330" y2="234" stroke="#1f2937" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <text x="1150" y="276" class="lbl">candidates → choice</text>
-
-  <!-- Main row -->
-  <!-- User request -->
-  <rect x="20" y="290" width="200" height="200" rx="12" fill="#e9f6ec" stroke="#3f8f57" stroke-width="1.6"/>
-  <text x="120" y="325" text-anchor="middle" class="t">User Request</text>
-  <text x="120" y="355" text-anchor="middle" class="b">Group-chat message</text>
-  <text x="120" y="390" text-anchor="middle" class="s">e.g. “1,500 crewnecks</text>
-  <text x="120" y="407" text-anchor="middle" class="s">to QuickStitch,</text>
-  <text x="120" y="424" text-anchor="middle" class="s">need it by the 19th”</text>
-
-  <line x1="222" y1="390" x2="266" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
-
-  <!-- LLM Intake -->
-  <rect x="270" y="290" width="255" height="200" rx="12" fill="#ede4fb" stroke="#7c4dcc" stroke-width="1.6"/>
-  <text x="397" y="325" text-anchor="middle" class="t">LLM Intake</text>
-  <text x="397" y="346" text-anchor="middle" class="s">GPT-4.1-mini · strict JSON · temp 0</text>
-  <text x="288" y="377" class="b">• Extracts order, qty, date,</text>
-  <text x="300" y="396" class="b">constraints &amp; who set them</text>
-  <text x="288" y="420" class="b">• No maths, no decisions</text>
-  <text x="288" y="444" class="b">• Python validates fields</text>
-  <text x="300" y="463" class="b">against orders.csv</text>
-
-  <line x1="527" y1="390" x2="586" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="556" y="360" text-anchor="middle" class="lbl">structured</text>
-  <text x="556" y="376" text-anchor="middle" class="lbl">request</text>
-
-  <!-- Dispatcher -->
-  <rect x="590" y="290" width="380" height="200" rx="12" fill="#fdf3d4" stroke="#c9a227" stroke-width="1.6"/>
-  <text x="780" y="325" text-anchor="middle" class="t">Dispatcher (rule-based)</text>
-  <text x="610" y="358" class="b">• Routes each request: allocate / clarify /</text>
-  <text x="622" y="377" class="b">refuse / decline</text>
-  <text x="610" y="402" class="b">• Calls tools; flags late or impossible orders</text>
-  <text x="610" y="427" class="b">• Fills pre-written explanation templates</text>
-  <text x="610" y="452" class="b">• Faithfulness check: every number in the</text>
-  <text x="622" y="471" class="b">rationale must come from a tool output</text>
-
-  <line x1="972" y1="390" x2="1061" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="1016" y="360" text-anchor="middle" class="lbl">recommended</text>
-  <text x="1016" y="376" text-anchor="middle" class="lbl">workshop</text>
-
-  <!-- Human review -->
-  <rect x="1065" y="290" width="230" height="200" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
-  <text x="1180" y="325" text-anchor="middle" class="t">Human Review</text>
-  <text x="1180" y="346" text-anchor="middle" class="s">Streamlit app</text>
-  <text x="1080" y="380" class="b">• Sees candidates, ETA,</text>
-  <text x="1092" y="399" class="b">cost at a glance</text>
-  <text x="1080" y="424" class="b">• Dispatcher confirms</text>
-  <text x="1080" y="449" class="b">• Never auto-dispatches</text>
-
-  <line x1="1297" y1="390" x2="1341" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="1319" y="377" text-anchor="middle" class="lbl">confirm</text>
-
-  <!-- Decision log -->
-  <rect x="1345" y="290" width="235" height="200" rx="12" fill="#e9f6ec" stroke="#3f8f57" stroke-width="1.6"/>
-  <text x="1460" y="325" text-anchor="middle" class="t">Decision Log</text>
-  <text x="1460" y="346" text-anchor="middle" class="s">audit record (JSONL)</text>
-  <text x="1358" y="380" class="b">• Who · what · why · when</text>
-  <text x="1358" y="405" class="b">• All candidates &amp; their</text>
-  <text x="1370" y="424" class="b">ETA / cost</text>
-  <text x="1358" y="449" class="b">• Constraints &amp; who set them</text>
-
-  <!-- Dispatcher <-> Memory -->
-  <line x1="780" y1="494" x2="780" y2="556" stroke="#1f2937" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <!-- Data & memory -->
-  <rect x="660" y="560" width="240" height="125" rx="12" fill="#fde8ec" stroke="#c2415d" stroke-width="1.6"/>
-  <text x="780" y="590" text-anchor="middle" class="t">Data &amp; Memory</text>
-  <text x="678" y="618" class="b">• orders.csv · workshops.csv</text>
-  <text x="678" y="642" class="b">• objective config (YAML)</text>
-  <text x="678" y="666" class="b">• allocation history</text>
-
-  <!-- Feedback loop: dispatcher -> user -->
-  <path d="M620,492 L620,718 L120,718 L120,496" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#arrg)"/>
-  <text x="370" y="709" text-anchor="middle" class="lbl" fill="#4b5563">clarifying question / refusal with reason + alternative</text>
-
-  <!-- Evaluation -->
-  <rect x="20" y="745" width="1560" height="140" rx="12" fill="#f7f8fa" stroke="#9aa5b1" stroke-dasharray="6 5"/>
-  <text x="800" y="771" text-anchor="middle" class="h">Evaluation</text>
-
-  <rect x="40" y="783" width="750" height="88" rx="8" fill="#ffffff" stroke="#9db4d3"/>
-  <text x="58" y="808" class="tt">A. Decisions — shared simulator</text>
-  <rect x="300" y="794" width="54" height="20" rx="10" fill="#dff3e4" stroke="#3f8f57"/>
-  <text x="327" y="808" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2d6b40">Done</text>
-  <text x="58" y="833" class="b">120 orders → same Allocator → course simulator (normal + shock, 10 seeds)</text>
-  <text x="58" y="856" class="b">% late, defects, cost, fairness vs random · greedy · cheapest · earliest-finish</text>
-
-  <rect x="810" y="783" width="750" height="88" rx="8" fill="#ffffff" stroke="#9db4d3"/>
-  <text x="828" y="808" class="tt">B. Language — chat inbox</text>
-  <rect x="1022" y="794" width="74" height="20" rx="10" fill="#fdf3d4" stroke="#c9a227"/>
-  <text x="1059" y="808" text-anchor="middle" font-size="11.5" font-weight="700" fill="#8a6d12">Sprint 2</text>
-  <text x="828" y="833" class="b">30 inbox requests + held-out set → LLM Intake → Dispatcher</text>
-  <text x="828" y="856" class="b">Scored vs human labels by behaviour; decision &amp; explanation judged separately</text>
-
-  <!-- Tech stack -->
-  <text x="20" y="925" font-size="14" fill="#374151"><tspan font-weight="700">Tech stack: </tspan>Python 3.11 · OpenAI API (GPT-4.1-mini) · Pydantic (schema) · pandas · Streamlit (UI) · YAML (objective config) · JSONL (audit log) · pytest</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="945" viewBox="0 0 1600 945" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/></marker>
+<marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+<style>
+.t{font-size:19px;font-weight:700;fill:#111827}
+.b{font-size:13.5px;fill:#1f2937}
+.b2{font-size:12.5px;fill:#1f2937}
+.s{font-size:12px;fill:#4b5563}
+.tn{font-weight:700;fill:#1e3a5f}
+.tag{font-size:12.5px;font-weight:700;fill:#1f2937}
+.lbl{font-size:12.5px;fill:#374151}
+.h{font-size:17px;font-weight:700;fill:#1e3a5f}
+.mt{font-size:13px;font-weight:700;fill:#1e3a5f}
+</style></defs>
+<rect width="1600" height="945" fill="#ffffff"/>
+<text x="20" y="40" font-size="26" font-weight="700" fill="#1e3a5f">System Architecture — LLM Intake + Rule-Based Dispatcher</text>
+<rect x="1130" y="22" width="18" height="18" rx="3" fill="#ede4fb" stroke="#7c4dcc" stroke-width="1.2"/>
+<text x="1155" y="36" class="lbl">LLM</text>
+<rect x="1200" y="22" width="18" height="18" rx="3" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="1225" y="36" class="lbl">Rule-based (no LLM)</text>
+<rect x="1380" y="22" width="18" height="18" rx="3" fill="#fff1e0" stroke="#d98a2b" stroke-width="1.2"/>
+<text x="1405" y="36" class="lbl">Human</text>
+<rect x="20" y="66" width="236" height="222" rx="12" fill="#e9f6ec" stroke="#3f8f57" stroke-width="1.6"/>
+<circle cx="44" cy="94" r="13" fill="#1e3a5f"/>
+<text x="44" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
+<text x="66" y="100" class="t">User request</text>
+<text x="36" y="138" class="b">Group-chat message</text>
+<text x="36" y="170" class="s">e.g. “ORD-045, 150 vests for</text>
+<text x="36" y="187" class="s">Cotton Club, due Apr 09.</text>
+<text x="36" y="204" class="s">Urgent, fastest turnaround.”</text>
+<text x="36" y="256" class="s">Typed into the Streamlit app</text>
+<rect x="282" y="66" width="270" height="222" rx="12" fill="#ede4fb" stroke="#7c4dcc" stroke-width="1.6"/>
+<circle cx="306" cy="94" r="13" fill="#1e3a5f"/>
+<text x="306" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2</text>
+<text x="328" y="100" class="t">LLM Intake</text>
+<text x="298" y="124" class="s">GPT-4.1-mini · strict JSON · temp 0</text>
+<text x="298" y="156" class="b">• Extracts order, quantity,</text>
+<text x="298" y="175" class="b">  deadline wording, workshop</text>
+<text x="298" y="194" class="b">  named, preference, and who</text>
+<text x="298" y="213" class="b">  set each instruction</text>
+<text x="298" y="256" class="b">• No maths, no decisions</text>
+<rect x="578" y="66" width="330" height="222" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
+<circle cx="602" cy="94" r="13" fill="#1e3a5f"/>
+<text x="602" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3</text>
+<text x="624" y="100" class="t">Python validates</text>
+<text x="594" y="124" class="s">rule-based checks on the LLM output</text>
+<text x="594" y="148" class="b">• Finds the order in orders.csv;</text>
+<text x="594" y="166" class="b">  details come from the file</text>
+<text x="594" y="184" class="b">• Turns the deadline into a date;</text>
+<text x="594" y="202" class="b">  flags it if already late</text>
+<text x="594" y="220" class="b">• Checks a suggested workshop</text>
+<text x="594" y="238" class="b">  with <tspan class="tn">Eligibility</tspan></text>
+<text x="594" y="256" class="b">• <tspan class="tn">Decides the request type:</tspan></text>
+<text x="594" y="274" class="b">  decline · clarify · refuse · allocate</text>
+<rect x="960" y="66" width="596" height="222" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
+<circle cx="984" cy="94" r="13" fill="#1e3a5f"/>
+<text x="984" y="99" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">4</text>
+<text x="1006" y="100" class="t">Dispatcher acts on the request type</text>
+<rect x="974" y="118" width="568" height="36" rx="8" fill="#ffffff" stroke="#b9cbe3" stroke-width="1"/>
+<rect x="980" y="123" width="84" height="26" rx="6" fill="#fbe3e7" stroke="#9aa5b1" stroke-width="1"/>
+<text x="1022" y="141" class="tag" text-anchor="middle">Decline</text>
+<text x="1074" y="141" class="b2">Order not found, or data we don't hold → says so, no allocation</text>
+<rect x="974" y="160" width="568" height="36" rx="8" fill="#ffffff" stroke="#b9cbe3" stroke-width="1"/>
+<rect x="980" y="165" width="84" height="26" rx="6" fill="#fdf3d4" stroke="#9aa5b1" stroke-width="1"/>
+<text x="1022" y="183" class="tag" text-anchor="middle">Clarify</text>
+<text x="1074" y="183" class="b2">Unclear order / missing detail → <tspan class="tn">Order Lookup</tspan> → question</text>
+<rect x="974" y="202" width="568" height="36" rx="8" fill="#ffffff" stroke="#b9cbe3" stroke-width="1"/>
+<rect x="980" y="207" width="84" height="26" rx="6" fill="#fde7d3" stroke="#9aa5b1" stroke-width="1"/>
+<text x="1022" y="225" class="tag" text-anchor="middle">Refuse</text>
+<text x="1074" y="225" class="b2">Workshop not allowed → <tspan class="tn">Eligibility</tspan> → reason + alternative</text>
+<rect x="974" y="244" width="568" height="36" rx="8" fill="#ffffff" stroke="#b9cbe3" stroke-width="1"/>
+<rect x="980" y="249" width="84" height="26" rx="6" fill="#dff3e4" stroke="#9aa5b1" stroke-width="1"/>
+<text x="1022" y="267" class="tag" text-anchor="middle">Allocate</text>
+<text x="1074" y="267" class="b2">All details valid → continue to step 5</text>
+<line x1="258" y1="177" x2="280" y2="177" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="554" y1="177" x2="576" y2="177" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="910" y1="177" x2="958" y2="177" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<text x="934" y="146" class="s" text-anchor="middle">request</text>
+<text x="934" y="160" class="s" text-anchor="middle">type</text>
+<path d="M1100,288 L1100,308 L80,308 L80,290" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#arrg)"/>
+<text x="590" y="302" class="lbl" text-anchor="middle">Decline / Clarify / Refuse → reply goes back to the sender (nothing is allocated)</text>
+<path d="M1480,288 L1480,330 L138,330 L138,354" fill="none" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<text x="820" y="346" class="lbl" text-anchor="middle">Allocate path</text>
+<rect x="20" y="356" width="236" height="210" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
+<circle cx="44" cy="384" r="13" fill="#1e3a5f"/>
+<text x="44" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">5</text>
+<text x="66" y="390" class="t">Build options</text>
+<text x="36" y="412" class="s">Allocator calls Candidate List:</text>
+<text x="36" y="436" class="b2">• <tspan class="tn">Eligibility</tspan> – who can take it</text>
+<text x="36" y="454" class="b2">• <tspan class="tn">ETA Estimate</tspan> – queue +</text>
+<text x="36" y="472" class="b2">  making time + transport</text>
+<text x="36" y="490" class="b2">• <tspan class="tn">Cost Estimate</tspan> – pieces × rate</text>
+<text x="36" y="508" class="b2">• Skips workshops the sender</text>
+<text x="36" y="526" class="b2">  excluded</text>
+<text x="36" y="552" class="b2">→ table of eligible options</text>
+<rect x="280" y="356" width="236" height="210" rx="12" fill="#dbe8f8" stroke="#2f5f9e" stroke-width="1.6"/>
+<circle cx="304" cy="384" r="13" fill="#1e3a5f"/>
+<text x="304" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">6</text>
+<text x="326" y="390" class="t">Allocator picks</text>
+<text x="296" y="412" class="s">scores every option</text>
+<text x="296" y="436" class="b2">• Uses the objective weights</text>
+<text x="296" y="454" class="b2">  from the config file</text>
+<text x="296" y="472" class="b2">• Lowest score wins</text>
+<text x="296" y="490" class="b2">• None on time? Picks the</text>
+<text x="296" y="508" class="b2">  least-late, flags for review</text>
+<text x="296" y="526" class="b2">• <tspan class="tn">Closure monitor</tspan> flags</text>
+<text x="296" y="544" class="b2">  queues not going down</text>
+<rect x="540" y="356" width="236" height="210" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
+<circle cx="564" cy="384" r="13" fill="#1e3a5f"/>
+<text x="564" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">7</text>
+<text x="586" y="390" class="t">Add evidence</text>
+<text x="556" y="412" class="s">after the workshop is chosen</text>
+<text x="556" y="436" class="b2">• <tspan class="tn">Queue Check</tspan> – how busy</text>
+<text x="556" y="454" class="b2">  the chosen workshop is</text>
+<text x="556" y="472" class="b2">• <tspan class="tn">Overload Probe</tspan> – its queue</text>
+<text x="556" y="490" class="b2">  after taking this batch</text>
+<text x="556" y="508" class="b2">• <tspan class="tn">Split Estimate</tspan> – only if</text>
+<text x="556" y="526" class="b2">  the sender allows splitting</text>
+<text x="556" y="544" class="b2">  (preview only)</text>
+<rect x="800" y="356" width="236" height="210" rx="12" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.6"/>
+<circle cx="824" cy="384" r="13" fill="#1e3a5f"/>
+<text x="824" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">8</text>
+<text x="846" y="390" class="t">Explain &amp; check</text>
+<text x="816" y="412" class="s">no LLM writes this text</text>
+<text x="816" y="436" class="b2">• Pre-written template,</text>
+<text x="816" y="454" class="b2">  numbers copied from tools</text>
+<text x="816" y="472" class="b2">• Late / impossible-deadline</text>
+<text x="816" y="490" class="b2">  warnings added on top</text>
+<text x="816" y="508" class="b2">• <tspan class="tn">Number check</tspan>: blocks any</text>
+<text x="816" y="526" class="b2">  number not from a tool</text>
+<rect x="1060" y="356" width="236" height="210" rx="12" fill="#fff1e0" stroke="#d98a2b" stroke-width="1.6"/>
+<circle cx="1084" cy="384" r="13" fill="#1e3a5f"/>
+<text x="1084" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">9</text>
+<text x="1106" y="390" class="t">Human review</text>
+<text x="1076" y="412" class="s">Streamlit app</text>
+<text x="1076" y="436" class="b2">• Sees recommendation, all</text>
+<text x="1076" y="454" class="b2">  options, ETA, cost, risk</text>
+<text x="1076" y="472" class="b2">• Sees rejected workshops</text>
+<text x="1076" y="490" class="b2">  and why</text>
+<text x="1076" y="508" class="b2">• Dispatcher confirms</text>
+<text x="1076" y="526" class="b2">• Never auto-dispatches</text>
+<rect x="1320" y="356" width="236" height="210" rx="12" fill="#e9f6ec" stroke="#3f8f57" stroke-width="1.6"/>
+<circle cx="1344" cy="384" r="13" fill="#1e3a5f"/>
+<text x="1344" y="389" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">10</text>
+<text x="1366" y="390" class="t">Decision log</text>
+<text x="1336" y="412" class="s">audit record (JSONL)</text>
+<text x="1336" y="436" class="b2">• Saved only after Confirm</text>
+<text x="1336" y="454" class="b2">• Who asked + constraints</text>
+<text x="1336" y="472" class="b2">• All candidates + numbers</text>
+<text x="1336" y="490" class="b2">• Why this workshop won</text>
+<text x="1336" y="508" class="b2">• When it was decided</text>
+<line x1="258" y1="461" x2="278" y2="461" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="518" y1="461" x2="538" y2="461" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="778" y1="461" x2="798" y2="461" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="1038" y1="461" x2="1058" y2="461" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<line x1="1298" y1="461" x2="1318" y2="461" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="20" y="582" width="1536" height="40" rx="8" fill="#fde8ec" stroke="#c2415d" stroke-width="1.4"/>
+<text x="36" y="607" class="b2"><tspan class="tn">Data &amp; memory</tspan>  ·  orders.csv  ·  workshops.csv (queues, status, caps)  ·  objective config (YAML)  ·  allocation history (this session)   —   read by steps 3 to 7</text>
+<line x1="138" y1="566" x2="138" y2="582" stroke="#c2415d" stroke-width="2"/>
+<line x1="398" y1="566" x2="398" y2="582" stroke="#c2415d" stroke-width="2"/>
+<line x1="658" y1="566" x2="658" y2="582" stroke="#c2415d" stroke-width="2"/>
+<rect x="20" y="642" width="1536" height="252" rx="12" fill="#f7f8fa" stroke="#9aa5b1" stroke-width="1.4" stroke-dasharray="6 5"/>
+<text x="788" y="668" class="h" text-anchor="middle">Evaluation — two separate tests</text>
+<rect x="36" y="682" width="748" height="196" rx="8" fill="#ffffff" stroke="#9db4d3" stroke-width="1.2"/>
+<text x="52" y="706" class="mt">A · Are the decisions good?  (course simulator)</text>
+<text x="52" y="860" class="s">Tests the Allocator (steps 5–6). No LLM involved.</text>
+<rect x="52" y="720" width="158" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="62" y="742" class="mt">120 orders</text>
+<text x="62" y="762.0" class="s">from orders.csv,</text>
+<text x="62" y="777.5" class="s">replayed in date order</text>
+<line x1="212" y1="776" x2="236" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="238" y="720" width="158" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="248" y="742" class="mt">Same Allocator</text>
+<text x="248" y="762.0" class="s">picks a workshop for</text>
+<text x="248" y="777.5" class="s">each order</text>
+<line x1="398" y1="776" x2="422" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="424" y="720" width="158" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="434" y="742" class="mt">Simulator</text>
+<text x="434" y="762.0" class="s">queue wait, making time,</text>
+<text x="434" y="777.5" class="s">transport, random</text>
+<text x="434" y="793.0" class="s">defects; normal + shock</text>
+<text x="434" y="808.5" class="s">(workshop closes 2 wks);</text>
+<text x="434" y="824.0" class="s">10 seeds, averaged</text>
+<line x1="584" y1="776" x2="608" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="610" y="720" width="158" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="620" y="742" class="mt">Compare vs baselines</text>
+<text x="620" y="762.0" class="s">random · biggest ·</text>
+<text x="620" y="777.5" class="s">cheapest · earliest-</text>
+<text x="620" y="793.0" class="s">finish on % late, late</text>
+<text x="620" y="808.5" class="s">days, defects, cost,</text>
+<text x="620" y="824.0" class="s">fairness</text>
+<rect x="800" y="682" width="740" height="196" rx="8" fill="#ffffff" stroke="#9db4d3" stroke-width="1.2"/>
+<text x="816" y="706" class="mt">B · Does it understand chat?  (inbox requests)</text>
+<text x="816" y="860" class="s">Tests the whole chain (steps 1–8). Decision and explanation scored separately.</text>
+<rect x="820" y="720" width="154" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="830" y="742" class="mt">30 + new requests</text>
+<text x="830" y="762.0" class="s">30 inbox messages +</text>
+<text x="830" y="777.5" class="s">10+ unseen ones</text>
+<text x="830" y="793.0" class="s">(held-out set)</text>
+<line x1="976" y1="776" x2="1000" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="1002" y="720" width="154" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="1012" y="742" class="mt">Human labels</text>
+<text x="1012" y="762.0" class="s">two reviewers write the</text>
+<text x="1012" y="777.5" class="s">correct response, then</text>
+<text x="1012" y="793.0" class="s">agree, before scoring</text>
+<line x1="1158" y1="776" x2="1182" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="1184" y="720" width="154" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="1194" y="742" class="mt">Full pipeline</text>
+<text x="1194" y="762.0" class="s">each message goes</text>
+<text x="1194" y="777.5" class="s">through LLM Intake</text>
+<text x="1194" y="793.0" class="s">→ Dispatcher</text>
+<line x1="1340" y1="776" x2="1364" y2="776" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+<rect x="1366" y="720" width="154" height="112" rx="8" fill="#e6f0fb" stroke="#4a78b5" stroke-width="1.2"/>
+<text x="1376" y="742" class="mt">Score by type</text>
+<text x="1376" y="762.0" class="s">recommend · ask ·</text>
+<text x="1376" y="777.5" class="s">refuse · can't answer;</text>
+<text x="1376" y="793.0" class="s">invented numbers = fail</text>
+<text x="20" y="925" font-size="14" fill="#374151"><tspan font-weight="700">Tech stack: </tspan>Python 3.11 · OpenAI API (GPT-4.1-mini) · Pydantic (schema) · pandas · Streamlit (UI) · YAML (objective config) · JSONL (audit log) · pytest</text>
 </svg>
