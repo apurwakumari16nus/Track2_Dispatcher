@@ -64,7 +64,7 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at.button(key="desk_dispatch").click().run()
     assert not at.exception and at.session_state["desk_preview"].source == "fixture"
     text = " ".join(m.value for m in at.markdown)
-    assert "Recommended workshop" in text and "Nimble Needle" in text
+    assert "Not yet confirmed" in text and "Nimble Needle" in text and "Confirmed by you" not in text  # Suggested, not committed.
     at.button(key="desk_inspect").click().run()  # The inspector reads the preview; it never changes it.
     text = " ".join(m.value for m in at.markdown)
     assert not at.exception and "Why this decision" in text and "Final score, lower wins" in text
@@ -72,6 +72,7 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at.button(key="desk_confirm").click().run()
     assert not at.exception
     assert len(records.load(desk.REHEARSAL_LOG)) == 1 and not records.DEFAULT_PATH.exists()
+    assert "Confirmed by you" in " ".join(m.value for m in at.markdown)  # Committed only after the explicit confirmation.
     saved = records.load(desk.REHEARSAL_LOG)[0]
     assert saved["decision_record"]["constraints_applied"]["confirmation"]["extraction_source"] == "fixture"
     assert saved["parsed_request"]["llm_metadata"]["model"] == "synthetic-fixture"

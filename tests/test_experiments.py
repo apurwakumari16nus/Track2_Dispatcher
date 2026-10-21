@@ -40,26 +40,28 @@ def test_lab_seed_controls_and_page_navigation():
     assert not app.exception
     assert app.radio(key="desk_page").value == "Dispatch"  # Dispatch is the landing page.
     app.radio(key="desk_page").set_value("Simulation Lab").run()
-    assert not app.exception
-    assert len(app.get("vega_lite_chart")) >= 5
-    assert app.session_state["desk_saved"] == {}
+    assert not app.exception and app.session_state["lab_space"] == "performance"
+    assert "Tie" in " ".join(m.value for m in app.markdown)
+    for space in ("tradeoffs", "disruption", "evidence"):
+        app.segmented_control(key="lab_space").set_value(space).run()
+        assert not app.exception, space
+    assert "Accuracy not reported yet" in " ".join(m.value for m in app.markdown)  # Never an unsupported accuracy.
+    app.segmented_control(key="lab_space").set_value("disruption").run()
+    assert len(app.get("vega_lite_chart")) >= 2 and app.session_state["desk_saved"] == {}
     app.number_input(key="lab_seed").set_value(42).run()
     assert app.session_state["lab_bundle"]["seed"] == 5105
     app.button(key="lab_run").click().run()
-    assert not app.exception
-    assert app.session_state["lab_bundle"]["seed"] == 42
+    assert not app.exception and app.session_state["lab_bundle"]["seed"] == 42
     app.selectbox(key="lab_focus").set_value("fairness").run()
     app.radio(key="lab_scenario").set_value("Shock").run()
     assert not app.exception
     text = " ".join(m.value for m in app.markdown)
-    assert "single-seed diagnostic" in text and "official ten-seed results are under Course Evidence" in text
-    assert "Tie" in text or "tie" in text
-    assert "Accuracy not reported yet" in text  # Course evidence never shows an unsupported accuracy.
+    assert "single-seed diagnostic" in text and "official ten-seed results are under Evidence" in text
     app.radio(key="desk_page").set_value("Dispatch").run()
     assert not app.exception
     app.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not app.exception
-    assert app.session_state["lab_bundle"]["seed"] == 42
+    assert app.session_state["lab_bundle"]["seed"] == 42 and app.session_state["lab_space"] == "disruption"
     assert app.number_input(key="lab_seed").value == 42
     assert app.selectbox(key="lab_focus").value == "fairness"
     assert app.radio(key="lab_scenario").value == "Shock"
@@ -70,6 +72,7 @@ def test_sandbox_runs_custom_weights_without_touching_presets():
     before = {k: v for k, v in PRESETS.items()}
     app = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=30)
     app.session_state["desk_page"] = "Simulation Lab"
+    app.session_state["lab_space"] = "tradeoffs"
     app.run()
     app.slider(key="sb_defect").set_value(0.3).run()
     app.button(key="sb_run").click().run()

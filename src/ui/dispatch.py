@@ -10,6 +10,7 @@ Decision inspector, a slide-over panel opened on request.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import date
 import json
 from pathlib import Path
 import re
@@ -22,7 +23,7 @@ from objectives import PRESETS
 import rehearsal
 import tools
 from ui import explain
-from ui.components import (banner, candidate_row, esc, html, icon, json_block, process_strip, score_bars, section,
+from ui.components import (banner, candidate_row, esc, html, icon, json_block, process_strip, score_bars, section, state_line,
                            status_pill, table, weight_bars)
 
 STATUS_WORDS = {"allocate": "Reviewed", "clarify": "Needs reply", "refuse": "Reviewed", "decline": "Cannot answer"}
@@ -88,10 +89,10 @@ HOME_STEPS = [("understand", "Understand", "Read the request"),
               ("decide", "Decide", "Choose and verify"),
               ("confirm", "Confirm", "You approve")]
 FILTERS = {"all": "All", "pending": "Pending", "reviewed": "Reviewed"}
-OUTCOME_TONES = {"Confirmed": "ok", "Needs reply": "warn", "Cannot answer": "muted", "Reviewed": "info"}
+OUTCOME_TONES = {"Confirmed": "conf", "Needs reply": "warn", "Cannot answer": "muted", "Reviewed": "info"}
 AVATAR_TONES = ["#123A66", "#1F4E86", "#2A77E8", "#0E6B8C", "#3B4F7A"]
 BRAND = "app/static/brand"
-ATELIER = Path(__file__).resolve().parents[1] / "static" / "brand" / "atelier.webp"
+WORKSHOP_PHOTOS = Path(__file__).resolve().parents[1] / "static" / "brand" / "workshops"
 
 
 def live_stages(active: str):
@@ -245,7 +246,7 @@ def request_surface(message, orders) -> bool:
         with text_col:
             if rid:
                 pill = status_pill(outcome, OUTCOME_TONES.get(outcome, "info")) if outcome else ""
-                html(f'<div class="msg-head"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
+                html(f'<div class="msg-head req-sel"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
                      f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div>{pill}</div>')
                 if on_file is not None:
                     html(f'<div class="req-title"><span class="req-id">{esc(on_file["order_id"])}</span>{int(on_file["pieces"]):,} '
@@ -277,17 +278,17 @@ def request_surface(message, orders) -> bool:
         with photo_col:
             tag = (f'<div class="photo-tag"><b>{esc(on_file["customer"])}</b><span>{esc(on_file["product"])}, '
                    f'{esc(str(on_file["category"]).lower())}</span></div>') if on_file is not None else ""
-            html(f'<div class="req-photo"><img src="{BRAND}/hangers.webp" alt="Knitwear and shirts on a garment rail">{tag}</div>')
+            html(f'<div class="req-photo"><img src="{BRAND}/knitwear-rail.webp" alt="Knitwear on a garment rail">{tag}</div>')
     return run
 
 
 def evaluate(progress, orders, workshops, today, config, queues):
     state = st.session_state
     invalidate()
-    progress.markdown(process_strip(live_stages("understand")), unsafe_allow_html=True)
+    progress.markdown(process_strip(live_stages("understand"), live=True), unsafe_allow_html=True)
 
     def reply_arrived():
-        progress.markdown(process_strip(live_stages("validate")), unsafe_allow_html=True)
+        progress.markdown(process_strip(live_stages("validate"), live=True), unsafe_allow_html=True)
 
     call = rehearsal.make_source(state["desk_source"], on_reply=reply_arrived)
     try:
@@ -347,6 +348,7 @@ def result(preview, current_signature, workshops, orders, queues, progress):
                     f" Earliest achievable: {explain.short_date(chosen['eta_date'])} at {chosen['name']}. You decide what happens next.", "warn"))
     if chosen is not None:
         recommendation(preview, chosen, record, parsed, workshops, status)
+        compare_options(record, chosen, workshops)
         if record.get("awkward_case") == "none_makes_date" or record.get("tool_outputs", {}).get("split"):
             options_card(preview, record, parsed, workshops, queues)
     elif parsed.behaviour == "clarify":
@@ -356,6 +358,39 @@ def result(preview, current_signature, workshops, orders, queues, progress):
     else:
         html(banner("No eligible workshop remains", " Every workshop is excluded or ineligible for this batch. Leave it unconfirmed and escalate.", "risk"))
         alternatives(record, workshops)
+
+
+def trace_on_network(parsed):
+    """Open Workshop Network with this batch prefilled; the page replays the routing once."""
+    state = st.session_state
+    rid = envelope(state["desk_message"])[0]
+    state["net_handoff"] = {"category": parsed.category, "pieces": int(parsed.pieces),
+                            "due": date.fromisoformat(str(parsed.due_date)),
+                            "label": " ".join(x for x in (f"request {rid}" if rid else "", parsed.order_id or "") if x)}
+    state["desk_page"] = "Workshop Network"
+
+
+def compare_options(record, chosen, workshops):
+    """The next permitted workshops against the recommendation, from the same recorded decision."""
+    rows = [r for r in explain.selection_order(record) if r["workshop_id"] != chosen["workshop_id"]][:3]
+    if not rows:
+        return
+    cells = []
+    for r in rows:
+        later = r["total_days"] - chosen["total_days"]
+        cost = r["total_cost"] - chosen["total_cost"]
+        spare = r["days_to_spare"]
+        verdict = explain.why_not(record, r["workshop_id"], workshops)
+        cells.append(
+            f'<div class="co"><div class="co-h"><b>{esc(r["name"])}</b><span class="{"neg" if spare < 0 else ""}">'
+            f'{esc("Late" if spare < 0 else "On time")}</span></div>'
+            f'<dl><dt>Back</dt><dd>{esc(explain.short_date(r["eta_date"]))}</dd>'
+            f'<dt>Time</dt><dd>{later:+.1f} days</dd>'
+            f'<dt>Cost</dt><dd>{cost:+,.0f}</dd><dt>Defect risk</dt><dd>{r["expected_defect_rate"]:.0%}</dd></dl>'
+            f'<p>{esc(verdict.get("result") or verdict.get("headline", ""))}</p></div>')
+    html('<div class="an-card co-wrap"><div class="co-top"><div><div class="an-title">Against the next options</div>'
+         f'<div class="an-sub">Differences are measured from {esc(chosen["name"])}. Same recorded decision, same tools.</div></div></div>'
+         f'<div class="co-grid">{"".join(cells)}</div></div>')
 
 
 def why_points(record, chosen, parsed, workshops) -> list[str]:
@@ -382,7 +417,17 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     label = ("Confirmed" if confirmed else "Least-late option" if awkward else
              "Best permitted alternative" if parsed.behaviour == "refuse" else "Recommended workshop")
     passed = (preview.response.faithfulness or {}).get("passed")
-    evidence = status_pill("Evidence verified", "ok") if passed else status_pill("Evidence check failed", "risk")
+    evidence = (f'<div class="ws-ev {"ok" if passed else "bad"}">{icon("fact_check" if passed else "error")}'
+                f'{"Every number checked against the tools" if passed else "Evidence check failed"}</div>')
+    if confirmed:
+        stamp = (state["desk_saved"].get(preview.token) or {}).get("timestamp", "")[11:16]
+        line = state_line("conf", f"Confirmed by you{f' at {stamp} UTC' if stamp else ''}", "Audit record saved. Queue updated.")
+    elif awkward:
+        line = state_line("warn", "Least-late option", "No permitted workshop meets the due date. You decide.")
+    elif parsed.behaviour == "refuse":
+        line = state_line("rec", "Best permitted alternative", "The requested workshop cannot take it. Not yet confirmed.")
+    else:
+        line = state_line("rec", "Recommended", "Suggested by the engine. Not yet confirmed.")
     won = explain.why_won(record)
     spare = chosen["days_to_spare"]
     workshop = workshops[wid]
@@ -395,7 +440,8 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
                ("Total cost", f"{chosen['total_cost']:,.0f}", ""),
                ("Defect risk", f"{chosen['expected_defect_rate']:.0%}", "")]
     tiles = "".join(f'<div class="{cls}"><small>{esc(k)}</small><strong>{esc(v)}</strong></div>' for k, v, cls in metrics)
-    photo = f'<img class="ws-photo" src="{BRAND}/atelier.webp" alt="Garment workshop">' if ATELIER.exists() else ""
+    photo = (f'<div class="ws-ph"><img class="ws-photo" src="{BRAND}/workshops/{wid}.webp" alt="Illustrative photo for {esc(name)}">'
+             '<span class="ill">Illustrative photo</span></div>' if (WORKSHOP_PHOTOS / f"{wid}.webp").exists() else "")
     points = "".join(f"<li>{icon('check_circle')}<span>{esc(p)}</span></li>" for p in why_points(record, chosen, parsed, workshops))
     state_cls = "rec-done" if confirmed else "rec-late" if awkward else ""
     headline = (f"Assigned to {name}" if confirmed else f"Least late: {name}" if awkward
@@ -403,17 +449,22 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     with st.container(key="rec"):
         main, card, act = st.columns([1.28, 1.02, .86], gap="medium", vertical_alignment="center")
         with main:
-            html(f'<div class="{state_cls}"><span class="rec-eyebrow">{esc(label)}</span>'
+            html(f'<div class="{state_cls}">{line}'
                  f'<div class="rec-head">{esc(headline)}</div>'
                  f'<p class="rec-reason">{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
                  f'<div class="rec-why-title">Why this workshop?</div><ul class="rec-list">{points}</ul>'
                  f'<div class="rec-obj">Objective: {esc(objective)}</div></div>')
-            if st.button("Why this decision?", key="desk_inspect", type="tertiary", icon=":material/insights:"):
-                inspector(workshops)
+            why_col, trace_col = st.columns(2)
+            with why_col:
+                if st.button("Why this decision?", key="desk_inspect", type="tertiary", icon=":material/insights:"):
+                    inspector(workshops)
+            with trace_col:
+                st.button("Trace on the network", key="desk_trace", type="tertiary", icon=":material/hub:",
+                          on_click=trace_on_network, args=(parsed,))
         with card:
             html(f'<div class="ws-card">{photo}<div class="ws-top"><div><div class="ws-name">{esc(name)}</div>'
-                 f'<div class="ws-sub">Workshop <span class="id">{esc(wid)}</span>, makes {esc(makes)}</div></div>{evidence}</div>'
-                 f'<div class="ws-metrics">{tiles}</div></div>')
+                 f'<div class="ws-sub">Workshop <span class="id">{esc(wid)}</span>, makes {esc(makes)}</div></div></div>'
+                 f'<div class="ws-metrics">{tiles}</div>{evidence}</div>')
         with act:
             if confirmed:
                 html('<div class="done-note"><b>Audit record saved. Queue updated.</b><br>'
