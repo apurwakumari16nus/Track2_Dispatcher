@@ -32,8 +32,8 @@ ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "S
 # Streamlit drops a widget's state on runs where it is not drawn (other pages).
 # These values are restored when the page that owns them is shown again.
 KEEP = ("desk_today", "desk_preset", "desk_message", "inbox_search", "inbox_filter",
-        "net_category", "net_pieces", "net_due", "net_view",
-        "lab_seed", "lab_focus", "lab_scenario", "lab_late", "lab_order",
+        "net_category", "net_pieces", "net_due", "net_view", "net_q", "net_scenario", "net_demo", "net_demo_scn",
+        "lab_seed", "lab_focus", "lab_scenario", "lab_late", "lab_order", "lab_space", "lab_evidence_view", "lab_tradeoff",
         "sb_lateness", "sb_defect", "sb_fairness", "sb_robustness", "sb_cost",
         "audit_log", "audit_q", "audit_sender", "audit_workshop", "audit_kind", "audit_day")
 TOUR = [("R09", "Normal allocation", "Press Evaluate request, open Why this decision, then confirm."),

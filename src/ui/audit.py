@@ -10,17 +10,19 @@ from __future__ import annotations
 from datetime import date, datetime
 import json
 
+import pandas as pd
+
 import streamlit as st
 
 import desk
 import records
 from ui import explain
-from ui.components import banner, esc, html, json_block, page_head, status_pill
+from ui.components import banner, chart, esc, html, icon, json_block, status_pill
 
 LOGS = {"live": "Live log", "rehearsal": "Rehearsal log"}
 KINDS = ["Allocation", "Alternative accepted", "Late return accepted"]
-KIND_TONE = {"Allocation": "ok", "Alternative accepted": "info", "Late return accepted": "warn"}
-COLUMNS = [1.05, .95, .9, 1.25, 1.35, 1.55, 1.05, .62]
+KIND_TONE = {"Allocation": "conf", "Alternative accepted": "info", "Late return accepted": "warn"}
+COLUMNS = [1.05, .95, .85, 1.25, 1.25, 1.45, 1.0, .8]
 SHOWN = 60
 
 
@@ -85,9 +87,13 @@ def render(workshops):
     state.setdefault("audit_log", "rehearsal" if state.get("desk_source", "live") != "live" else "live")
     head, log_col = st.columns([3, 1], vertical_alignment="bottom")
     with head:
-        page_head("Audit trail", "Every confirmed decision, with its evidence.")
+        html('<div class="kicker"><span>Audit trail</span></div>'
+             '<div class="home-title" style="margin-top:12px">Every confirmed decision, with its evidence</div>'
+             '<div class="home-sub">A record is written only when a dispatcher confirms. Recommendations, previews and simulator runs are never logged here.</div>')
     with log_col:
         log = st.segmented_control("Log", list(LOGS), key="audit_log", format_func=LOGS.get, required=True)
+    if log == "rehearsal":
+        html(banner("Rehearsal log.", " Confirmations made in rehearsal mode. They are kept apart from the live log and are not operational decisions.", "warn"))
     path = desk.REHEARSAL_LOG if log == "rehearsal" else None
     try:
         rows = records.load(path)
@@ -95,8 +101,18 @@ def render(workshops):
         html(banner("The audit log could not be read.", f" {error}. No records were skipped or repaired.", "risk"))
         return
     if not rows:
-        html('<div class="empty"><i></i><div class="say">No confirmed decisions yet.</div>'
-             '<div class="ask">Evaluate a request in Dispatch and confirm it. The record appears here. Previews are never recorded.</div></div>')
+        other = "rehearsal" if log == "live" else "live"
+        try:
+            others = len(records.load(desk.REHEARSAL_LOG if other == "rehearsal" else None))
+        except (OSError, ValueError):
+            others = 0
+        hint = f'<p class="ae-hint">The {LOGS[other].lower()} has {others} record{"s" if others != 1 else ""}. Switch logs above to see {"it" if others == 1 else "them"}.</p>' if others else ""
+        html('<div class="audit-empty"><div class="ae-weave" aria-hidden="true"></div><div class="ae-body">'
+             f'{icon("verified_user")}<div class="say">No confirmed decisions in the {esc(LOGS[log].lower())} yet.</div>'
+             '<ol class="ae-steps"><li><b>Evaluate a request</b><span>Dispatch reads it and the engine recommends a workshop.</span></li>'
+             '<li><b>Confirm it</b><span>Only an explicit confirmation by the dispatcher writes a record.</span></li>'
+             '<li><b>Review it here</b><span>The request, candidates, reasons and evidence, kept append-only.</span></li></ol>'
+             f'{hint}</div></div>')
         return
     senders = sorted({r.get("sender") for r in rows} - {None, ""})
     shops = sorted({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None})
@@ -118,21 +134,59 @@ def render(workshops):
         with e:
             kinds = st.multiselect("Decision type", KINDS, key="audit_kind")
     found = search(rows, query, sender, workshop, kinds, (day, day) if day else None)
-    verified = sum(bool((r.get("faithfulness") or {}).get("passed")) for r in rows)
-    late = sum(kind(r) == "Late return accepted" for r in rows)
-    stats = [(len(rows), "confirmed records"), (verified, "evidence verified"), (late, "late returns accepted"),
-             (len({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None}), "workshops used")]
-    html('<div class="nstats" style="margin-top:0">' + "".join(f'<div class="nstat"><strong>{n}</strong><small>{esc(t)}</small></div>' for n, t in stats)
-         + f'<div class="ledger-note">{esc(LOGS[log])}. Append-only, written only after a dispatcher confirms.</div></div>')
+    summary_row(rows, log, workshops)
     if not found:
         html(banner("No matching records.", " Clear a filter to widen the search.", "muted"))
         return
-    ledger(found[:SHOWN], workshops)
-    more = f" Showing the newest {SHOWN}; narrow the filters to reach older records." if len(found) > SHOWN else ""
-    html(f'<div class="meta">{len(found)} of {len(rows)} records, newest first.{esc(more)}</div>')
-    st.download_button("Export shown records (JSONL)", "\n".join(json.dumps(r, ensure_ascii=False) for r in found) + "\n",
-                       file_name=f"{log}-audit-records.jsonl", mime="application/x-ndjson", key="audit_export",
-                       icon=":material/download:")
+    main, side = st.columns([1.75, 1], gap="medium")
+    with main:
+        ledger(found[:SHOWN], workshops)
+        more = f" Showing the newest {SHOWN}; narrow the filters to reach older records." if len(found) > SHOWN else ""
+        html(f'<div class="meta" style="margin-top:6px">{len(found)} of {len(rows)} records, newest first.{esc(more)}</div>')
+        st.download_button("Export shown records (JSONL)", "\n".join(json.dumps(r, ensure_ascii=False) for r in found) + "\n",
+                           file_name=f"{log}-audit-records.jsonl", mime="application/x-ndjson", key="audit_export",
+                           icon=":material/download:")
+    with side:
+        timeline(found[:12], workshops, log)
+
+
+def summary_row(rows, log, workshops):
+    """Activity summary and a decision history chart, both counted from the records on file."""
+    verified = sum(bool((r.get("faithfulness") or {}).get("passed")) for r in rows)
+    late = sum(kind(r) == "Late return accepted" for r in rows)
+    used = len({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None})
+    stats = [(len(rows), "Confirmed decisions"), (f"{verified} of {len(rows)}", "Evidence verified"),
+             (late, "Late returns accepted"), (used, "Workshops used")]
+    left, right = st.columns([1, 1.5], gap="medium")
+    with left:
+        html('<div class="an-card au-sum"><div class="an-title">Activity</div><div class="an-sub">'
+             f'{esc(LOGS[log])}, append-only.</div><div class="au-stats">'
+             + "".join(f'<div><b>{esc(n)}</b><small>{esc(t)}</small></div>' for n, t in stats) + "</div></div>")
+    with right, st.container(key="chart_audit_hist"):
+        html('<div class="an-title">Decisions by day</div><div class="an-sub">Confirmed records per logged day (UTC), by decision type.</div>')
+        frame = pd.DataFrame([{"day": str(logged_date(r)), "type": kind(r)} for r in rows if logged_date(r)])
+        if len(frame):
+            chart(frame, {"mark": {"type": "bar", "cornerRadiusEnd": 4, "width": {"band": .55}},
+                          "encoding": {"x": {"field": "day", "type": "ordinal", "title": None, "axis": {"labelAngle": 0}},
+                                       "y": {"aggregate": "count", "type": "quantitative", "title": "Decisions", "axis": {"tickMinStep": 1}},
+                                       "color": {"field": "type", "title": None, "scale": {"domain": KINDS, "range": ["#2A77E8", "#7FB0F2", "#E09A2C"]}},
+                                       "tooltip": [{"field": "day", "title": "Day"}, {"field": "type", "title": "Type"}, {"aggregate": "count", "title": "Decisions"}]}},
+                  height=150)
+        html('<div class="an-src">Source: the audit log file. Nothing here is simulated.</div>')
+
+
+def timeline(found, workshops, log="live"):
+    items = []
+    for row in found:
+        record = row.get("decision_record", {})
+        passed = (row.get("faithfulness") or {}).get("passed")
+        rh = " rh" if log == "rehearsal" else ""
+        items.append(f'<li class="{KIND_TONE[kind(row)]}{rh}"><span class="tl-d"></span><div><div class="tl-h"><b>{esc(workshop_name(record.get("chosen_workshop"), workshops))}</b>'
+                     f'<em>{esc(when(row))}</em></div><p><span class="id">{esc(record.get("order_id") or "None")}</span> for {esc(row.get("sender") or "unknown")}. '
+                     f'{esc(kind(row))}, confirmed by the dispatcher{"<em> in rehearsal</em>" if rh else ""}. Evidence {"verified" if passed else "failed"}.</p></div></li>')
+    note = "Rehearsal confirmations, kept apart from live decisions." if log == "rehearsal" else "Each entry is a human-confirmed allocation."
+    html(f'<div class="an-card"><div class="an-title">Decision timeline</div><div class="an-sub">Newest first. {note}</div>'
+         f'<ol class="au-tl">{"".join(items)}</ol></div>')
 
 
 def ledger(found, workshops):
@@ -155,8 +209,11 @@ def ledger(found, workshops):
                 for col, cell in zip(cols, cells):
                     with col:
                         html(cell)
+                if st.session_state.get("audit_opened") == row.get("timestamp"):
+                    html('<span class="lg-open" aria-hidden="true"></span>')
                 with cols[-1]:
                     if st.button("Open", key=f"audit_open_{i}", width="stretch"):
+                        st.session_state["audit_opened"] = row.get("timestamp")
                         record_panel(row, workshops)
 
 
@@ -172,9 +229,9 @@ def record_panel(row, workshops):
             if chosen else "")
     html(f'<div class="inspector"><div class="eyebrow">Record {esc(record.get("order_id"))}, logged {esc(when(row))} UTC</div>'
          f'<div class="ins-title">{esc(workshop_name(wid, workshops))}</div><div class="ins-sub">{esc(back)}</div>'
-         f'<div style="display:flex;gap:8px;margin-top:12px">{status_pill(kind(row), "dark")}'
-         f'{status_pill("Evidence verified" if passed else "Evidence failed", "dark-green" if passed else "dark-risk")}'
-         f'{status_pill("Confirmed by dispatcher" if confirmation.get("confirmed") else "Not confirmed", "dark-muted")}</div></div>')
+         f'<div style="display:flex;gap:8px;margin-top:12px">{status_pill(kind(row), "dark-muted")}'
+         f'{status_pill("Evidence verified" if passed else "Evidence failed", "dark" if passed else "dark-risk")}'
+         f'{status_pill("Confirmed by dispatcher" if confirmation.get("confirmed") else "Not confirmed", "dark-conf" if confirmation.get("confirmed") else "dark-muted")}</div></div>')
     summary_tab, candidates_tab, evidence_tab = st.tabs(["Decision", "Candidates", "Evidence"])
     with summary_tab:
         fields = [("Order", parsed.get("order_id")), ("Customer", parsed.get("customer")), ("Product", parsed.get("product")),

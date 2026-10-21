@@ -16,6 +16,7 @@ from pathlib import Path
 import streamlit as st
 
 CSS_PATH = Path(__file__).with_name("theme.css")
+MATERIALS_PATH = Path(__file__).with_name("materials.css")  # V6 material system, layered over theme.css.
 # Chart palette, validated for colour-blind separation and 3:1 contrast on the light surface.
 OURS, BENCH, SHOCK, SLATE, SLATE_LIGHT, BEAM = "#5F78F5", "#149E8B", "#E8692F", "#A8B5C3", "#D6DEE7", "#48D9E6"
 TERM_CLASS = {"lateness": "t-lateness", "defect": "t-defect", "fairness": "t-fairness", "robustness": "t-robustness", "cost": "t-cost"}
@@ -36,13 +37,15 @@ def html(markup: str) -> None:
 
 
 def inject_css(presentation: bool = False) -> None:
-    html("<style>" + CSS_PATH.read_text(encoding="utf-8") + (PRESENTATION_CSS if presentation else "") + "</style>")
+    css = CSS_PATH.read_text(encoding="utf-8") + MATERIALS_PATH.read_text(encoding="utf-8")
+    html("<style>" + css + (PRESENTATION_CSS if presentation else "") + "</style>")
 
 
 # Atoms ----------------------------------------------------------------------
 
 def status_pill(text: str, tone: str = "muted") -> str:
-    """tone: ok, info, warn, risk, muted, beam-pill, dark, dark-green, dark-amber, dark-muted, dark-risk."""
+    """tone: conf (a person confirmed it, the only green), ok (a check passed), info, warn, risk, muted, beam-pill,
+    dark, dark-conf, dark-amber, dark-muted, dark-risk."""
     return f'<span class="pill {tone}">{esc(text)}</span>'
 
 
@@ -90,20 +93,37 @@ def decision_stage(stages) -> str:
     return f'<div class="strip" role="list" aria-label="Decision stages">{"".join(cells)}</div>'
 
 
+STATE_ICONS = {"rec": "verified", "sel": "my_location", "conf": "task_alt", "warn": "warning", "block": "block", "info": "info"}
+
+
+def state_line(variant: str, title: str, sub: str = "", glyph: str | None = None) -> str:
+    """The integrated status line that heads a card: icon, a short state, one line of context.
+    variant: rec (recommended), sel (selected), conf (confirmed), warn (warning), block (blocked), info."""
+    return (f'<div class="tl-state is-{variant}">{icon(glyph or STATE_ICONS.get(variant, "info"))}<div><b>{esc(title)}</b>'
+            + (f"<span>{esc(sub)}</span>" if sub else "") + "</div></div>")
+
+
 def icon(name: str, cls: str = "") -> str:
     """A Material Symbols glyph (the icon font Streamlit already loads), hidden from screen readers."""
     return f'<span class="msym {cls}" aria-hidden="true">{esc(name)}</span>'
 
 
-def process_strip(steps) -> str:
-    """Homepage five-step strip. steps: (key, label, sublabel, status); status done, active, idle, skipped or blocked."""
+def process_strip(steps, live: bool = False) -> str:
+    """Homepage five-step strip. steps: (key, label, sublabel, status); status done, active, idle, skipped or blocked.
+    live=True only while a request is really being evaluated: the thread into the active step then runs."""
     cells = []
     for n, (_, label, sub, status) in enumerate(steps, 1):
         mark = "✓" if status == "done" else "!" if status == "blocked" else str(n)
         cells.append(f'<div class="pstep {status}"><span class="pnum">{mark}</span><span class="ptxt"><b>{esc(label)}</b>'
                      f'<small>{esc(sub)}</small></span></div>')
-    joined = '<span class="pline" aria-hidden="true"></span>'.join(cells)
-    return f'<div class="pstrip" role="list" aria-label="Decision steps">{joined}</div>'
+    def line(i):
+        cls = " done" if steps[i][3] == "done" else ""
+        if steps[i][3] == "done" and steps[i + 1][3] == "active":
+            cls += " run"
+        return f'<span class="pline{cls}" aria-hidden="true"></span>'
+    lines = [line(i) for i in range(len(cells) - 1)]
+    joined = "".join(cell + (lines[i] if i < len(lines) else "") for i, cell in enumerate(cells))
+    return f'<div class="pstrip{" live" if live else ""}" role="list" aria-label="Decision steps">{joined}</div>'
 
 
 def candidate_row(name: str, sub: str, eta: str, spare: int | None, cost: str, tone: str) -> str:
@@ -156,9 +176,9 @@ def json_block(value, *, height: int | None = None) -> None:
 
 # Charts -----------------------------------------------------------------------
 
-FONT = "Inter, -apple-system, Segoe UI, Arial, sans-serif"
-AXIS = {"labelFontSize": 12.5, "titleFontSize": 12, "titleFontWeight": 600, "labelColor": "#617182", "titleColor": "#8695A6",
-        "gridColor": "#E9EEF4", "gridDash": [2, 3], "domain": False, "ticks": False, "labelPadding": 8, "titlePadding": 12,
+FONT = "Mona Sans, -apple-system, Segoe UI, Arial, sans-serif"
+AXIS = {"labelFontSize": 12.5, "titleFontSize": 12.5, "titleFontWeight": 600, "labelColor": "#5E6D82", "titleColor": "#33465E",
+        "gridColor": "rgba(38,119,216,0.13)", "gridDash": [2, 4], "domain": False, "ticks": False, "labelPadding": 8, "titlePadding": 12,
         "labelFont": FONT, "titleFont": FONT}
 
 

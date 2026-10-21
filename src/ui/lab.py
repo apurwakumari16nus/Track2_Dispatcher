@@ -1,9 +1,11 @@
-"""Simulation Lab: a strategy lab that tests the dispatch policy against baselines.
+"""Simulation Lab: how does our policy perform, and what can we honestly claim?
 
-Interactive tabs replay one seed through the unchanged harness (experiments.py,
-shock_trace.py). Course Evidence reads the committed ten-seed files and never
-recomputes them. The custom sandbox runs extra single-seed replays with user
-weights; it never changes PRESETS or any saved evaluation.
+The hero, comparison cards, objective verdicts and Course Evidence read the
+committed ten-seed files (eval/) through ui.evidence and ui.lab_evidence; they
+never recompute them. Tabs marked as a seed replay one seed through the
+unchanged harness (experiments.py, shock_trace.py) as a diagnostic. The custom
+sandbox runs extra single-seed replays with user weights; it never changes
+PRESETS or any saved evaluation.
 """
 
 from __future__ import annotations
@@ -21,8 +23,8 @@ from run_simulator import METRICS, summarize_outcomes, tied
 from shock_trace import run_trace
 from simulate import Simulator
 from ui import evidence, explain
-from ui.components import (BEAM, BENCH, OURS, SHOCK, SLATE, TERM_CLASS, banner, chart, esc, html, metric_tile, page_head,
-                           score_bars, section, status_pill, table, verdict_badge)
+from ui import lab_evidence as le
+from ui.components import (TERM_CLASS, banner, chart, esc, html, icon, metric_tile, score_bars, section, status_pill, table)
 
 LABELS = {"random_choice": "Random", "greedy_biggest": "Biggest", "cheapest": "Cheapest",
           "earliest_finish": "Earliest finish", "lateness": "Lateness", "defect": "Quality only", "fairness": "Fairness",
@@ -39,6 +41,11 @@ DEFAULTS = {"lab_seed": 5105, "lab_focus": "lateness", "lab_scenario": "Normal",
             "sb_lateness": 0.5, "sb_defect": 0.0, "sb_fairness": 0.5, "sb_robustness": 0.0, "sb_cost": 0.0}
 BASELINES = ["random_choice", "greedy_biggest", "cheapest", "earliest_finish"]
 DAY0 = date(2026, 1, 1)
+# Chart palette: Threadline royal for our policy, light blue for our other objectives,
+# slate for supplied baselines, deep slate for the strong simple rule, amber for shock.
+OURS, OTHER_OBJ, BASE, STRONG, SHOCK_C = "#2A77E8", "#9DBDF0", "#A9B4C2", "#5E6D82", "#E09A2C"
+OUTCOME_DARK = {"ok": "dk-ok", "muted": "dk-muted", "risk": "dk-risk", "warn": "dk-warn"}
+OBJECTIVES = ["lateness", "fairness", "robustness", "defect", "hybrid_lateness_fairness", "hybrid_lateness_defect"]
 
 
 def fingerprint() -> str:
@@ -79,18 +86,17 @@ def name_of(policy, objective) -> str:
 def role(policy, objective, focus) -> str:
     if policy == "allocator" and objective == focus:
         return "Our policy"
-    return "Earliest finish" if policy == "earliest_finish" else "Other policies"
+    if policy == "allocator":
+        return "Our other objectives"
+    return "Earliest finish" if policy == "earliest_finish" else "Supplied baselines"
+
+
+ROLE_DOMAIN = ["Our policy", "Our other objectives", "Earliest finish", "Supplied baselines"]
+ROLE_RANGE = [OURS, OTHER_OBJ, STRONG, BASE]
 
 
 def fmt(metric, value) -> str:
     return FORMATS.get(metric, "{:.2f}").format(value)
-
-
-def compare_word(ours, other) -> tuple[str, str]:
-    """(verdict word, kind) for a lower-is-better measure."""
-    if tied(ours, other):
-        return "Tie", "tie"
-    return ("Better", "win") if ours < other else ("Worse", "loss")
 
 
 def day_label(day: int) -> str:
@@ -98,192 +104,501 @@ def day_label(day: int) -> str:
     return f"{d.day} {d:%b}"
 
 
-# Shared lab pieces ------------------------------------------------------------
-
-def duel(eyebrow, ours_label, ours_value, ours_note, other_label, other_value, other_note, word, kind, caption) -> str:
-    """Head-to-head hero: our policy against the strongest simple rule."""
-    return (f'<div class="duel glass"><div class="side ours"><small>{esc(eyebrow)}</small><strong>{esc(ours_value)}</strong>'
-            f'<span><b>{esc(ours_label)}</b>. {esc(ours_note)}</span></div>'
-            f'<div class="vs">{verdict_badge(word, kind)}<span class="meta">{esc(caption)}</span></div>'
-            f'<div class="side right"><small>Strong heuristic</small><strong>{esc(other_value)}</strong>'
-            f'<span><b>{esc(other_label)}</b>. {esc(other_note)}</span></div></div>')
+def set_focus(objective):
+    st.session_state["lab_focus"] = objective
 
 
-def scale(points, *, title="Late batches, lower is better") -> str:
-    """Policies on one 0 to 100% axis. Ours wears the beam; baselines stay slate."""
-    marks, previous, low = [], None, False
-    for label, value, ours in sorted(points, key=lambda p: (p[1], not p[2])):
-        low = (not low) if previous is not None and value - previous < 12 else False
-        previous = value
-        cls = "mk" + (" ours" if ours else "") + (" low" if low else "") + (" edge-l" if value < 8 else " edge-r" if value > 92 else "")
-        marks.append(f'<div class="{cls}" style="left:{min(max(value, 0), 100):.2f}%"><i></i><span>{esc(label)}<em>{value:.2f}%</em></span></div>')
-    ticks = "".join(f'<div class="tick" style="left:{t}%">{t}%</div>' for t in (0, 25, 50, 75, 100))
-    return (f'<div class="card scale-card"><div class="eyebrow">{esc(title)}</div>'
-            f'<div class="scale"><div class="axis"></div>{"".join(marks)}{ticks}</div></div>')
+# Page ----------------------------------------------------------------------------
+
+SPACES = {"performance": ":material/insights: Performance", "tradeoffs": ":material/tune: Tradeoffs",
+          "disruption": ":material/report: Disruption", "evidence": ":material/verified: Evidence"}
+QUESTIONS = {"performance": "How does our policy perform against the baselines?",
+             "tradeoffs": "What do we gain or give up when the objective changes?",
+             "disruption": "What happens when a workshop closes without warning?",
+             "evidence": "Can we defend these results academically?"}
 
 
 def render(workshops):
     state = st.session_state
     for key, value in DEFAULTS.items():
         state.setdefault(key, value)
-    head, bar = st.columns([1, 1.3], vertical_alignment="bottom")
+    state.setdefault("lab_space", "performance")
+    head, bar = st.columns([1.05, 1.1], vertical_alignment="bottom")
     with head:
-        page_head("Simulation lab", "Strategy lab")
-    with bar:
-        with st.container(key="lab_bar"):
-            a, b, c, d = st.columns([1.5, 1.15, .85, .7], vertical_alignment="bottom")
-            with a:
-                focus = st.selectbox("Objective", list(PRESETS), key="lab_focus", format_func=lambda k: LABELS[k])
-            with b:
-                scenario = st.radio("Scenario", ["Normal", "Shock"], key="lab_scenario", horizontal=True)
-            with c:
-                seed = st.number_input("Seed", min_value=0, max_value=2_147_483_647, key="lab_seed")
-            with d:
-                run = st.button("Run", key="lab_run", type="primary", width="stretch", icon=":material/play_arrow:")
+        html('<div class="kicker"><span>Simulation lab</span></div>'
+             '<div class="home-title" style="margin-top:12px">How does our policy perform?</div>'
+             '<div class="home-sub">120 orders replayed through the shared course simulator and compared with the supplied baselines over ten seeds.</div>')
+    with bar, st.container(key="lab_bar"):
+        a, b = st.columns([1.4, 1.1], vertical_alignment="bottom")
+        with a:
+            focus = st.selectbox("Objective", list(PRESETS), key="lab_focus", format_func=lambda k: LABELS[k])
+        with b:
+            scenario = st.radio("Scenario", ["Normal", "Shock"], key="lab_scenario", horizontal=True)
+    with st.container(key="lab_nav"):
+        space = st.segmented_control("Workspace", list(SPACES), key="lab_space", required=True, format_func=SPACES.get,
+                                     label_visibility="collapsed")
+        html(f'<div class="ws-q">{esc(QUESTIONS[space])}</div>')
+    shock = scenario == "Shock"
+    data = evidence.load()
+    if not data["provenance"]["matches"]:
+        html(banner("Re-run the evaluation before quoting these numbers.", " Changed since the evidence was produced: "
+                    + ", ".join(data["provenance"]["stale"]), "warn"))
+    if space == "performance":
+        performance_space(data, focus, shock)
+    elif space == "tradeoffs":
+        tradeoffs_space(data, focus, shock, workshops)
+    elif space == "disruption":
+        disruption_space(data, focus, workshops)
+    else:
+        evidence_space(data, focus, shock, workshops)
+
+
+def keep_seed():
+    st.session_state["lab_seed_value"] = st.session_state["lab_seed"]
+
+
+def seed_bar(label: str):
+    """Seed controls for single-seed diagnostics. Returns (bundle, fingerprint) or (None, fp) if it cannot run."""
+    state = st.session_state
+    # The seed widget is not drawn on every workspace, so Streamlit forgets it; this mirror is the source of truth.
+    state.setdefault("lab_seed_value", int(state.get("lab_bundle", {}).get("seed", DEFAULTS["lab_seed"])))
+    state["lab_seed"] = state["lab_seed_value"]
+    with st.container(key="lab_seedbar"):
+        a, b, c = st.columns([2.6, .8, .6], vertical_alignment="bottom")
+        with a:
+            html(f'<div class="sd-note"><b>{esc(label)}</b><span>A single-seed diagnostic: the official ten-seed results are under Evidence.</span></div>')
+        with b:
+            seed = st.number_input("Seed", min_value=0, max_value=2_147_483_647, key="lab_seed", on_change=keep_seed)
+        with c:
+            run = st.button("Run", key="lab_run", type="primary", width="stretch", icon=":material/play_arrow:")
     fp = fingerprint()
     if run or "lab_bundle" not in state:
         try:
             state["lab_bundle"] = experiment(int(seed) if run else int(state.get("lab_bundle", {}).get("seed", seed)), fp)
         except Exception as error:
             html(banner("Simulation failed", f" {type(error).__name__}: {error}", "risk"))
-            return
+            return None, fp
     bundle = state["lab_bundle"]
     if fp != json.dumps(bundle["fingerprints"], sort_keys=True):
         html(banner("Inputs changed", " Data or code changed since this run. Press Run to refresh.", "warn"))
+        return None, fp
+    if int(seed) != bundle["seed"]:
+        html(f'<div class="meta">Showing seed {bundle["seed"]}. Press Run to evaluate seed {int(seed)}.</div>')
+    return bundle, fp
+
+
+def chart_card(key: str, title: str, sub: str, source: str):
+    """An analytical surface with a title, a one-line question and its data source."""
+    box = st.container(key=f"chart_{key}")
+    with box:
+        html(f'<div class="an-title">{esc(title)}</div><div class="an-sub">{esc(sub)}</div>')
+    return box, source
+
+
+def source_note(text: str):
+    html(f'<div class="an-src">Source: {esc(text)}</div>')
+
+
+# Performance ----------------------------------------------------------------------
+
+def performance_space(data, focus, shock):
+    hero_block(data, focus, shock)
+    comparison_cards(data, focus, shock)
+    frame = data["results"].copy()
+    keep = [("allocator", focus)] + [(p, "none") for p in BASELINES]
+    frame = frame[[(p, o) in keep for p, o in zip(frame.policy, frame.objective)]].copy()
+    frame["label"] = [name_of(p, o) if p != "allocator" else f"Our policy ({LABELS[o].lower()})" for p, o in zip(frame.policy, frame.objective)]
+    frame["scenario"] = frame.shock.map({False: "Normal", True: "Shock"})
+    metric, title = ("pct_late", "Late batches (%)")
+    order = frame[~frame.shock].sort_values(metric)["label"].tolist()
+    box, _ = chart_card("perf_shock", "Normal and shock, side by side",
+                        "Late batches per policy in both scenarios. A short line means the policy holds up when a workshop closes.", "")
+    with box:
+        wide = frame.pivot_table(index="label", columns="scenario", values=metric).reset_index()
+        chart(frame, {"layer": [
+            {"data": {"values": wide.to_dict("records")}, "mark": {"type": "rule", "strokeWidth": 4, "strokeCap": "round", "color": "#D3DCE6"},
+             "encoding": {"y": {"field": "label", "type": "nominal", "sort": order, "title": None}, "x": {"field": "Normal", "type": "quantitative"}, "x2": {"field": "Shock"}}},
+            {"mark": {"type": "point", "filled": True, "size": 150, "opacity": 1, "stroke": "#FFFFFF", "strokeWidth": 1.5},
+             "encoding": {"y": {"field": "label", "type": "nominal", "sort": order, "title": None, "axis": {"labelLimit": 240}},
+                          "x": {"field": metric, "type": "quantitative", "title": title, "scale": {"domain": [0, 100]}, "axis": {"values": [0, 20, 40, 60, 80, 100]}},
+                          "color": {"field": "scenario", "title": None, "scale": {"domain": ["Normal", "Shock"], "range": [STRONG, SHOCK_C]}},
+                          "tooltip": [{"field": "label", "title": "Policy"}, {"field": "scenario"}, {"field": metric, "format": ".2f", "title": title}]}}]}, height=230)
+        source_note("eval/ ten-seed results (seeds 5105 to 5114), normal and shock runs.")
+
+
+# Tradeoffs ------------------------------------------------------------------------
+
+def tradeoffs_space(data, focus, shock, workshops):
+    objectives_row(data, focus, shock)
+    config = PRESETS[focus]
+    chips = "".join(f'<span class="weight"><i class="{TERM_CLASS[t]}"></i>{esc(explain.TERM_LABELS[t])} <b>{getattr(config, "w_" + t):g}</b></span>'
+                    for t in explain.TERMS if getattr(config, "w_" + t))
+    html(f'<div class="wt-line"><span>{esc(LABELS[focus])} uses these weights</span>{chips}<span class="meta">Same engine, same orders. Only the weights change.</span></div>')
+    res = data["results"][data["results"].shock == shock].copy()
+    res["label"] = [name_of(p, o) for p, o in zip(res.policy, res.objective)]
+    res["role"] = [role(p, o, focus) for p, o in zip(res.policy, res.objective)]
+    axes = {"Cost": ("total_cost", "Total cost", ",.0f"), "Fairness": ("max_share", "Largest workshop share (%)", ".1f"),
+            "Quality": ("pct_defect_pieces", "Defect exposure, pieces (%)", ".1f")}
+    left, right = st.columns([1.35, 1], gap="medium")
+    with left:
+        box, _ = chart_card("trade", "Lateness against a second goal",
+                            "Each point is one policy, ten-seed average. Down and to the left is better on both.", "")
+        with box:
+            pick = st.segmented_control("Second goal", list(axes), key="lab_tradeoff", default="Cost", label_visibility="collapsed") or "Cost"
+            y, title, f = axes[pick]
+            res["text"] = ""
+            for _, group in res.groupby([res.pct_late.round(6), res[y].round(4)]):
+                names = sorted(group.label, key=lambda n: n != LABELS[focus])
+                shown = [n for n in names if n in (LABELS[focus], "Random", "Biggest", "Cheapest", "Earliest finish")]
+                if shown:
+                    res.loc[group.index[0], "text"] = " and ".join(shown) + (" (tie)" if len(names) > 1 and len(shown) > 1 else "")
+            res = res.sort_values("role", key=lambda r: r.map({"Our policy": 3, "Earliest finish": 2}).fillna(1))
+            chart(res, {"layer": [
+                {"mark": {"type": "point", "filled": True, "opacity": 1, "stroke": "#FFFFFF", "strokeWidth": 2},
+                 "encoding": {"x": {"field": "pct_late", "type": "quantitative", "title": "Late batches (%)", "scale": {"domain": [0, 100]},
+                                    "axis": {"values": [0, 20, 40, 60, 80, 100]}},
+                              "y": {"field": y, "type": "quantitative", "title": title, "scale": {"zero": False}, "axis": {"format": f}},
+                              "color": {"field": "role", "title": None, "scale": {"domain": ROLE_DOMAIN, "range": ROLE_RANGE}},
+                              "size": {"condition": {"test": "datum.role === 'Our policy'", "value": 300}, "value": 130},
+                              "tooltip": [{"field": "label", "title": "Policy"}, {"field": "pct_late", "format": ".2f", "title": "Late (%)"},
+                                          {"field": y, "format": f, "title": title}]}},
+                {"mark": {"type": "text", "align": "left", "dx": 12, "dy": -17, "fontSize": 12.5, "fontWeight": 600},
+                 "encoding": {"x": {"field": "pct_late", "type": "quantitative"}, "y": {"field": y, "type": "quantitative"},
+                              "text": {"field": "text"}, "color": {"value": "#33465E"}}}]}, height=330)
+            source_note(f"eval/ ten-seed results, {'shock' if shock else 'normal'} scenario. No point is an optimised result; each is a preset run as is.")
+    with right:
+        cards = []
+        for key, cfg in PRESETS.items():
+            row = evidence.row(data["results"], "allocator", key, shock)
+            weights = ", ".join(f"{explain.TERM_LABELS[t].lower()} {getattr(cfg, 'w_' + t):g}" for t in explain.TERMS if getattr(cfg, "w_" + t))
+            cards.append(f'<div class="tw{" on" if key == focus else ""}"><div><b>{esc(LABELS[key])}</b><small>{esc(weights)}</small></div>'
+                         f'<dl><dt>Late</dt><dd>{row.pct_late:.1f}%</dd><dt>Cost</dt><dd>{row.total_cost:,.0f}</dd>'
+                         f'<dt>Share</dt><dd>{row.max_share:.1f}%</dd><dt>Defect</dt><dd>{row.pct_defect_pieces:.1f}%</dd></dl></div>')
+        html('<div class="an-card"><div class="an-title">What each objective trades</div><div class="an-sub">Ten-seed averages for every preset. '
+             'Lower is better in every column.</div><div class="tws">' + "".join(cards) + '</div><div class="an-src">Source: eval/ ten-seed results.</div></div>')
+    with st.expander("Workload by workshop and custom weights (single seed)"):
+        bundle, fp = seed_bar("Seed diagnostics")
+        if bundle is not None:
+            workload_heatmap(bundle, shock, workshops)
+            st.divider()
+            sandbox(bundle, focus, shock, fp)
+
+
+def workload_heatmap(bundle, shock, workshops):
+    outcomes = bundle["outcomes"]
+    rows = []
+    policies = [("allocator", key) for key in PRESETS] + [("earliest_finish", "none"), ("random_choice", "none")]
+    for policy, objective in policies:
+        part = outcomes[(outcomes.policy == policy) & (outcomes.objective == objective) & (outcomes.shock == shock)]
+        totals = part.groupby("workshop")["pieces"].sum()
+        for wid, w in workshops.items():
+            share = 100 * totals.get(wid, 0) / bundle["total_pieces"]
+            rows.append({"policy": name_of(policy, objective), "workshop": w.name, "share": share, "text": f"{share:.0f}" if share >= .5 else ""})
+    order = [name_of(p, o) for p, o in policies]
+    names = [w.name for w in workshops.values()]
+    section(f"Where the work goes, seed {bundle['seed']}", "Share of all pieces by workshop, percent.")
+    chart(pd.DataFrame(rows), {"layer": [
+        {"mark": {"type": "rect", "cornerRadius": 4, "stroke": "#FFFFFF", "strokeWidth": 2},
+         "encoding": {"x": {"field": "workshop", "type": "nominal", "title": None, "sort": names, "axis": {"labelAngle": 0}},
+                      "y": {"field": "policy", "type": "nominal", "title": None, "sort": order, "axis": {"labelLimit": 200}},
+                      "color": {"field": "share", "type": "quantitative", "scale": {"range": ["#F2F6FB", "#9DBDF0", "#1F63C9"], "domain": [0, 75]}, "legend": None},
+                      "tooltip": [{"field": "policy"}, {"field": "workshop"}, {"field": "share", "format": ".1f", "title": "Share (%)"}]}},
+        {"mark": {"type": "text", "fontSize": 12},
+         "encoding": {"x": {"field": "workshop", "type": "nominal", "sort": names}, "y": {"field": "policy", "type": "nominal", "sort": order},
+                      "text": {"field": "text"}, "color": {"condition": {"test": "datum.share > 40", "value": "#FFFFFF"}, "value": "#102238"}}}]},
+        height=320)
+
+
+# Disruption -----------------------------------------------------------------------
+
+def disruption_space(data, focus, workshops):
+    bundle, fp = seed_bar("Closure replay")
+    if bundle is None:
         return
-    shock = scenario == "Shock"
-    overview, tradeoffs, disruption, audit, course = st.tabs(["Overview", "Tradeoffs", "Disruption", "Order Audit", "Course Evidence"])
-    with overview:
-        overview_tab(bundle, focus, shock, int(seed))
-    with tradeoffs:
-        tradeoff_tab(bundle, focus, shock, workshops, fp)
-    with disruption:
-        disruption_tab(bundle, focus, fp)
-    with audit:
-        audit_tab(bundle, focus, shock, workshops, fp)
-    with course:
-        course_tab()
+    detail = trace(bundle["seed"], focus, fp)
+    target, name = detail["shocked_workshop_id"], detail["shocked_workshop_name"]
+    days = pd.DataFrame(detail["rows"])
+    end = int(days.day.max()) + 1
+    events = [e for e in detail["events"] if e["workshop_id"] == target]
+    first = next((e for e in events if e["status"] == "suspect"), None)
+    cleared = next((e for e in events if e["status"] == "cleared"), None)
+    summary = bundle["summary"]
+    ours_n = summary[(summary.policy == "allocator") & (summary.objective == focus) & (~summary.shock)].iloc[0]
+    ours_s = summary[(summary.policy == "allocator") & (summary.objective == focus) & (summary.shock)].iloc[0]
+    sent = int(days["ours_pieces_while_suspect"].sum())
+    robust = sent if focus == "robustness" else int(sum(r["ours_pieces_while_suspect"] for r in trace(bundle["seed"], "robustness", fp)["rows"]))
+    flag, clear = (first["flagged_on_day"] if first else None), (cleared["cleared_on_day"] if cleared else None)
+    official = evidence.row(data["results"], "allocator", focus, True).pct_late - evidence.row(data["results"], "allocator", focus, False).pct_late
+    steps = [
+        ("normal", "Normal operation", f"Day 0 to {min(flag or 30, 30)}", "All eight workshops run on their supplied queues.", "Simulator"),
+        ("truth", f"{name} closes", f"Day 30 to 44, {day_label(30)} to {day_label(44)}",
+         "Simulator ground truth. The closure, its dates and its target are hidden from every policy.", "Simulator, hidden"),
+        ("seen", "Anomaly observed" if first else "No anomaly flagged",
+         f"Day {flag}, {day_label(flag)}" if first else "Not flagged in this seed",
+         (f"The queue monitor sees {first['observed']:.1f} days queued against {first['expected']:.1f} expected and flags {name} as suspect. "
+          "This can come before day 30: the simulator adds a stuck batch's full delay to the queue at once, so an early flag is a "
+          "reaction to simulated queue data, not real advance warning.") if first else "The queue never grew enough to trip the monitor.", "Observed"),
+        ("route", "Routing response", f"While flagged{f', cleared day {clear}' if clear else ''}",
+         f"{sent:,} pieces sent to {name} while it was suspect under the {LABELS[focus].lower()} objective"
+         + ("." if focus == "robustness" else f"; the robustness objective sent {robust:,}."), "Engine decision"),
+        ("outcome", "Measured outcome", f"Seed {bundle['seed']}",
+         f"Late batches {ours_n.pct_late:.2f}% normal, {ours_s.pct_late:.2f}% under shock ({ours_s.pct_late - ours_n.pct_late:+.2f} points). "
+         f"Official ten-seed change: {official:+.2f} points.", "Measured"),
+    ]
+    left, right = st.columns([1, 1.25], gap="medium")
+    with left:
+        html('<div class="an-card"><div class="an-title">Event timeline</div><div class="an-sub">What the simulator did, what the monitor saw, '
+             'and what the engine did about it.</div><ol class="evt">'
+             + "".join(f'<li class="{k}"><span class="evt-dot"></span><div><div class="evt-h"><b>{esc(t)}</b><em>{esc(tag)}</em></div>'
+                       f'<small>{esc(when)}</small><p>{esc(body)}</p></div></li>' for k, t, when, body, tag in steps)
+             + f'</ol><div class="an-src">Source: shock_trace.py replay, seed {bundle["seed"]}, plus eval/ ten-seed results for the official change.</div></div>')
+    with right:
+        box, _ = chart_card("daily", f"Pieces sent to {name}, day by day",
+                            f"{LABELS[focus]} objective against the random baseline. Shaded: the closure. Dashed: the monitor's flag and clear.", "")
+        with box:
+            long = days.melt(id_vars=["day", "date"], value_vars=["ours_pieces", "random_pieces"], var_name="series", value_name="pieces")
+            long["series"] = long["series"].map({"ours_pieces": "Our policy", "random_pieces": "Random baseline"})
+            long = long[long.pieces > 0].copy()
+            long["x"] = long["day"] + long["series"].map({"Our policy": -0.22, "Random baseline": 0.22})
+            top = max(int(long.pieces.max()) if len(long) else 1, 1)
+            rules = ([{"day": flag, "text": f"Flag, day {flag}", "color": "#8C5A06"}] if first else []) + \
+                    ([{"day": clear, "text": f"Cleared, day {clear}", "color": "#0B6F61"}] if cleared else [])
+            chart(long, {"layer": [
+                {"data": {"values": [{"start": 30, "end": 44}]}, "mark": {"type": "rect", "color": "#F56F67", "opacity": .1},
+                 "encoding": {"x": {"field": "start", "type": "quantitative"}, "x2": {"field": "end"}}},
+                {"mark": {"type": "bar", "width": 5, "cornerRadiusEnd": 2},
+                 "encoding": {"x": {"field": "x", "type": "quantitative", "title": "Day of the replay", "scale": {"domain": [0, end], "nice": False}},
+                              "y": {"field": "pieces", "type": "quantitative", "title": "Pieces sent", "scale": {"domain": [0, top * 1.25]}},
+                              "color": {"field": "series", "title": None, "scale": {"domain": ["Our policy", "Random baseline"], "range": [OURS, BASE]}},
+                              "tooltip": [{"field": "day"}, {"field": "date"}, {"field": "series"}, {"field": "pieces", "format": ","}]}},
+                {"data": {"values": rules}, "mark": {"type": "rule", "strokeDash": [5, 4], "strokeWidth": 2},
+                 "encoding": {"x": {"field": "day", "type": "quantitative"}, "color": {"field": "color", "type": "nominal", "scale": None}}},
+                {"data": {"values": [{**r, "y": top * 1.15} for r in rules]}, "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12.5, "fontWeight": 600},
+                 "encoding": {"x": {"field": "day", "type": "quantitative"}, "y": {"field": "y", "type": "quantitative"}, "text": {"field": "text"},
+                              "color": {"field": "color", "type": "nominal", "scale": None}}}]}, height=250)
+            source_note(f"shock_trace.py, seed {bundle['seed']}.")
+        shock_change_chart(data, focus)
 
 
-# Overview ---------------------------------------------------------------------
+def shock_change_chart(data, focus):
+    frame = data["results"].copy()
+    frame["label"] = [name_of(p, o) for p, o in zip(frame.policy, frame.objective)]
+    wide = frame.pivot_table(index="label", columns="shock", values="pct_late").reset_index()
+    wide["change"] = wide[True] - wide[False]
+    wide = wide[["label", "change"]]
+    order = wide.sort_values("change")["label"].tolist()
+    wide["tone"] = ["Our policy" if lab == LABELS[focus] else "Other" for lab in wide.label]
+    wide["text"] = wide["change"].map(lambda v: f"{v:+.2f}")
+    box, _ = chart_card("change", "Change in late batches under shock, every policy",
+                        "Official ten-seed averages. Points added by the closure; below zero means fewer late batches.", "")
+    with box:
+        chart(wide, {"layer": [
+            {"mark": {"type": "bar", "cornerRadiusEnd": 4, "height": 13},
+             "encoding": {"y": {"field": "label", "type": "nominal", "sort": order, "title": None, "axis": {"labelLimit": 200}},
+                          "x": {"field": "change", "type": "quantitative", "title": "Change in late batches (points)"},
+                          "color": {"field": "tone", "legend": None, "scale": {"domain": ["Our policy", "Other"], "range": [OURS, BASE]}},
+                          "tooltip": [{"field": "label", "title": "Policy"}, {"field": "change", "format": "+.2f", "title": "Change (points)"}]}},
+            *[{"transform": [{"filter": f"datum.change {op} 0"}], "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12},
+               "encoding": {"y": {"field": "label", "type": "nominal", "sort": order}, "x": x, "text": {"field": "text"}, "color": {"value": "#33465E"}}}
+              for op, x in ((">=", {"field": "change", "type": "quantitative"}), ("<", {"datum": 0, "type": "quantitative"}))]]}, height=300)
+        source_note("eval/ ten-seed results, shock minus normal.")
 
-def overview_tab(bundle, focus, shock, seed):
+
+# Evidence -------------------------------------------------------------------------
+
+def evidence_space(data, focus, shock, workshops):
+    part = st.segmented_control("Evidence view", ["official", "explorer"], key="lab_evidence_view", default="official", required=True,
+                                format_func={"official": "Official ten-seed evidence", "explorer": "Single-seed explorer"}.get,
+                                label_visibility="collapsed")
+    if part == "explorer":
+        bundle, fp = seed_bar("Single-seed explorer")
+        if bundle is None:
+            return
+        run_tab, audit_t = st.tabs([f"Seed {bundle['seed']} run", "Order audit"])
+        with run_tab:
+            single_seed_tab(bundle, focus, shock)
+        with audit_t:
+            audit_tab(bundle, focus, shock, workshops, fp)
+        return
+    course_evidence(data)
+    variability_tab(data, focus, shock)
+    with st.expander("Change under shock, every policy (table)"):
+        frame = data["shock"].copy()
+        frame["label"] = [evidence.policy_label(p, o) for p, o in zip(frame.policy, frame.objective)]
+        frame = frame.sort_values("delta_pct_late")
+        body = [[esc(r.label), f'<span class="{"" if abs(r.delta_pct_late) < 1e-9 else "neg" if r.delta_pct_late > 0 else "pos"}">{r.delta_pct_late:+.2f}</span>',
+                 f"{r.delta_late_days:+.3f}"] for r in frame.itertuples()]
+        html(table(["Policy", "Change in late batches (points)", "Change in late days"], body, right=(1, 2)))
+    with st.expander("Full results, every policy and metric (table)"):
+        res = data["results"].copy()
+        res["Policy"] = [evidence.policy_label(p, o) for p, o in zip(res.policy, res.objective)]
+        res["Scenario"] = res.shock.map({False: "Normal", True: "Shock"})
+        cols = ["pct_late", "late_days", "mean_days", "p90_days", "pct_defect_pieces", "total_cost", "max_share"]
+        body = [[esc(r["Policy"]), esc(r["Scenario"])] + [esc(fmt(c, r[c])) for c in cols] for _, r in res.iterrows()]
+        html(table(["Policy", "Scenario"] + [METRIC_LABELS[c] for c in cols], body, right=tuple(range(2, 2 + len(cols))), max_height=420))
+    sources(data)
+    language_card()
+
+
+def sources(data):
+    meta, prov = data["metadata"], data["provenance"]
+    hashes = meta.get("source_hashes", {})
+    rows = "".join(f"<dt>{esc(k)}</dt><dd><span class=\"id\">{esc(str(v)[:12])}</span></dd>" for k, v in list(hashes.items())[:8])
+    html(f'<div class="an-card" style="margin-top:12px"><div class="an-title">Where these numbers come from</div><div class="an-sub">'
+         f'{meta.get("seeds")} paired seeds ({esc(", ".join(map(str, meta.get("seed_values", [])[:1])))} to {esc(str(meta.get("seed_values", [""])[-1]))}), '
+         f'{meta.get("batch_count")} orders, {meta.get("total_pieces", 0):,} pieces, aggregated as {esc(str(meta.get("aggregation", "mean")))}. '
+         f'Files in eval/ are read, never recomputed by this page. Source hashes {"match" if prov["matches"] else "do not match"} the current code.</div>'
+         f'<dl class="kv src-kv">{rows}</dl></div>')
+
+
+# Hero and comparison -----------------------------------------------------------------
+
+def hero_block(data, focus, shock):
+    h = le.hero(data, focus, shock)
+    scenario = "paired normal and shock runs" if focus == "robustness" else ("shock scenario" if shock else "normal scenario")
+    word, tone = le.OUTCOME[h["ef_outcome"]]
+    rows = le.comparison(data, focus, shock)
+    top = max(abs(r["headline"]) for r in rows) or 1
+    side = []
+    for r in rows:
+        width = abs(r["headline"]) / top * 100
+        chip = "" if r["outcome"] is None else f'<span class="lh-chip {OUTCOME_DARK[le.OUTCOME[r["outcome"]][1]]}">{esc(le.OUTCOME[r["outcome"]][0])}</span>'
+        side.append(f'<div class="lh-row{" ours" if r["policy"] == "allocator" else ""}"><span class="lh-n">{esc(r["name"])}</span>'
+                    f'<div class="lh-bar"><i style="width:{max(width, 1.5):.1f}%"></i></div>'
+                    f'<b>{esc(le.fmt_headline(focus, r["headline"]))}</b>{chip}</div>')
+    ef_value = le.fmt_headline(focus, h["ef"])
+    versus = {"tie": f"with earliest finish ({ef_value})", "qualifying": f"against earliest finish ({ef_value})",
+              "guardrail": f"Better than earliest finish on its own metric ({ef_value}), but too late to qualify",
+              "no_win": f"against earliest finish ({ef_value})", "none": f"Earliest finish: {ef_value}. No course pass rule"}[h["ef_outcome"]]
+    html(f'<div class="lab-hero"><div class="lh-main"><span class="lh-eyebrow">Official result, ten seeds, {esc(scenario)}</span>'
+         f'<div class="lh-obj">{esc(h["label"])} objective</div>'
+         f'<div class="lh-num">{esc(le.fmt_headline(focus, h["ours"]))}<small>{esc("change in late batches under shock" if focus == "robustness" else h["metric"])}</small></div>'
+         f'<div class="lh-verdict"><span class="lh-badge {OUTCOME_DARK[tone]}">{esc(word)}</span><span>{esc(versus)}</span></div><p class="lh-note">{esc(h["note"])}</p></div>'
+         f'<div class="lh-side"><div class="lh-side-t"><span>Against the comparison policies</span>'
+         f'<span class="lh-overall {OUTCOME_DARK[h["tone"]]}">{esc(h["overall"])}</span></div>{"".join(side)}'
+         f'<div class="lh-foot">Lower is better. Bars share one scale.</div></div></div>')
+
+
+def comparison_cards(data, focus, shock):
+    rows = le.comparison(data, focus, shock)
+    cards = []
+    for r in rows:
+        ours = r["policy"] == "allocator"
+        word, tone = ("Our policy", "info") if ours else le.OUTCOME[r["outcome"]]
+        if not ours and r["outcome"] not in (None, "none"):
+            word = {"qualifying": "We beat it", "tie": "Tie", "guardrail": "We fail guardrail", "no_win": "We do not win"}[r["outcome"]]
+        metrics = [("Late batches", f'{r["pct_late"]:.2f}%'), ("Late days", f'{r["late_days"]:.2f}'),
+                   ("Cost", f'{r["cost"]:,.0f}'), ("Largest share", f'{r["share"]:.1f}%')]
+        cards.append(f'<div class="pc{" ours" if ours else ""}"><div class="pc-top"><div><b>{esc(r["name"])}</b><small>{esc(r["role"])}</small></div>'
+                     f'{status_pill(word, tone)}</div><div class="pc-num">{esc(le.fmt_headline(focus, r["headline"]))}'
+                     f'<small>{esc("shock change" if focus == "robustness" else le.METRIC[focus][1])}</small></div>'
+                     '<dl class="pc-m">' + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in metrics) + "</dl></div>")
+    html(f'<div class="lab-sec"><div class="title">Policy comparison</div><div class="meta">Ten-seed averages, '
+         f'{"normal and shock paired" if focus == "robustness" else ("shock" if shock else "normal")} scenario. '
+         f'Status is the course pass rule for the {esc(LABELS[focus].lower())} objective.</div></div><div class="pcs">{"".join(cards)}</div>')
+
+
+def objectives_row(data, focus, shock):
+    html('<div class="lab-sec"><div class="title">Every objective</div><div class="meta">One verdict per objective from the committed '
+         'objective checks. Select one to compare it below and in Performance.</div></div>')
+    cols = st.columns(len(OBJECTIVES), gap="small")
+    for col, objective in zip(cols, OBJECTIVES):
+        h = le.hero(data, objective, shock)
+        with col, st.container(key=f"obj_{objective}"):
+            html(f'<div class="ob-card{" on" if objective == focus else ""} t-{h["tone"]}"><small>{esc(evidence.OBJECTIVE_LABELS[objective])}</small>'
+                 f'<b>{esc(h["overall"])}</b><span>{esc(le.fmt_headline(objective, h["ours"]))} '
+                 f'{esc("shock change" if objective == "robustness" else le.METRIC[objective][1])}</span></div>')
+            st.button(f"Show {LABELS[objective]}", key=f"objbtn_{objective}", on_click=set_focus, args=(objective,))
+
+
+# Analysis tabs --------------------------------------------------------------------
+
+def variability_tab(data, focus, shock):
+    spread = evidence.seed_spread(data["per_seed"])
+    spread = spread[spread.scenario == ("Shock" if shock else "Normal")].copy()
+    spread["label"] = spread["label"].str.replace("Ours: hybrid: ", "Ours: ", regex=False)
+    ours = evidence.policy_label("allocator", focus).replace("Ours: hybrid: ", "Ours: ")
+    spread["role"] = ["Our policy" if lab == ours else "Earliest finish" if lab == "Earliest finish"
+                      else "Our other objectives" if lab.startswith("Ours") else "Supplied baselines" for lab in spread.label]
+    order = spread.groupby("label")["pct_late"].mean().sort_values().index.tolist()
+    box, _ = chart_card("seeds", "Late batches, seed by seed", f"Each dot is one of the ten official seeds, {'shock' if shock else 'normal'} scenario. "
+                        "A tight cluster means the result does not hinge on one lucky seed.", "")
+    with box:
+        chart(spread, {"layer": [
+            {"mark": {"type": "tick", "thickness": 2, "size": 22, "color": "#102238"},
+             "encoding": {"y": {"field": "label", "type": "nominal", "sort": order, "title": None}, "x": {"aggregate": "mean", "field": "pct_late", "type": "quantitative"},
+                          "tooltip": [{"field": "label"}, {"aggregate": "mean", "field": "pct_late", "format": ".2f", "title": "Mean late (%)"}]}},
+            {"mark": {"type": "circle", "size": 70, "opacity": .75},
+             "encoding": {"y": {"field": "label", "type": "nominal", "sort": order, "title": None, "axis": {"labelLimit": 240}},
+                          "x": {"field": "pct_late", "type": "quantitative", "title": "Late batches (%) per seed", "scale": {"domain": [0, 100]},
+                                "axis": {"values": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}},
+                          "yOffset": {"field": "seed", "type": "nominal", "scale": {"paddingInner": .2}},
+                          "color": {"field": "role", "title": None, "scale": {"domain": ROLE_DOMAIN, "range": ROLE_RANGE}},
+                          "tooltip": [{"field": "label"}, {"field": "seed"}, {"field": "pct_late", "format": ".2f", "title": "Late (%)"}]}}]}, height=380)
+        source_note("eval/ per-seed results. The dark tick is the ten-seed mean. Our lateness and earliest finish land on the same values in every seed, which is why they tie.")
+
+
+def single_seed_tab(bundle, focus, shock):
     subset = bundle["summary"][bundle["summary"]["shock"] == shock]
     ours = subset[(subset.policy == "allocator") & (subset.objective == focus)].iloc[0]
     ef = subset[subset.policy == "earliest_finish"].iloc[0]
     html(f'<div class="meta">Seed {bundle["seed"]}, {"shock" if shock else "normal"} scenario, {bundle["batch_count"]} orders, '
-         f'{bundle["total_pieces"]:,} pieces. A single-seed diagnostic: the official ten-seed results are under Course Evidence.</div>')
-    if seed != bundle["seed"]:
-        html(f'<div class="meta">Press Run to evaluate seed {seed}.</div>')
-    word, kind = compare_word(ours.pct_late, ef.pct_late)
-    html(duel("Our policy", LABELS[focus], fmt("pct_late", ours.pct_late), f"{fmt('late_days', ours.late_days)} average late days",
-              "Earliest finish", fmt("pct_late", ef.pct_late), f"{fmt('late_days', ef.late_days)} average late days",
-              word, kind, "late batches against earliest finish"))
-    points = [(LABELS[focus], ours.pct_late, True)] + [(LABELS[p], subset[subset.policy == p].iloc[0].pct_late, False) for p in BASELINES]
-    html(scale(points))
+         f'{bundle["total_pieces"]:,} pieces. A single-seed diagnostic: the official ten-seed results are under Evidence.</div>')
     tiles = []
     for metric, label, _ in HERO:
-        verdict_word, verdict_kind = compare_word(ours[metric], ef[metric])
-        tone = {"tie": "muted", "win": "ok", "loss": "warn"}[verdict_kind]
-        tiles.append(metric_tile(label, fmt(metric, ours[metric]),
-                                 f'Earliest finish {esc(fmt(metric, ef[metric]))} {status_pill(verdict_word, tone)}'))
+        same = tied(ours[metric], ef[metric])
+        word, tone = ("Tie", "muted") if same else (("Better", "ok") if ours[metric] < ef[metric] else ("Worse", "warn"))
+        tiles.append(metric_tile(label, fmt(metric, ours[metric]), f'Earliest finish {esc(fmt(metric, ef[metric]))} {status_pill(word, tone)}'))
     html(f'<div class="kpis g4">{"".join(tiles)}</div>')
     if all(tied(ours[m], ef[m]) for m in METRICS):
         html(banner(f"{LABELS[focus]} ties earliest finish on all eight measures in this run.",
                     " It makes the same choices as the strongest simple rule. A tie is not a win.", "muted"))
-    else:
-        better = [METRIC_LABELS[m].lower() for m in METRICS if ours[m] < ef[m] and not tied(ours[m], ef[m])]
-        worse = [METRIC_LABELS[m].lower() for m in METRICS if ours[m] > ef[m] and not tied(ours[m], ef[m])]
-        html(banner(f"Against earliest finish, {LABELS[focus].lower()} is better on {len(better)} and worse on {len(worse)} of eight measures.",
-                    (" Better: " + ", ".join(better) + "." if better else "") + (" Worse: " + ", ".join(worse) + "." if worse else ""),
-                    "info" if len(better) >= len(worse) else "warn"))
-    with st.expander("Late batches for every policy"):
-        plot = subset.assign(label=[name_of(p, o) for p, o in zip(subset.policy, subset.objective)],
-                             role=[role(p, o, focus) for p, o in zip(subset.policy, subset.objective)])
-        plot["text"] = plot["pct_late"].map(lambda v: f"{v:.1f}%")
-        sort = plot.sort_values(["pct_late", "label"])["label"].tolist()
-        chart(plot, {"layer": [
-            {"mark": {"type": "bar", "cornerRadiusEnd": 4, "height": 14},
-             "encoding": {"y": {"field": "label", "type": "nominal", "sort": sort, "title": None, "axis": {"labelLimit": 220}},
-                          "x": {"field": "pct_late", "type": "quantitative", "title": "Late batches (%)", "scale": {"domain": [0, 100]},
-                                "axis": {"values": [0, 20, 40, 60, 80, 100]}},
-                          "color": {"field": "role", "scale": {"domain": ["Our policy", "Earliest finish", "Other policies"], "range": [OURS, BENCH, SLATE]}},
-                          "tooltip": [{"field": "label", "title": "Policy"}, {"field": "pct_late", "format": ".2f", "title": "Late batches (%)"}]}},
-            {"mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12.5},
-             "encoding": {"y": {"field": "label", "type": "nominal", "sort": sort}, "x": {"field": "pct_late", "type": "quantitative"}, "text": {"field": "text"}}}]},
-            height=340)
+    outcomes = bundle["outcomes"]
+    picks = [("allocator", focus, "Our policy"), ("earliest_finish", "none", "Earliest finish"), ("random_choice", "none", "Random")]
+    rows = []
+    for policy, objective, label in picks:
+        part = outcomes[(outcomes.policy == policy) & (outcomes.objective == objective) & (outcomes.shock == shock)]
+        rows += [{"policy": label, "turnaround": t, "late": "Late" if l else "On time"} for t, l in zip(part.turnaround, part.late)]
+    section("Completion time, order by order", "Days from dispatch to return. Each bar counts orders in a two-day bin.")
+    chart(pd.DataFrame(rows), {
+        "mark": {"type": "bar", "cornerRadiusTopLeft": 3, "cornerRadiusTopRight": 3},
+        "encoding": {"x": {"field": "turnaround", "type": "quantitative", "bin": {"step": 2}, "title": "Days to return"},
+                     "y": {"aggregate": "count", "type": "quantitative", "title": "Orders"},
+                     "xOffset": {"field": "policy", "sort": ["Our policy", "Earliest finish", "Random"]},
+                     "color": {"field": "policy", "title": None, "scale": {"domain": ["Our policy", "Earliest finish", "Random"], "range": [OURS, STRONG, BASE]}},
+                     "tooltip": [{"field": "policy"}, {"field": "turnaround", "bin": {"step": 2}, "title": "Days"}, {"aggregate": "count", "title": "Orders"}]}},
+        height=300)
 
 
-# Tradeoffs -------------------------------------------------------------------------
+# Course evidence -----------------------------------------------------------------
 
-def tradeoff_tab(bundle, focus, shock, workshops, fp):
-    subset = bundle["summary"][bundle["summary"]["shock"] == shock].copy()
-    subset["label"] = [name_of(p, o) for p, o in zip(subset.policy, subset.objective)]
-    subset["role"] = [role(p, o, focus) for p, o in zip(subset.policy, subset.objective)]
-    subset["fairness"] = 100 - subset["max_share"]
-    section("Same orders, different objectives", "An objective is only a weight configuration. The selected one is edge-lit.")
-    cards = []
-    for key, config in PRESETS.items():
-        chips = "".join(f'<span class="weight"><i class="{TERM_CLASS[t]}"></i>{esc(explain.TERM_LABELS[t])} <b>{getattr(config, "w_" + t):g}</b></span>'
-                        for t in explain.TERMS if getattr(config, "w_" + t))
-        cards.append(f'<div class="card obj{" beam selected" if key == focus else ""}"><b>{esc(LABELS[key])}</b>'
-                     f'<div class="weights" style="margin-top:10px">{chips}</div></div>')
-    html(f'<div class="grid g3" style="margin-top:10px">{"".join(cards)}</div>')
-    left, right = st.columns([1.05, 1], gap="large")
-    with left:
-        axis = st.segmented_control("Compare lateness with", ["Cost", "Fairness"], key="lab_tradeoff", default="Cost")
-        y, title = ("total_cost", "Total cost") if axis != "Fairness" else ("fairness", "Fairness: 100 minus largest share")
-        groups = []
-        for (late, value), group in subset.groupby(["pct_late", y], sort=False):
-            key = set(group.label) & {"Random", "Biggest", "Cheapest", "Earliest finish", LABELS[focus]}
-            groups.append({"late": late, "value": value, "policies": " and ".join(group.label),
-                           "text": " and ".join(l for l in group.label if l in key),
-                           "role": "Our policy" if "Our policy" in set(group.role) else group.role.iloc[0]})
-        frame = pd.DataFrame(groups).sort_values("late").reset_index(drop=True)
-        frame["above"] = [i % 2 == 0 for i in range(len(frame))]
-        labels = [{"transform": [{"filter": f"{'' if up else '!'}datum.above"}],
-                   "mark": {"type": "text", "align": "left", "dx": 10, "dy": -11 if up else 17, "fontSize": 12},
-                   "encoding": {"x": {"field": "late", "type": "quantitative"}, "y": {"field": "value", "type": "quantitative"}, "text": {"field": "text"}}}
-                  for up in (True, False)]
-        ours = "datum.role === 'Our policy'"
-        chart(frame, {"layer": [
-            {"mark": {"type": "point", "filled": True, "opacity": 1},
-             "encoding": {"x": {"field": "late", "type": "quantitative", "title": "Late batches (%), lower is better", "scale": {"domain": [0, 100]},
-                                "axis": {"values": [0, 20, 40, 60, 80, 100]}},
-                          "y": {"field": "value", "type": "quantitative", "title": title, "scale": {"zero": False}},
-                          "color": {"field": "role", "scale": {"domain": ["Our policy", "Earliest finish", "Other policies"], "range": [OURS, BENCH, SLATE]}},
-                          "size": {"condition": {"test": ours, "value": 260}, "value": 130},
-                          "stroke": {"condition": {"test": ours, "value": BEAM}, "value": "#FFFFFF"},
-                          "strokeWidth": {"condition": {"test": ours, "value": 3}, "value": 2},
-                          "tooltip": [{"field": "policies", "title": "Policies"}, {"field": "late", "format": ".2f", "title": "Late (%)"},
-                                      {"field": "value", "format": ",.2f", "title": title}]}}, *labels]}, height=340)
-        html('<div class="meta">Slate points are the other objectives and baselines. Hover any point for its name and values.</div>')
-    with right:
-        section("Where the work goes", "Share of all pieces in this scenario.")
-        outcomes = bundle["outcomes"]
-        rows = []
-        policies = [("allocator", key) for key in PRESETS] + [("earliest_finish", "none"), ("random_choice", "none")]
-        for policy, objective in policies:
-            part = outcomes[(outcomes.policy == policy) & (outcomes.objective == objective) & (outcomes.shock == shock)]
-            totals = part.groupby("workshop")["pieces"].sum()
-            for wid, w in workshops.items():
-                share = 100 * totals.get(wid, 0) / bundle["total_pieces"]
-                rows.append({"policy": name_of(policy, objective), "workshop": w.name, "share": share, "text": f"{share:.0f}" if share >= .5 else ""})
-        order = [name_of(p, o) for p, o in policies]
-        names = [w.name for w in workshops.values()]
-        chart(pd.DataFrame(rows), {"layer": [
-            {"mark": {"type": "rect", "cornerRadius": 4, "stroke": "#FFFFFF", "strokeWidth": 2},
-             "encoding": {"x": {"field": "workshop", "type": "nominal", "title": None, "sort": names, "axis": {"labelAngle": -30}},
-                          "y": {"field": "policy", "type": "nominal", "title": None, "sort": order, "axis": {"labelLimit": 200}},
-                          "color": {"field": "share", "type": "quantitative", "scale": {"range": ["#F1F4FA", "#9DB0F4", "#3E5FD9"], "domain": [0, 75]}, "legend": None},
-                          "tooltip": [{"field": "policy"}, {"field": "workshop"}, {"field": "share", "format": ".1f", "title": "Share (%)"}]}},
-            {"mark": {"type": "text", "fontSize": 12},
-             "encoding": {"x": {"field": "workshop", "type": "nominal", "sort": names}, "y": {"field": "policy", "type": "nominal", "sort": order},
-                          "text": {"field": "text"}, "color": {"condition": {"test": "datum.share > 40", "value": "#FFFFFF"}, "value": "#122233"}}}]},
-            height=360)
-    with st.expander("Custom what-if sandbox"):
-        sandbox(bundle, focus, shock, fp)
+def course_evidence(data):
+    meta, prov = data["metadata"], data["provenance"]
+    seeds = meta.get("seed_values", [])
+    status = status_pill("Matches current code", "ok") if prov["matches"] else status_pill("Code changed since this evidence", "warn")
+    html(f'<div class="lab-sec ce-head"><div><div class="title">Official ten-seed evidence</div><div class="meta">{meta.get("seeds")} paired seeds, '
+         f'{seeds[0] if seeds else ""} to {seeds[-1] if seeds else ""}, {len(data["per_seed"])} simulator runs, read from the committed files in eval/. '
+         f'What to say in the presentation, and what not to.</div></div>{status}</div>')
+    claims = le.claims(data)
+    tones = {"Beats or qualifies": ("ok", "verified"), "Ties": ("muted", "drag_handle"), "Fails": ("risk", "cancel"), "Do not claim": ("dont", "block")}
+    html('<div class="claims">' + "".join(
+        f'<div class="cl {tones[k][0]}"><div class="cl-h">{icon(tones[k][1])}<b>{esc(k)}</b></div><ul>' + "".join(f"<li>{esc(t)}</li>" for t in items) + "</ul></div>"
+        for k, items in claims.items()) + "</div>")
+    matrix = evidence.check_matrix(data["results"], data["checks"])
+    groups = {}
+    for item in matrix:
+        groups.setdefault((item["objective"], item["scenario"]), {})[item["comparator"]] = item["outcome"]
+    head = "".join(f"<span>{esc(le.NAMES[c])}</span>" for c in evidence.COMPARATORS)
+    body = "".join(f'<div class="mx-r"><span class="mx-o"><b>{esc(evidence.OBJECTIVE_LABELS[o])}</b><small>{esc(s)}</small></span>'
+                   + "".join(f'<span>{status_pill(*le.OUTCOME[g[c]])}</span>' for c in evidence.COMPARATORS) + "</div>"
+                   for (o, s), g in groups.items())
+    html(f'<div class="mx"><div class="mx-t"><div class="an-title">Objective qualification matrix</div><div class="an-sub">Each objective against each '
+         f'comparison policy, from eval/objective_checks.csv.</div></div><div class="mx-r mx-h"><span>Objective, scenario</span>{head}</div>{body}</div>'
+         '<div class="meta" style="margin-top:6px">Beats: the course pass rule holds. Tie: the required metric is equal. '
+         'Guardrail fails: it wins its own metric but is later than the lateness guardrail allows. Hybrids have no pass rule.</div>')
 
+
+# Diagnostics kept from the previous Lab ---------------------------------------------
 
 def sandbox(bundle, focus, shock, fp):
     state = st.session_state
@@ -310,74 +625,6 @@ def sandbox(bundle, focus, shock, fp):
         html('<div class="meta">Seed or scenario changed. Run the sandbox again.</div>')
 
 
-# Disruption -----------------------------------------------------------------------
-
-def disruption_tab(bundle, focus, fp):
-    detail = trace(bundle["seed"], focus, fp)
-    target, name = detail["shocked_workshop_id"], detail["shocked_workshop_name"]
-    days = pd.DataFrame(detail["rows"])
-    end = int(days.day.max()) + 1
-    events = [e for e in detail["events"] if e["workshop_id"] == target]
-    first = next((e for e in events if e["status"] == "suspect"), None)
-    cleared = next((e for e in events if e["status"] == "cleared"), None)
-    summary = bundle["summary"]
-    ours_n = summary[(summary.policy == "allocator") & (summary.objective == focus) & (~summary.shock)].iloc[0]
-    ours_s = summary[(summary.policy == "allocator") & (summary.objective == focus) & (summary.shock)].iloc[0]
-    sent_flagged = int(days["ours_pieces_while_suspect"].sum())
-    robust = sent_flagged if focus == "robustness" else int(sum(r["ours_pieces_while_suspect"] for r in trace(bundle["seed"], "robustness", fp)["rows"]))
-
-    flag, clear = (first["flagged_on_day"] if first else None), (cleared["cleared_on_day"] if cleared else None)
-    segments = []
-    if flag is not None and flag < 30:
-        segments += [("normal", "Normal operation", 0, flag), ("anomaly", "Anomaly observed", flag, 30)]
-    else:
-        segments.append(("normal", "Normal operation", 0, 30))
-    segments.append(("closure", "Closure", 30, 44))
-    recover_end = clear if clear and clear > 44 else 44
-    if recover_end > 44:
-        segments.append(("recovery", "Recovery", 44, recover_end))
-    segments.append(("normal", "Normal operation", recover_end, end))
-    bars = "".join(f'<div class="phase {kind}" style="flex:{max(b - a, 1)}"><b>{esc(label)}</b><span>{esc(day_label(a))} to {esc(day_label(b))}</span></div>'
-                   for kind, label, a, b in segments if b > a)
-    section(f"{name} closes for two weeks", f"Shock run, seed {bundle['seed']}. The closure and target are hidden from every policy.")
-    html(f'<div class="phases" style="margin-top:10px">{bars}</div><div class="phase-axis"><span>Day 0, 1 Jan</span><span>Day {end}, {esc(day_label(end))}</span></div>')
-    tiles = [metric_tile("Affected workshop", name, "Closed day 30 to 44"),
-             metric_tile("First anomaly flag", f"Day {flag}" if first else "Not flagged",
-                         esc(f"{day_label(flag)}, queue {first['observed']:.1f} d against {first['expected']:.1f} d expected") if first else ""),
-             metric_tile("Pieces routed while suspect", f"{sent_flagged:,}",
-                         esc(f"{LABELS[focus]} objective" + ("" if focus == "robustness" else f". Robustness objective: {robust:,}"))),
-             metric_tile("Normal lateness", f"{ours_n.pct_late:.2f}%", "Late batches, this seed"),
-             metric_tile("Shock lateness", f"{ours_s.pct_late:.2f}%", esc(f"{ours_s.pct_late - ours_n.pct_late:+.2f} points against normal"))]
-    html(f'<div class="kpis g5">{"".join(tiles)}</div>')
-    with st.expander("About early flags"):
-        html('<div class="note">The course simulator adds a stuck batch\'s full closure delay to that workshop\'s queue as soon as the batch is waiting. '
-             f'The monitor sees the queue jump and flags {esc(name)}. It never receives the closure dates or the target. '
-             'An early flag is a reaction to simulated queue data, not evidence of real-world advance warning.</div>')
-    section(f"Daily pieces sent to {name}", f"{LABELS[focus]} objective against the random baseline.")
-    long = days.melt(id_vars=["day", "date"], value_vars=["ours_pieces", "random_pieces"], var_name="series", value_name="pieces")
-    long["series"] = long["series"].map({"ours_pieces": "Our policy", "random_pieces": "Random baseline"})
-    long = long[long.pieces > 0].copy()
-    long["x"] = long["day"] + long["series"].map({"Our policy": -0.22, "Random baseline": 0.22})
-    top = max(int(long.pieces.max()) if len(long) else 1, 1)
-    rules = ([{"day": flag, "text": f"First flag, day {flag}", "color": "#8C5A06"}] if first else []) + \
-            ([{"day": clear, "text": f"Flag cleared, day {clear}", "color": "#167F4C"}] if cleared else [])
-    chart(long, {"layer": [
-        {"data": {"values": [{"start": 30, "end": 44}]}, "mark": {"type": "rect", "color": "#F56F67", "opacity": .1},
-         "encoding": {"x": {"field": "start", "type": "quantitative"}, "x2": {"field": "end"}}},
-        {"mark": {"type": "bar", "width": 5, "cornerRadiusEnd": 2},
-         "encoding": {"x": {"field": "x", "type": "quantitative", "title": "Day of the replay", "scale": {"domain": [0, end], "nice": False}},
-                      "y": {"field": "pieces", "type": "quantitative", "title": "Pieces sent", "scale": {"domain": [0, top * 1.2]}},
-                      "color": {"field": "series", "scale": {"domain": ["Our policy", "Random baseline"], "range": [OURS, SLATE]}},
-                      "tooltip": [{"field": "day"}, {"field": "date"}, {"field": "series"}, {"field": "pieces", "format": ","}]}},
-        {"data": {"values": rules}, "mark": {"type": "rule", "strokeDash": [5, 4], "strokeWidth": 2},
-         "encoding": {"x": {"field": "day", "type": "quantitative"}, "color": {"field": "color", "type": "nominal", "scale": None}}},
-        {"data": {"values": [{**r, "y": top * 1.12} for r in rules]}, "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12.5, "fontWeight": 600},
-         "encoding": {"x": {"field": "day", "type": "quantitative"}, "y": {"field": "y", "type": "quantitative"}, "text": {"field": "text"},
-                      "color": {"field": "color", "type": "nominal", "scale": None}}},
-    ]}, height=260)
-
-
-# Order audit ------------------------------------------------------------------------
 
 def audit_tab(bundle, focus, shock, workshops, fp):
     state = st.session_state
@@ -429,77 +676,6 @@ def audit_tab(bundle, focus, shock, workshops, fp):
             html('<div class="dark-panel">' + score_bars(explain.score_breakdown(explain.selection_order(record)[:6], config),
                                                          record["chosen_workshop"], explain.TERMS, explain.TERM_LABELS) + "</div>")
 
-
-# Course evidence ----------------------------------------------------------------------
-
-def course_tab():
-    data = evidence.load()
-    meta, prov, results = data["metadata"], data["provenance"], data["results"]
-    seeds = meta.get("seed_values", [])
-    status = status_pill("Matches current code", "ok") if prov["matches"] else status_pill("Code changed since this evidence", "warn")
-    html(f'<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px"><div><div class="eyebrow">Official ten-seed evidence</div>'
-         f'<div class="title" style="margin-top:4px">Primary objective: lateness</div>'
-         f'<div class="meta">{meta.get("seeds")} paired seeds, {seeds[0] if seeds else ""} to {seeds[-1] if seeds else ""}. '
-         f'{len(data["per_seed"])} simulator runs. Read from the committed files in eval/.</div></div>{status}</div>')
-    if not prov["matches"]:
-        html(banner("Re-run the evaluation before quoting these numbers.", " Changed: " + ", ".join(prov["stale"]), "warn"))
-    primary = {item["policy"]: item for item in evidence.primary_table(results)}
-    ours, ef = primary["allocator"], primary["earliest_finish"]
-    word, kind = compare_word(ours["normal_pct_late"], ef["normal_pct_late"])
-    html(duel("Our policy", "Lateness objective", f'{ours["normal_pct_late"]:.2f}%', f'Late batches. Under shock {ours["shock_pct_late"]:.2f}%',
-              "Earliest finish", f'{ef["normal_pct_late"]:.2f}%', f'Late batches. Under shock {ef["shock_pct_late"]:.2f}%',
-              word, kind, "same late rate, ten seeds" if kind == "tie" else "late batches, ten seeds"))
-    points = [("Ours", ours["normal_pct_late"], True)] + [(evidence.POLICY_LABELS[p], primary[p]["normal_pct_late"], False) for p in BASELINES]
-    html(scale(points, title="Late batches in normal runs, lower is better"))
-    matrix = evidence.check_matrix(results, data["checks"])
-    beats = all(r["outcome"] == "qualifying" for r in matrix if r["objective"] == "lateness" and r["comparator"] != "earliest_finish")
-    ties = all(r["outcome"] == "tie" for r in matrix if r["objective"] == "lateness" and r["comparator"] == "earliest_finish")
-    html('<div style="display:flex;gap:10px;flex-wrap:wrap">' + (status_pill("Beats all three supplied baselines", "ok") if beats else "")
-         + (status_pill("Ties earliest finish, not a win", "muted") if ties else "") + "</div>")
-    cards = {r["objective"]: r for r in evidence.objective_scorecard(results, data["checks"])}
-    figures = {"fairness": f'{evidence.row(results, "allocator", "fairness", False).max_share:.1f}% largest share',
-               "robustness": (f'{evidence.row(results, "allocator", "robustness", True).pct_late - evidence.row(results, "allocator", "robustness", False).pct_late:+.2f}'
-                              " points under shock"),
-               "defect": (f'{evidence.row(results, "allocator", "defect", False).pct_defect_pieces:.1f}% defect, '
-                          f'{evidence.row(results, "allocator", "defect", False).pct_late:.1f}% late')}
-    titles = {"fairness": "Fairness", "robustness": "Robustness", "defect": "Quality"}
-    verdict_words = {"Fails lateness guardrail": "Guardrail fails"}
-    blocks = []
-    for key in ("fairness", "robustness", "defect"):
-        card = cards[key]
-        tone = {"ok": "ok", "risk": "risk"}.get(card["tone"], "muted")
-        blocks.append(f'<div class="vblock {tone}"><div class="k">{esc(titles[key])}</div>'
-                      f'<div class="v {tone}">{esc(verdict_words.get(card["verdict"], card["verdict"]))}</div>'
-                      f'<div class="fig">{esc(figures[key])}</div><p>{esc(card["detail"])}</p></div>')
-    html(f'<div class="grid g3">{"".join(blocks)}</div>')
-    hybrids = "".join(f'<div class="hy"><b>{esc(cards[k]["label"])}</b><span>{esc(cards[k]["detail"])}</span>{status_pill(cards[k]["verdict"], "muted")}</div>'
-                      for k in ("hybrid_lateness_fairness", "hybrid_lateness_defect"))
-    html(f'<div class="card hybrids"><div class="eyebrow" style="margin-bottom:6px">Hybrid objectives</div>{hybrids}</div>')
-    with st.expander("Every comparison against every comparator"):
-        cells = {"qualifying": ("Qualifies", "ok"), "tie": ("Tie", "muted"), "guardrail": ("Guardrail fails", "warn"), "no_win": ("No win", "risk")}
-        groups = {}
-        for item in matrix:
-            groups.setdefault((item["objective"], item["scenario"]), {})[item["comparator"]] = item["outcome"]
-        body = [[f"<b>{esc(evidence.OBJECTIVE_LABELS[o])}</b><small>{esc(s)}</small>"] + [status_pill(*cells[g[c]]) for c in evidence.COMPARATORS]
-                for (o, s), g in groups.items()]
-        html(table(["Objective", "Random", "Biggest", "Cheapest", "Earliest finish"], body))
-    with st.expander("Change under shock, every policy"):
-        frame = data["shock"].copy()
-        frame["label"] = [evidence.policy_label(p, o) for p, o in zip(frame.policy, frame.objective)]
-        frame = frame.sort_values("delta_pct_late")
-        body = [[esc(r.label), f'<span class="{"" if abs(r.delta_pct_late) < 1e-9 else "neg" if r.delta_pct_late > 0 else "pos"}">{r.delta_pct_late:+.2f}</span>',
-                 f"{r.delta_late_days:+.3f}"] for r in frame.itertuples()]
-        html(table(["Policy", "Change in late batches (points)", "Change in late days"], body, right=(1, 2)))
-    with st.expander("Variation across seeds"):
-        spread = evidence.seed_spread(data["per_seed"])
-        chart(spread, {"mark": {"type": "tick", "thickness": 2.5, "size": 16},
-                       "encoding": {"y": {"field": "label", "type": "nominal", "title": None, "axis": {"labelLimit": 260}},
-                                    "x": {"field": "pct_late", "type": "quantitative", "title": "Late batches (%) per seed"},
-                                    "yOffset": {"field": "scenario"},
-                                    "color": {"field": "scenario", "scale": {"domain": ["Normal", "Shock"], "range": [OURS, SHOCK]}},
-                                    "tooltip": [{"field": "label"}, {"field": "scenario"}, {"field": "seed"}, {"field": "pct_late", "format": ".2f"}]}},
-              height=320)
-    language_card()
 
 
 def language_card():

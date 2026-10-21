@@ -1,0 +1,284 @@
+/* =====================================================================
+   Threadline materials (V6)
+   Loaded after theme.css. One mechanism, four materials.
+
+   Every surface that takes a material gets a full-perimeter rim: a ring
+   drawn by ::before from a single variable, --rim. Light enters at the
+   top left and travels all the way round, so the whole edge reads as a
+   finished seam rather than a glowing outline. Materials only change the
+   variables (fill, rim, lift), never the mechanism.
+
+     Pearl glass       content surfaces: inbox, request, tables, cards
+     Frosted glass     analytical surfaces: charts, capacity, evidence
+     Midnight glass    the one decision on a screen: recommendation,
+                       principal result, inspector
+     State glass       confirmed, warning, blocked, selected
+
+   Real translucency (backdrop blur) is kept for the functional layer
+   only: command bars and floating controls. Content stays opaque enough
+   to read, as Apple's material guidance recommends.
+   ===================================================================== */
+:root {
+  --midnight: #0B223C; --cobalt-v6: #2677D8; --ice-v6: #78D7F5; --champagne-v6: #D8B27E; --pearl-v6: #EEF4FA;
+
+  --pearl-fill: linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(247,251,255,.93) 100%);
+  --pearl-rim: linear-gradient(160deg, rgba(120,215,245,.75) 0%, rgba(38,119,216,.24) 28%, rgba(16,34,56,.11) 60%, rgba(120,215,245,.42) 100%);
+  --pearl-lift: 0 1px 1px rgba(11,34,60,.04), 0 14px 30px -22px rgba(11,34,60,.34), inset 0 1px 0 rgba(255,255,255,.95);
+
+  --bar-fill: linear-gradient(180deg, rgba(255,255,255,.80) 0%, rgba(243,248,255,.70) 100%);
+
+  --frost-fill: linear-gradient(165deg, rgba(242,249,255,.97) 0%, rgba(228,240,252,.93) 58%, rgba(236,245,253,.95) 100%);
+  --frost-rim: linear-gradient(150deg, rgba(120,215,245,1) 0%, rgba(38,119,216,.42) 34%, rgba(38,119,216,.18) 66%, rgba(120,215,245,.78) 100%);
+  --frost-lift: 0 2px 4px rgba(11,34,60,.05), 0 24px 46px -30px rgba(11,34,60,.45), inset 0 1px 0 rgba(255,255,255,.9);
+  --frost-sheen: linear-gradient(116deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 24%);
+
+  --midnight-fill:
+    radial-gradient(560px 280px at 0% 0%, rgba(120,215,245,.17), transparent 62%),
+    radial-gradient(440px 280px at 100% 100%, rgba(216,178,126,.15), transparent 62%),
+    linear-gradient(160deg, #11324F 0%, #0B223C 55%, #081A2E 100%);
+  --midnight-rim: linear-gradient(135deg, #9BE8FB 0%, #2677D8 30%, rgba(38,119,216,.38) 62%, rgba(216,178,126,.95) 100%);
+  --midnight-lift: 0 30px 70px -34px rgba(8,26,46,.82), 0 0 44px -20px rgba(120,215,245,.5);
+
+  --rim-rec: linear-gradient(150deg, #19B39B 0%, rgba(25,179,155,.42) 42%, rgba(120,215,245,.6) 100%);
+  --rim-sel: linear-gradient(150deg, #2677D8 0%, rgba(38,119,216,.42) 44%, rgba(120,215,245,.8) 100%);
+  --rim-sel-soft: linear-gradient(150deg, rgba(38,119,216,.75) 0%, rgba(38,119,216,.22) 44%, rgba(120,215,245,.55) 100%);
+  --rim-conf: linear-gradient(150deg, #1E9E5C 0%, rgba(47,199,122,.45) 46%, #1E9E5C 100%);
+  --rim-warn: linear-gradient(150deg, #D7901E 0%, rgba(243,184,75,.45) 46%, #D7901E 100%);
+  --rim-block: linear-gradient(150deg, #E25A52 0%, rgba(245,111,103,.40) 46%, #E25A52 100%);
+  --rim-quiet: linear-gradient(150deg, #A3B2C4 0%, rgba(163,178,196,.35) 50%, #A3B2C4 100%);
+
+  --tint-sel: linear-gradient(180deg, #F6FAFF 0%, #EDF4FE 100%);
+  --tint-conf: linear-gradient(180deg, #F4FBF7 0%, #E8F6EE 100%);
+  --tint-warn: linear-gradient(180deg, #FFFBF2 0%, #FDF4E2 100%);
+  --tint-block: linear-gradient(180deg, #FFF8F7 0%, #FDEDEB 100%);
+  --tint-rec: linear-gradient(180deg, #F3FBF9 0%, #E7F6F2 100%);
+
+  --glow-sel: 0 0 0 4px rgba(38,119,216,.07), 0 18px 38px -24px rgba(38,119,216,.6);
+  --glow-conf: 0 0 0 4px rgba(30,158,92,.07), 0 18px 38px -24px rgba(30,158,92,.55);
+  --glow-warn: 0 0 0 4px rgba(215,144,30,.07), 0 16px 34px -24px rgba(215,144,30,.5);
+  --glow-block: 0 0 0 4px rgba(226,90,82,.06), 0 16px 34px -24px rgba(226,90,82,.45);
+
+  --well: linear-gradient(180deg, rgba(236,243,250,.85), rgba(244,248,253,.9));
+  --well-shadow: inset 0 1px 2px rgba(11,34,60,.07), inset 0 0 0 1px rgba(38,119,216,.07);
+  --well-dark: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+  --well-dark-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 0 1px rgba(155,232,251,.10);
+}
+
+/* ---------- The rim: one mechanism for every material ---------- */
+:is(.st-key-inbox, .st-key-request, .st-key-net_stage, .st-key-net_list, .st-key-ledger, .st-key-clarify, .st-key-decline,
+    .st-key-options, .st-key-alts, .st-key-lab_seedbar, .st-key-net_bar, .st-key-lab_bar, .st-key-audit_bar, .pstrip, .pc, .ob-card,
+    .na-chip, .cl, .card, .kpi, .co, .ws-card, .st-key-net_detail, .an-card, [class*="st-key-chart_"], .st-key-netmap, .mx, .audit-empty,
+    .st-key-rec, .lab-hero, .st-key-net_demo_bar, .banner, .rc-alt, .inb.sel, [data-testid="stDialog"]:has(.inspector) > div) {
+  position: relative; border-color: transparent !important; }
+:is(.st-key-inbox, .st-key-request, .st-key-net_stage, .st-key-net_list, .st-key-ledger, .st-key-clarify, .st-key-decline,
+    .st-key-options, .st-key-alts, .st-key-lab_seedbar, .st-key-net_bar, .st-key-lab_bar, .st-key-audit_bar, .pstrip, .pc, .ob-card,
+    .na-chip, .cl, .card, .kpi, .co, .ws-card, .st-key-net_detail, .an-card, [class*="st-key-chart_"], .st-key-netmap, .mx, .audit-empty,
+    .st-key-rec, .lab-hero, .st-key-net_demo_bar, .banner, .rc-alt, .inb.sel, [data-testid="stDialog"]:has(.inspector) > div)::before {
+  content: "" !important; position: absolute !important; inset: 0 !important; border-radius: inherit !important; padding: var(--rim-w, 1px) !important;
+  background: var(--rim, var(--pearl-rim)) !important; opacity: 1 !important; pointer-events: none !important; z-index: 3 !important;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important; -webkit-mask-composite: xor !important;
+  mask-composite: exclude !important; transition: opacity .28s cubic-bezier(.2,.7,.2,1); }
+/* Edges drawn by earlier passes on the same elements are retired. */
+.ob-card.on::after, .pc.ours::after, .st-key-request::after { content: none !important; }
+
+/* ---------- Pearl glass ---------- */
+:is(.st-key-inbox, .st-key-request, .st-key-net_stage, .st-key-net_list, .st-key-ledger, .st-key-clarify, .st-key-decline,
+    .st-key-options, .st-key-alts, .st-key-lab_seedbar, .pstrip, .pc, .ob-card, .na-chip, .cl, .card, .kpi, .co, .ws-card, .st-key-net_detail) {
+  --rim: var(--pearl-rim); background: var(--pearl-fill) !important; box-shadow: var(--pearl-lift) !important; }
+/* Functional glass: command bars float over the content and blur it */
+:is(.st-key-net_bar, .st-key-lab_bar, .st-key-audit_bar) {
+  --rim: var(--pearl-rim); background: var(--bar-fill) !important; backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  box-shadow: 0 1px 1px rgba(11,34,60,.04), 0 18px 36px -26px rgba(11,34,60,.4), inset 0 1px 0 rgba(255,255,255,.9) !important; }
+
+/* ---------- Frosted analytical glass ---------- */
+:is(.an-card, [class*="st-key-chart_"], .mx, .audit-empty) {
+  --rim: var(--frost-rim); background: var(--frost-sheen), var(--frost-fill) !important; box-shadow: var(--frost-lift) !important; }
+.st-key-netmap { --rim: var(--frost-rim);
+  background: var(--frost-sheen), radial-gradient(440px 320px at 50% 48%, rgba(38,119,216,.09), transparent 70%),
+    radial-gradient(circle at 1px 1px, rgba(11,34,60,.07) 1px, transparent 1.4px) 0 0 / 22px 22px, var(--frost-fill) !important;
+  box-shadow: var(--frost-lift) !important; }
+
+/* ---------- Illuminated midnight glass ---------- */
+:is(.st-key-rec, .lab-hero, .st-key-net_demo_bar, [data-testid="stDialog"]:has(.inspector) > div) { --rim: var(--midnight-rim); --rim-w: 1.5px; }
+.st-key-rec, .lab-hero { box-shadow: var(--midnight-lift) !important; }
+.st-key-rec:has(.rec-done) { --rim: linear-gradient(135deg, #9FF0C4 0%, #1E9E5C 32%, rgba(30,158,92,.4) 62%, rgba(216,178,126,.9) 100%);
+  box-shadow: 0 30px 70px -34px rgba(8,26,46,.82), 0 0 44px -18px rgba(47,199,122,.55) !important; }
+.st-key-rec:has(.rec-late) { --rim: linear-gradient(135deg, #FBD58C 0%, #D7901E 32%, rgba(215,144,30,.4) 62%, rgba(216,178,126,.9) 100%); }
+[data-testid="stDialog"]:has(.inspector) > div { background: var(--midnight-fill) !important; }
+
+/* The recommended workshop: midnight glass on the Workshop Network, teal leading the rim. */
+.st-key-net_detail:has(.tl-state.is-rec) { --rim: linear-gradient(135deg, #7FF0DA 0%, #19B39B 22%, #2677D8 48%, rgba(38,119,216,.38) 70%, rgba(216,178,126,.95) 100%); --rim-w: 1.5px;
+  background: var(--midnight-fill) !important; box-shadow: var(--midnight-lift), 0 0 46px -20px rgba(25,179,155,.55) !important; color: #EAF1F8; }
+
+/* ---------- Operational state glass ---------- */
+.st-key-net_detail:has(.tl-state.is-sel) { --rim: var(--rim-sel); --rim-w: 1.5px; background: var(--tint-sel) !important; box-shadow: var(--pearl-lift), var(--glow-sel) !important; }
+.st-key-net_detail:has(.tl-state.is-conf) { --rim: var(--rim-conf); --rim-w: 1.5px; background: var(--tint-conf) !important; box-shadow: var(--pearl-lift), var(--glow-conf) !important; }
+.st-key-net_detail:has(.tl-state.is-warn) { --rim: var(--rim-warn); --rim-w: 1.5px; background: var(--tint-warn) !important; box-shadow: var(--pearl-lift), var(--glow-warn) !important; }
+.st-key-net_detail:has(.tl-state.is-block) { --rim: var(--rim-block); --rim-w: 1.5px; background: var(--tint-block) !important; box-shadow: var(--pearl-lift), var(--glow-block) !important; }
+.st-key-request:has(.req-sel) { --rim: var(--rim-sel-soft); --rim-w: 1.5px; }
+.inb.sel { --rim: var(--rim-sel); background: var(--tint-sel) !important; box-shadow: var(--glow-sel) !important; }
+.ob-card.on, .pc.ours { --rim: var(--rim-sel); --rim-w: 1.5px; background: var(--tint-sel) !important; box-shadow: var(--pearl-lift), var(--glow-sel) !important; }
+.banner { border: none !important; }
+.banner.warn, .rc-alt { --rim: var(--rim-warn); background: var(--tint-warn) !important; }
+.banner.risk { --rim: var(--rim-block); background: var(--tint-block) !important; }
+.banner.info { --rim: var(--rim-sel); background: var(--tint-sel) !important; }
+.banner.muted { --rim: var(--rim-quiet); background: var(--pearl-fill) !important; }
+.cl.ok { --rim: var(--rim-conf); background: var(--tint-conf) !important; }
+.cl.risk { --rim: var(--rim-block); background: var(--tint-block) !important; }
+.cl.muted { --rim: var(--rim-quiet); }
+.cl.dont { --rim: repeating-linear-gradient(90deg, #A3B2C4 0 6px, transparent 6px 10px); border-style: none !important; }
+
+/* Interactive pearl lifts on hover and brightens its rim. Static content never moves. */
+.ob-card, .na-chip, [class*="st-key-lv_"] .lv, .inb { transition: transform .16s cubic-bezier(.2,.7,.2,1), box-shadow .2s cubic-bezier(.2,.7,.2,1); }
+[class*="st-key-obj_"]:hover .ob-card:not(.on) { --rim: var(--rim-sel-soft); transform: translateY(-1px); }
+[class*="st-key-inb_"]:hover .inb:not(.sel) { background: rgba(255,255,255,.9) !important; box-shadow: 0 6px 16px -12px rgba(11,34,60,.4); }
+
+/* ---------- Wells: inset surfaces inside a material ---------- */
+.tc-primary > div, .ws-metrics > div, .dp-tiles > div, .rd > div, .au-stats > div, .tw, .chip, .fact {
+  background: var(--well) !important; box-shadow: var(--well-shadow) !important; border: none !important; }
+.tw.on { background: var(--tint-sel) !important; box-shadow: inset 3px 0 0 #2677D8, var(--well-shadow) !important; }
+.st-key-rec .ws-metrics > div { background: var(--well) !important; }
+
+/* ---------- Midnight interiors (recommended workshop card) ---------- */
+.st-key-net_detail:has(.tl-state.is-rec) .tl-state .msym, .st-key-net_detail:has(.tl-state.is-rec) .tl-state b { color: #7FF0DA !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tl-state span:not(.msym) { color: #A9BBCF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-photo { box-shadow: 0 0 0 1px rgba(155,232,251,.18), 0 14px 30px -18px rgba(0,0,0,.7); }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-primary > div { background: var(--well-dark) !important; box-shadow: var(--well-dark-shadow) !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-primary small, .st-key-net_detail:has(.tl-state.is-rec) .tc-primary span { color: #A9BBCF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-primary b { color: #FFFFFF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-facts > div { border-left-color: rgba(155,232,251,.14) !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-facts dt, .st-key-net_detail:has(.tl-state.is-rec) .tc-facts dd { color: #A9BBCF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-facts dd b { color: #FFFFFF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-why { background: linear-gradient(180deg, rgba(25,179,155,.16), rgba(25,179,155,.08)) !important;
+  border: none !important; box-shadow: inset 0 0 0 1px rgba(127,240,218,.24); }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-why small { color: #7FF0DA !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .tc-why p { color: #FFFFFF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) :is(.an-title, .tc-sec, .cw-l b, .cw-v b, .cap-key b) { color: #FFFFFF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) :is(.an-sub, .an-src, .cw-l small, .cw-v small, .cap-key) { color: #A9BBCF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .cw-t { background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(155,232,251,.14); }
+.st-key-net_detail:has(.tl-state.is-rec) .cw-t i.bk { background: repeating-linear-gradient(135deg, #5C7594 0 6px, #67809E 6px 12px); }
+.st-key-net_detail:has(.tl-state.is-rec) .cw-t i.me { background: linear-gradient(90deg, #2677D8, #4FB8F0); box-shadow: 0 0 14px -4px rgba(120,215,245,.8); }
+.st-key-net_detail:has(.tl-state.is-rec) .cw-t i.sp { background: rgba(25,179,155,.16); color: #8FEBD7; box-shadow: inset 0 0 0 1px rgba(127,240,218,.22); }
+.st-key-net_detail:has(.tl-state.is-rec) .cap-key i.sp { background: rgba(25,179,155,.3); box-shadow: none; }
+.st-key-net_detail:has(.tl-state.is-rec) .dp-risks li span { color: #DCE6F1 !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .stButton button[kind="secondary"] { background: rgba(255,255,255,.07) !important; border: 1px solid rgba(155,232,251,.24) !important; box-shadow: none !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .stButton button[kind="secondary"] p, .st-key-net_detail:has(.tl-state.is-rec) .stButton button[kind="secondary"] [data-testid="stIconMaterial"] { color: #FFFFFF !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .stButton button:disabled { background: rgba(25,179,155,.16) !important; box-shadow: inset 0 0 0 1px rgba(127,240,218,.3) !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .stButton button:disabled p, .st-key-net_detail:has(.tl-state.is-rec) .stButton button:disabled [data-testid="stIconMaterial"] { color: #8FEBD7 !important; }
+.st-key-net_detail:has(.tl-state.is-rec)::after { opacity: .35 !important; filter: invert(1); }
+
+/* ---------- Swatch edge (new motif): options laid side by side for comparison ----------
+   Fabric swatch books cut their samples with pinking shears. Cards that are
+   alternatives being compared (Dispatch next options, Lab policy cards) carry a
+   pinked lower edge, so "this is one option among several" is read at a glance. */
+.co, .pc { --pk: 8px; background: linear-gradient(180deg, #FFFFFF 0%, #FBFDFF 100%) !important; padding-bottom: calc(14px + var(--pk)) !important; border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important;
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - var(--pk)) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(var(--pk) * 2) var(--pk) repeat-x;
+  mask: linear-gradient(#000 0 0) top / 100% calc(100% - var(--pk)) no-repeat,
+    conic-gradient(from 135deg at 50% 0, #000 90deg, #0000 0) bottom / calc(var(--pk) * 2) var(--pk) repeat-x; }
+
+/* ---------- Live thread (new motif) ----------
+   While a request is genuinely being evaluated, the stitch leading into the
+   active step runs like thread through a machine. It stops the moment the
+   evaluation ends; a step waiting for a person never animates. */
+@keyframes thread-run { to { background-position: 20px 0; } }
+.pstep.active .pnum { animation: none !important; }
+.pstrip.live .pstep.active .pnum { animation: pulse 1.6s ease-in-out infinite !important; }
+.pstrip.live .pline.run { background: repeating-linear-gradient(90deg, #2677D8 0 6px, rgba(120,215,245,.6) 6px 10px) !important; background-size: 20px 2px !important;
+  animation: thread-run .6s linear infinite; }
+.pstep.active:not(.live *) .pnum { box-shadow: 0 0 0 3px rgba(38,119,216,.12); }
+
+/* ---------- Woven canvas (refined) ----------
+   A plain weave over the whole canvas, a diagonal twill at the outer edges and a
+   champagne reflection near the page heading. Visible, never behind dense text. */
+.stApp::before { opacity: 1 !important;
+  background:
+    repeating-linear-gradient(0deg, rgba(18,58,102,.038) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, rgba(18,58,102,.032) 0 1px, transparent 1px 6px) !important;
+  -webkit-mask-image: radial-gradient(ellipse 85% 80% at 60% 42%, rgba(0,0,0,.45) 35%, #000 100%) !important;
+  mask-image: radial-gradient(ellipse 85% 80% at 60% 42%, rgba(0,0,0,.45) 35%, #000 100%) !important; }
+.stApp::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(620px 300px at 30% 0%, rgba(216,178,126,.10), transparent 70%),
+    repeating-linear-gradient(45deg, rgba(18,58,102,.05) 0 1px, transparent 1px 9px);
+  -webkit-mask-image: radial-gradient(ellipse 70% 68% at 58% 46%, transparent 58%, #000 100%);
+  mask-image: radial-gradient(ellipse 70% 68% at 58% 46%, transparent 58%, #000 100%); }
+
+/* ---------- Typography: proper nouns wear the wide cut ---------- */
+.tc-name b, .ws-name, .dp-name, .ins-title, .lh-num, .pc-num, .tc-primary b { font-stretch: 112%; }
+.tc-name b { letter-spacing: -.028em; }
+/* The hero headline carries a full sentence, so it widens less and never breaks a short one. */
+.rec-head { font-stretch: 104%; letter-spacing: -.026em; text-wrap: pretty; }
+.an-title, .title { font-stretch: 104%; }
+.tc-photo .ill, .ws-ph .ill { font-size: 11px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pstrip.live .pline.run, .pstrip.live .pstep.active .pnum { animation: none !important; }
+}
+
+/* Nested analytical content inside a material card takes no rim of its own. */
+/* Doubled class: the rim host list reaches (0,2,2), so this must outrank it. */
+:is(.st-key-net_detail, .st-key-rec) .an-card.an-card::before { content: none !important; }
+.st-key-net_detail .an-card { background: transparent !important; box-shadow: none !important; padding: 0 !important; }
+
+/* Disabled actions stay legible on every material. */
+.stButton button:disabled { opacity: 1 !important; background: rgba(38,119,216,.07) !important; box-shadow: inset 0 0 0 1px rgba(38,119,216,.18) !important; border: none !important; filter: none !important; transform: none !important; }
+.stButton button:disabled p, .stButton button:disabled [data-testid="stIconMaterial"] { color: #6B83A3 !important; }
+
+/* Invisible click targets laid over cards and map nodes never take a button surface,
+   in any state. Keyboard focus shows a ring instead. */
+:is([class*="st-key-node_"], [class*="st-key-inbox_R"], [class*="st-key-lvb_"], [class*="st-key-objbtn_"]) .stButton button,
+:is([class*="st-key-node_"], [class*="st-key-inbox_R"], [class*="st-key-lvb_"], [class*="st-key-objbtn_"]) .stButton button:is(:hover, :focus, :active, :focus-visible):not(:disabled) {
+  background: transparent !important; border: none !important; box-shadow: none !important; transform: none !important; filter: none !important; }
+:is([class*="st-key-node_"], [class*="st-key-inbox_R"], [class*="st-key-lvb_"], [class*="st-key-objbtn_"]) .stButton button:focus-visible {
+  outline: 2px solid #2677D8 !important; outline-offset: 2px; }
+
+.pc.ours { background: linear-gradient(180deg, #FFFFFF 0%, #F1F7FF 100%) !important; }
+/* The pinked edge sits on a soft shadow line so the teeth read against the frost behind. */
+.co-grid, .pcs { filter: drop-shadow(0 6px 8px rgba(11,34,60,.10)); }
+
+/* Audit: the record you opened stays marked; rehearsal records say so in the chronology. */
+[class*="st-key-lrow_"]:has(.lg-open) { background: var(--tint-sel); box-shadow: inset 3px 0 0 #2677D8; border-radius: 10px; }
+.au-tl li.rh .tl-d { background: #D7901E; }
+.au-tl li.rh p em { font-style: normal; color: #8C5A06; font-weight: 650; }
+
+/* ---------- Green is earned ----------
+   Green appears only where a person confirmed something: a confirmed allocation,
+   its audit record, the confirmed rim. Anything the engine or the evidence
+   established on its own (a passed check, a fit, a verdict, spare capacity, a
+   simulated return) is teal, the engine's colour, or neutral. */
+:root { --rim-evid: linear-gradient(150deg, #19B39B 0%, rgba(25,179,155,.40) 46%, rgba(120,215,245,.55) 100%);
+  --tint-evid: linear-gradient(180deg, #F3FBF9 0%, #E8F7F3 100%); }
+.pill.ok { color: var(--st-rec-ink) !important; }
+.pill.conf { color: var(--st-conf-ink) !important; }
+.pill.dark-conf { color: #9FEABF !important; }
+.co-h span:not(.neg), .ws-ev.ok, .st-key-rec .ws-ev.ok, .st-key-rec .ws-ev.ok span, .vblock .v.ok, .rd .lvl.ok, .pos, .ev-keep { color: var(--st-rec-ink) !important; }
+.cl.ok { --rim: var(--rim-evid); background: var(--tint-evid) !important; }
+.cl.ok .msym, .cl.ok b { color: var(--st-rec-ink) !important; }
+.ob-card.t-ok { box-shadow: inset 0 3px 0 var(--st-rec); } .ob-card.t-ok b { color: var(--st-rec-ink) !important; }
+.evt li.outcome .evt-dot { background: var(--st-rec) !important; }
+.evt li.outcome .evt-h em { color: var(--st-rec-ink) !important; background: var(--st-rec-tint) !important; }
+.tl-map .state-pill.t-ok rect { fill: var(--st-rec-tint); stroke: #BFE6DD; } .tl-map .state-pill.t-ok text { fill: var(--st-rec-ink); }
+/* On the map a strong fit is simply eligible: a solid slate ring, so it never reads as the recommendation or a confirmation. */
+.tl-map .n-shortlisted .ring { stroke: #6D88AA; }
+.tl-legend i.ok { border-color: #6D88AA !important; }
+/* A simulated return completes the cobalt route; it is not a confirmation. */
+.tl-map .n-completed .ring { stroke: #2A77E8; filter: drop-shadow(0 0 8px rgba(42,119,232,.5)); }
+.tl-map .n-completed .sb { fill: #1F63C9; }
+.tl-map .badge.b-completed circle, .rs.done:last-child .rs-dot { fill: #2A77E8; background: #2A77E8 !important; border-color: #2A77E8 !important; }
+/* Spare capacity is unbooked cloth: pale and outlined, not a status. */
+.cw-t i.sp { color: #3C5573 !important; background: #F4F8FC !important; box-shadow: inset 0 0 0 1px #CBD8E7 !important; }
+.cap-key i.sp { background: #F4F8FC !important; box-shadow: inset 0 0 0 1px #B9C9DB !important; }
+/* System health is the system's own check, in teal. */
+.sc-head i.live { background: #2FD3B8; box-shadow: 0 0 0 3px rgba(47,211,184,.18), 0 0 10px rgba(47,211,184,.7); }
+.sc-row.ok .msym { color: #3FD1B8 !important; }
+.st-key-ready .stPopover button { background: var(--st-rec-tint) !important; border-color: #BFE6DD !important; }
+.st-key-ready .stPopover button p { color: var(--st-rec-ink) !important; }
+.st-key-ready .stPopover button [data-testid="stIconMaterial"], .st-key-cmdbar .stPopover button [data-testid="stIconMaterial"] { color: var(--st-rec) !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .cw-t i.sp { background: rgba(255,255,255,.04) !important; color: #C9D6E4 !important; box-shadow: inset 0 0 0 1px rgba(155,232,251,.22) !important; }
+.st-key-net_detail:has(.tl-state.is-rec) .cap-key i.sp { background: rgba(255,255,255,.06) !important; box-shadow: inset 0 0 0 1px rgba(155,232,251,.3) !important; }
+
+/* Ledger cells wrap at word boundaries instead of clipping, so a time or a workshop name is never cut. */
+.st-key-ledger .lg-cell { white-space: normal; text-overflow: clip; line-height: 1.35; }
+/* Objective verdict cards sit in separate columns; a shared floor keeps the row even when a verdict wraps. */
+@media (max-width: 1700px) { .ob-card { min-height: 128px; } }

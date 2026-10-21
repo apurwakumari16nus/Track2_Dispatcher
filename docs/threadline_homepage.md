@@ -8,7 +8,7 @@ inherit the new shell and palette but were not redesigned.
 
 | Target element | Implementation |
 | --- | --- |
-| Sidebar with logo | Threadline mark (from the supplied logo) beside a live wordmark, on a navy slab over the dark fabric texture |
+| Sidebar with logo | Threadline mark (from the supplied logo) beside a live wordmark with a champagne-gold tagline, on a navy slab over the dark fabric texture |
 | Navigation | Dispatch, Workshop Network (Operations); Simulation Lab, Audit Trail (Evidence) |
 | System status card | Real checks only: request reading, workshops active, allocation engine, queue date, confirmations this session |
 | User card | "Dispatcher, you approve every decision". No invented person |
@@ -35,13 +35,12 @@ inherit the new shell and palette but were not redesigned.
 | --- | --- | --- |
 | `threadline-mark.png` | Supplied logo, mark cut out with a transparent background | Sidebar, browser tab icon |
 | `threadline-logo.png` | Supplied logo, full lockup | Kept for light surfaces (not used yet) |
-| `hangers.webp` | Supplied garment rail photo | Request card |
+| `knitwear-rail.webp` | Unsplash photo (see `CREDITS.md`), replaced the generated rail image | Request card |
 | `fabric-dark-tall.webp` | Supplied dark fabric (portrait) | Sidebar texture under a navy veil |
 | `fabric-dark-wide.webp` | Supplied dark fabric (wide) | Recommendation card backdrop |
-| `fabric-light.webp` | Supplied light silk | Canvas edges, masked to low contrast |
-| `atelier.webp` | **Not supplied yet** | Drop a workshop photo here and the recommendation panel shows it automatically |
+| `workshops/W1.webp` to `W8.webp` | Unsplash photos (see `CREDITS.md`) | The recommended workshop's photo in the recommendation panel |
 
-All images are resized and compressed (about 400 KB in total) and served with
+The canvas uses vector gradients only (the raster silk texture looked grainy on white). All images are resized and compressed and served with
 Streamlit static serving, so they work offline.
 
 ## Tokens
