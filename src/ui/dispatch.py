@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+from pathlib import Path
 import re
 
 import streamlit as st
@@ -21,7 +22,7 @@ from objectives import PRESETS
 import rehearsal
 import tools
 from ui import explain
-from ui.components import (banner, candidate_row, decision_stage, esc, fact, html, json_block, score_bars, section,
+from ui.components import (banner, candidate_row, esc, html, icon, json_block, process_strip, score_bars, section,
                            status_pill, table, weight_bars)
 
 STATUS_WORDS = {"allocate": "Reviewed", "clarify": "Needs reply", "refuse": "Reviewed", "decline": "Cannot answer"}
@@ -81,44 +82,100 @@ def order_on_file(message: str, orders):
     return rows.iloc[0] if len(rows) else None
 
 
+HOME_STEPS = [("understand", "Understand", "Read the request"),
+              ("validate", "Validate", "Check order and rules"),
+              ("evaluate", "Evaluate", "Compare workshops"),
+              ("decide", "Decide", "Choose and verify"),
+              ("confirm", "Confirm", "You approve")]
+FILTERS = {"all": "All", "pending": "Pending", "reviewed": "Reviewed"}
+OUTCOME_TONES = {"Confirmed": "ok", "Needs reply": "warn", "Cannot answer": "muted", "Reviewed": "info"}
+AVATAR_TONES = ["#123A66", "#1F4E86", "#2A77E8", "#0E6B8C", "#3B4F7A"]
+BRAND = "app/static/brand"
+ATELIER = Path(__file__).resolve().parents[1] / "static" / "brand" / "atelier.webp"
+
+
 def live_stages(active: str):
-    keys = [key for key, _, _ in explain.STAGES]
+    keys = [key for key, _, _ in HOME_STEPS]
     index = keys.index(active)
-    return [(key, label, detail, "done" if i < index else "active" if i == index else "idle")
-            for i, (key, label, detail) in enumerate(explain.STAGES)]
+    return [(key, label, sub, "done" if i < index else "active" if i == index else "idle")
+            for i, (key, label, sub) in enumerate(HOME_STEPS)]
+
+
+def home_stages(stages=None, confirm: str = "idle"):
+    """Homepage steps from the recorded trace. Verification folds into Decide; Confirm is the human step."""
+    by = {key: status for key, _, _, status in (stages or [])}
+    decide = "blocked" if "blocked" in (by.get("decide"), by.get("verify")) else by.get("decide", "idle")
+    status = {**{key: by.get(key, "idle") for key in ("understand", "validate", "evaluate")}, "decide": decide, "confirm": confirm}
+    return [(key, label, sub, status[key]) for key, label, sub in HOME_STEPS]
+
+
+def plural(product: str) -> str:
+    word = product.lower()
+    return word[:-1] + "ves" if word.endswith("f") else word + "es" if word.endswith(("s", "x", "ch", "sh")) else word + "s"
 
 
 # Page ---------------------------------------------------------------------------
 
 def render(orders, workshops, messages):
     state = st.session_state
-    head, bar = st.columns([1.25, 1], vertical_alignment="bottom")
-    with head:
-        html('<div class="eyebrow">Dispatch</div><div class="display">Quick Response Subcontracting Desk</div>')
-    with bar:
-        with st.container(key="cmdbar"):
-            date_col, objective_col, ready_col = st.columns([.95, 1.2, 1.15], vertical_alignment="bottom")
-            with date_col:
-                today = st.date_input("Scenario date", key="desk_today", min_value=state["desk_queue_date"], on_change=invalidate,
-                                      format="DD/MM/YYYY")
-            with objective_col:
-                preset = st.selectbox("Objective", list(PRESETS), key="desk_preset", on_change=invalidate,
-                                      format_func=explain.objective_label)
-            with ready_col:
-                system_ready(workshops)
+    today, preset, bell = topbar(workshops)
+    html('<div class="home-head"><div class="home-title">Turn requests into confident workshop decisions</div>'
+         '<div class="home-sub">The model reads each request. Python checks the network, scores every workshop and '
+         'recommends one. You confirm.</div></div>')
     config = PRESETS[preset]
     queues = desk.projected_queues(state["desk_queues"], state["desk_queue_date"], today)
-    inbox_col, work_col = st.columns([1, 2.65], gap="large")
+    inbox_col, work_col = st.columns([1, 2.7], gap="medium")
     with work_col:  # Drawn first so the inbox shows this run's outcome label.
         workspace(orders, workshops, today, config, queues)
     with inbox_col:
         inbox(messages)
+    with bell:
+        alerts()
+
+
+def topbar(workshops):
+    state = st.session_state
+    source = rehearsal.SOURCES[state["desk_source"]]
+    with st.container(key="topbar"):
+        kick, search, bell, date_col, objective_col, ready_col = st.columns([1.7, 2.1, .42, .95, 1.22, 1.15], vertical_alignment="center")
+        with kick:
+            note = ("Uses recorded model replies. Allocation logic remains live." if source.key == "cached"
+                    else "Uses test fixture extraction, not model output. Allocation logic remains live.")
+            pill = f'<span class="mode-pill" title="{esc(note)}">REHEARSAL MODE</span>' if source.rehearsal else ""
+            html(f'<div class="kicker"><span>Dispatch</span>{pill}</div>')
+        with search:
+            st.text_input("Search requests", key="inbox_search", placeholder="Search requests, customers or order numbers",
+                          label_visibility="collapsed", icon=":material/search:")
+        with bell:
+            bell_slot = st.container(key="bell")
+        with date_col:
+            today = st.date_input("Scenario date", key="desk_today", min_value=state["desk_queue_date"], on_change=invalidate,
+                                  format="DD/MM/YYYY", label_visibility="collapsed")
+        with objective_col:
+            preset = st.selectbox("Objective", list(PRESETS), key="desk_preset", on_change=invalidate,
+                                  format_func=explain.objective_label, label_visibility="collapsed")
+        with ready_col, st.container(key="ready"):
+            system_ready(workshops)
+    return today, preset, bell_slot
+
+
+def alerts():
+    """Requests waiting on the sender. Counted from this session's real outcomes."""
+    outcomes = st.session_state.get("desk_outcomes", {})
+    waiting = sorted(rid for rid, word in outcomes.items() if word == "Needs reply")
+    with st.popover(str(len(waiting)), icon=":material/notifications:"):
+        html('<div class="title" style="font-size:16px">Needs a reply</div>')
+        if waiting:
+            html("".join(f'<div class="meta" style="font-size:13.5px;margin-top:6px">Request <span class="id">{esc(r)}</span> '
+                         "is waiting for a detail from the sender.</div>" for r in waiting))
+        else:
+            html('<div class="meta" style="font-size:13.5px;margin-top:6px">Nothing is waiting. Requests that need a detail from '
+                 "the sender appear here.</div>")
 
 
 def system_ready(workshops):
     state = st.session_state
     active = sum(w.status == "ACTIVE" for w in workshops.values())
-    html('<div class="ready-label">System</div>')
     with st.popover("System ready", icon=":material/check_circle:", width="stretch"):
         source = rehearsal.SOURCES[state["desk_source"]]
         live = rehearsal.live_status()
@@ -132,21 +189,30 @@ def system_ready(workshops):
 
 def inbox(messages):
     state = st.session_state
-    html(f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px"><div class="title">Inbox</div>'
-         f'<div class="meta">{len(messages)} requests</div></div>')
-    query = st.text_input("Search inbox", placeholder="Search sender, order or text", key="inbox_search", label_visibility="collapsed")
-    filtered = [m for m in messages if query.casefold() in m.casefold()]
+    query = state.get("inbox_search", "") or ""
     outcomes = state.get("desk_outcomes", {})
-    with st.container(height=700, key="inbox_list", border=False):
-        for message in filtered:
-            rid, time, sender, body = envelope(message)
-            colour = {"Confirmed": "green", "Needs reply": "orange", "Cannot answer": "gray"}.get(outcomes.get(rid), "blue")
-            status = f"   :{colour}[{outcomes[rid]}]" if rid in outcomes else ""
-            st.button(f"**{sender}**  {time}{status}\n{body}", key="inbox_" + rid, width="stretch",
-                      type="primary" if state["desk_message"] == message else "secondary",
-                      on_click=select_message, args=(message,))
-        if not filtered:
-            html('<div class="meta" style="padding:12px 4px">No request matches. Clear the search to see all.</div>')
+    rows = [(m, *envelope(m)) for m in messages if query.casefold() in m.casefold()]
+    counts = {"all": len(rows), "pending": sum(r[1] not in outcomes for r in rows), "reviewed": sum(r[1] in outcomes for r in rows)}
+    state.setdefault("inbox_filter", "all")
+    with st.container(key="inbox"):
+        html(f'<div class="inbox-head"><div class="title">Inbox</div><div class="meta">{len(messages)} requests</div></div>')
+        pick = st.segmented_control("Filter requests", list(FILTERS), key="inbox_filter", required=True,
+                                    format_func=lambda k: f"{FILTERS[k]}  {counts[k]}", label_visibility="collapsed")
+        shown = [r for r in rows if pick == "all" or (pick == "pending") == (r[1] not in outcomes)]
+        with st.container(height=640, key="inbox_list", border=False):
+            for message, rid, time, sender, body in shown:
+                word = outcomes.get(rid)
+                pill = status_pill(word, OUTCOME_TONES.get(word, "info")) if word else ""
+                tone = AVATAR_TONES[sum(map(ord, sender)) % len(AVATAR_TONES)]
+                with st.container(key=f"inb_{rid}"):
+                    html(f'<div class="inb{" sel" if state["desk_message"] == message else ""}">'
+                         f'<div class="inb-av" style="background:{tone}">{esc(sender[:1])}</div><div class="inb-main">'
+                         f'<div class="inb-top"><b>{esc(sender)}</b><span>{esc(time)}</span></div>'
+                         f'<div class="inb-body">{esc(body)}</div>{pill}</div></div>')
+                    st.button(f"Open request {rid} from {sender}", key="inbox_" + rid, width="stretch",
+                              on_click=select_message, args=(message,))
+            if not shown:
+                html('<div class="meta" style="padding:12px 4px">No request matches. Clear the search or the filter.</div>')
 
 
 def workspace(orders, workshops, today, config, queues):
@@ -154,56 +220,74 @@ def workspace(orders, workshops, today, config, queues):
     message = state["desk_message"]
     run = request_surface(message, orders)
     current_signature = desk.signature(message, today, config, orders, workshops, queues, state["desk_revision"], state["desk_source"])
+    body = st.container()
     progress = st.empty()
+    progress.markdown(process_strip(home_stages()), unsafe_allow_html=True)
     if run and message.strip():
         evaluate(progress, orders, workshops, today, config, queues)
     preview = state.get("desk_preview")
-    if state.get("desk_error"):
-        progress.empty()
-        error_card(state["desk_error"])
-    elif preview:
-        result(preview, current_signature, workshops, orders, queues, progress)
-    elif not message.strip():
-        html('<div class="empty"><i></i><div class="say">Select a request to begin.</div>'
-             '<div class="ask">Python verifies the request and ranks eligible workshops. You approve the final decision.</div></div>')
+    with body:
+        if state.get("desk_error"):
+            error_card(state["desk_error"])
+        elif preview:
+            result(preview, current_signature, workshops, orders, queues, progress)
+        elif not message.strip():
+            html('<div class="empty"><i></i><div class="say">Select a request to begin.</div>'
+                 '<div class="ask">Python verifies the request and ranks eligible workshops. You approve the final decision.</div></div>')
 
 
 def request_surface(message, orders) -> bool:
     rid, time, sender, body = envelope(message)
     on_file = order_on_file(message, orders)
+    outcome = st.session_state.get("desk_outcomes", {}).get(rid)
     with st.container(key="request"):
-        if rid:
-            html(f'<div class="msg-head"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
-                 f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div></div><div class="msg-text">{esc(body)}</div>')
-        else:
-            html('<div class="msg-head"><div class="avatar">+</div><div><b>New request</b><br>'
-                 '<span>Type or paste the chat message</span></div></div><div style="height:10px"></div>')
-            st.text_area("Request", key="desk_message", height=96, label_visibility="collapsed", on_change=invalidate,
-                         placeholder="For example: ORD-045, 150 vests for Cotton Club, due Apr 09. Fastest turnaround please.")
-        if on_file is not None:
-            html('<div class="facts"><span class="eyebrow">On file</span>'
-                 + fact("Order", on_file["order_id"], mono=True) + fact("Customer", on_file["customer"]) + fact("Product", on_file["product"])
-                 + fact("Pieces", f"{int(on_file['pieces']):,}") + fact("Due", explain.long_date(str(on_file["due_date"])))
-                 + fact("Stage", str(on_file["current_stage"]).capitalize()) + "</div>")
-        edit_col, new_col, run_col = st.columns([2.6, .9, 1.15], vertical_alignment="center")
-        with edit_col:
+        text_col, photo_col = st.columns([1.65, 1], gap="medium")
+        with text_col:
             if rid:
-                with st.expander("Edit message"):
-                    st.text_area("Request", key="desk_message", height=84, label_visibility="collapsed", on_change=invalidate)
-        with new_col:
-            st.button("New request", key="desk_new", width="stretch", on_click=select_message, args=("",))
-        with run_col:
-            return st.button("Evaluate request", key="desk_dispatch", type="primary", width="stretch",
-                             icon=":material/bolt:", disabled=not message.strip())
+                pill = status_pill(outcome, OUTCOME_TONES.get(outcome, "info")) if outcome else ""
+                html(f'<div class="msg-head"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
+                     f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div>{pill}</div>')
+                if on_file is not None:
+                    html(f'<div class="req-title"><span class="req-id">{esc(on_file["order_id"])}</span>{int(on_file["pieces"]):,} '
+                         f'{esc(plural(str(on_file["product"])))} for {esc(on_file["customer"])}, due '
+                         f'{esc(explain.short_date(str(on_file["due_date"])))}</div>')
+                html(f'<div class="msg-text">{esc(body)}</div>')
+            else:
+                html('<div class="msg-head"><div class="avatar">+</div><div><b>New request</b><br>'
+                     '<span>Type or paste the chat message</span></div></div><div style="height:10px"></div>')
+                st.text_area("Request", key="desk_message", height=96, label_visibility="collapsed", on_change=invalidate,
+                             placeholder="For example: ORD-045, 150 vests for Cotton Club, due Apr 09. Fastest turnaround please.")
+            if on_file is not None:
+                chips = [("storefront", "Customer", on_file["customer"]), ("checkroom", "Product", on_file["product"]),
+                         ("inventory_2", "Pieces", f"{int(on_file['pieces']):,}"),
+                         ("event", "Due date", explain.long_date(str(on_file["due_date"]))),
+                         ("factory", "Stage", str(on_file["current_stage"]).capitalize())]
+                html('<div class="chips">' + "".join(f'<div class="chip">{icon(i)}<div><small>{esc(k)}</small><b>{esc(v)}</b></div></div>'
+                                                     for i, k, v in chips) + "</div>")
+            edit_col, new_col, run_col = st.columns([1.1, 1, 1.25], vertical_alignment="top")
+            with edit_col:
+                if rid:  # Always rendered (an expander, not a popover) so the message survives every rerun.
+                    with st.expander("Edit request", icon=":material/edit:"):
+                        st.text_area("Request", key="desk_message", height=110, label_visibility="collapsed", on_change=invalidate)
+            with new_col:
+                st.button("New request", key="desk_new", width="stretch", icon=":material/add:", on_click=select_message, args=("",))
+            with run_col:
+                run = st.button("Evaluate request", key="desk_dispatch", type="primary", width="stretch",
+                                icon=":material/bolt:", disabled=not message.strip())
+        with photo_col:
+            tag = (f'<div class="photo-tag"><b>{esc(on_file["customer"])}</b><span>{esc(on_file["product"])}, '
+                   f'{esc(str(on_file["category"]).lower())}</span></div>') if on_file is not None else ""
+            html(f'<div class="req-photo"><img src="{BRAND}/hangers.webp" alt="Knitwear and shirts on a garment rail">{tag}</div>')
+    return run
 
 
 def evaluate(progress, orders, workshops, today, config, queues):
     state = st.session_state
     invalidate()
-    progress.markdown(decision_stage(live_stages("understand")), unsafe_allow_html=True)
+    progress.markdown(process_strip(live_stages("understand")), unsafe_allow_html=True)
 
     def reply_arrived():
-        progress.markdown(decision_stage(live_stages("validate")), unsafe_allow_html=True)
+        progress.markdown(process_strip(live_stages("validate")), unsafe_allow_html=True)
 
     call = rehearsal.make_source(state["desk_source"], on_reply=reply_arrived)
     try:
@@ -215,6 +299,7 @@ def evaluate(progress, orders, workshops, today, config, queues):
         state["desk_error"] = {"text": str(error) if known else f"{type(error).__name__}. Check the connection and try again.",
                                "kind": ("unconfigured" if "for live intake" in str(error) else
                                         "rehearsal" if isinstance(error, rehearsal.RehearsalMiss) else "other")}
+        progress.markdown(process_strip(home_stages()), unsafe_allow_html=True)
         return
     state["desk_preview"] = preview
     rid = envelope(state["desk_message"])[0]
@@ -242,13 +327,15 @@ def result(preview, current_signature, workshops, orders, queues, progress):
     status = desk.confirm_state(preview, current_signature, state["desk_saved"])
     steps = explain.trace_steps(response.to_dict(), agent_calls=preview.agent_calls, replayed=preview.accepted_allocator is not None,
                                 confirmed=status.state == "confirmed", block_reason=preview.block_reason)
-    progress.markdown(decision_stage(explain.stage_status(steps)), unsafe_allow_html=True)
+    chosen = explain.chosen_row(record)
+    confirm_step = ("skipped" if chosen is None else "done" if status.state == "confirmed" else "active" if status.ready
+                    else "blocked" if status.state == "blocked" else "idle")
+    progress.markdown(process_strip(home_stages(explain.stage_status(steps), confirm_step)), unsafe_allow_html=True)
     if status.state == "stale":
         html(banner("Inputs changed", " The request, date, objective or queue changed after this evaluation. Evaluate again before confirming.", "warn"))
     if response.already_late:
         html(banner("Already late", f" The due date, {explain.long_date(parsed.due_date)}, is on or before the scenario date, "
                     f"{explain.long_date(preview.today)}. Any return will be late.", "risk"))
-    chosen = explain.chosen_row(record)
     if parsed.behaviour == "refuse":
         rejected = next((r for r in record.get("tool_outputs", {}).get("eligibility", [])
                          if r["workshop_id"] == parsed.suggested_workshop and not r["eligible"]), None)
@@ -259,11 +346,7 @@ def result(preview, current_signature, workshops, orders, queues, progress):
         html(banner(f"No eligible workshop can meet {explain.short_date(parsed.due_date)}.",
                     f" Earliest achievable: {explain.short_date(chosen['eta_date'])} at {chosen['name']}. You decide what happens next.", "warn"))
     if chosen is not None:
-        hero_col, alt_col = st.columns([1.6, 1], gap="medium")
-        with hero_col:
-            recommendation(preview, chosen, record, parsed, workshops, status)
-        with alt_col:
-            alternatives(record, workshops)
+        recommendation(preview, chosen, record, parsed, workshops, status)
         if record.get("awkward_case") == "none_makes_date" or record.get("tool_outputs", {}).get("split"):
             options_card(preview, record, parsed, workshops, queues)
     elif parsed.behaviour == "clarify":
@@ -275,53 +358,76 @@ def result(preview, current_signature, workshops, orders, queues, progress):
         alternatives(record, workshops)
 
 
+def why_points(record, chosen, parsed, workshops) -> list[str]:
+    """Short reasons, every value read from the recorded decision."""
+    spare = chosen["days_to_spare"]
+    points = [f"Back {explain.short_date(chosen['eta_date'])}, " + (f"{explain.days(spare)} before the due date" if spare >= 0
+                                                                   else f"{explain.days(-spare)} late, the least late option")]
+    runner = explain.runner_up(record)
+    if runner is not None:
+        first = explain.deciding_metrics(record, chosen, runner)
+        if first:
+            row = first[0]
+            points.append(f"{row['label']}: {row['winner']} against {row['other']} at {runner['name']}")
+    if parsed.category and parsed.pieces:
+        points.append(f"Active, makes {parsed.category.lower()} and accepts a batch of {parsed.pieces:,} pieces")
+    return points
+
+
 def recommendation(preview, chosen, record, parsed, workshops, status):
     state = st.session_state
     awkward = record.get("awkward_case") == "none_makes_date"
     confirmed = status.state == "confirmed"
+    name, wid = chosen["name"], chosen["workshop_id"]
     label = ("Confirmed" if confirmed else "Least-late option" if awkward else
              "Best permitted alternative" if parsed.behaviour == "refuse" else "Recommended workshop")
     passed = (preview.response.faithfulness or {}).get("passed")
-    evidence = status_pill("Evidence verified", "dark") if passed else status_pill("Evidence check failed", "dark-risk")
+    evidence = status_pill("Evidence verified", "ok") if passed else status_pill("Evidence check failed", "risk")
     won = explain.why_won(record)
     spare = chosen["days_to_spare"]
-    metrics = [(explain.short_date(chosen["eta_date"]), "Back by", ""),
-               (explain.days(abs(spare)), "Days late" if spare < 0 else "Spare", "late" if spare < 0 else ""),
-               (f"{chosen['total_cost']:,.0f}", "Cost", ""),
-               (f"{chosen['expected_defect_rate']:.0%}", "Defect risk", "")]
-    tiles = "".join(f'<div class="{cls}"><strong>{esc(v)}</strong><small>{esc(k)}</small></div>' for v, k, cls in metrics)
-    makes = " and ".join(sorted(m.lower() for m in workshops[chosen["workshop_id"]].makes))
+    workshop = workshops[wid]
+    makes = " and ".join(sorted(m.lower() for m in workshop.makes))
     objective = explain.objective_label(record["objective_name"])
     if parsed.preference:
         objective += f", requested as {explain.PREFERENCE_LABELS.get(parsed.preference, parsed.preference).lower()}"
+    metrics = [("Back by", explain.short_date(chosen["eta_date"]), ""),
+               ("Days late" if spare < 0 else "Spare", explain.days(abs(spare)), "late" if spare < 0 else ""),
+               ("Total cost", f"{chosen['total_cost']:,.0f}", ""),
+               ("Defect risk", f"{chosen['expected_defect_rate']:.0%}", "")]
+    tiles = "".join(f'<div class="{cls}"><small>{esc(k)}</small><strong>{esc(v)}</strong></div>' for k, v, cls in metrics)
+    photo = f'<img class="ws-photo" src="{BRAND}/atelier.webp" alt="Garment workshop">' if ATELIER.exists() else ""
+    points = "".join(f"<li>{icon('check_circle')}<span>{esc(p)}</span></li>" for p in why_points(record, chosen, parsed, workshops))
     state_cls = "rec-done" if confirmed else "rec-late" if awkward else ""
+    headline = (f"Assigned to {name}" if confirmed else f"Least late: {name}" if awkward
+                else f"Assign to {name} instead" if parsed.behaviour == "refuse" else f"Assign to {name}")
     with st.container(key="rec"):
-        html(f'<div class="{state_cls}"><div class="rec-top"><span class="rec-eyebrow">{esc(label)}</span>{evidence}</div>'
-             f'<div class="rec-name">{esc(chosen["name"])}</div><div class="rec-sub">Workshop <span class="id">{esc(chosen["workshop_id"])}</span>, makes {esc(makes)}</div>'
-             f'<div class="rec-metrics">{tiles}</div>'
-             f'<div class="rec-why"><small>Why this won</small><p>{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
-             f'<div class="rec-obj">Objective: {esc(objective)}</div></div></div>')
-        html('<div style="height:6px"></div>')
-        if confirmed:
-            note_col, audit_col, why_col = st.columns([1.5, 1, 1], vertical_alignment="center")
-            with note_col:
-                html('<div class="done-note"><b>Audit record saved. Queue updated.</b><br>'
-                     f'No message has been sent to {esc(chosen["name"])}.</div>')
-            with audit_col:
-                st.button("View audit record", key="desk_view_audit", width="stretch", on_click=open_audit)
-        else:
-            confirm_label = ("Accept late return" if awkward else "Accept alternative" if parsed.behaviour == "refuse" else "Confirm allocation")
-            confirm_col, why_col = st.columns([1.6, 1], vertical_alignment="center")
-            with confirm_col:
-                if st.button(confirm_label, key="desk_confirm", type="primary", width="stretch", icon=":material/task_alt:",
-                             disabled=not status.ready):
-                    confirm(preview)
-        with why_col:
-            if st.button("Why this decision?", key="desk_inspect", width="stretch", icon=":material/insights:"):
+        main, card, act = st.columns([1.28, 1.02, .86], gap="medium", vertical_alignment="center")
+        with main:
+            html(f'<div class="{state_cls}"><span class="rec-eyebrow">{esc(label)}</span>'
+                 f'<div class="rec-head">{esc(headline)}</div>'
+                 f'<p class="rec-reason">{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
+                 f'<div class="rec-why-title">Why this workshop?</div><ul class="rec-list">{points}</ul>'
+                 f'<div class="rec-obj">Objective: {esc(objective)}</div></div>')
+            if st.button("Why this decision?", key="desk_inspect", type="tertiary", icon=":material/insights:"):
                 inspector(workshops)
-        if not confirmed:
-            note = status.reason if not status.ready else "You approve the decision. Nothing is sent to the workshop."
-            html(f'<div class="done-note" style="margin-top:4px">{esc(note)}</div>')
+        with card:
+            html(f'<div class="ws-card">{photo}<div class="ws-top"><div><div class="ws-name">{esc(name)}</div>'
+                 f'<div class="ws-sub">Workshop <span class="id">{esc(wid)}</span>, makes {esc(makes)}</div></div>{evidence}</div>'
+                 f'<div class="ws-metrics">{tiles}</div></div>')
+        with act:
+            if confirmed:
+                html('<div class="done-note"><b>Audit record saved. Queue updated.</b><br>'
+                     f'No message has been sent to {esc(name)}.</div>')
+                st.button("View audit record", key="desk_view_audit", width="stretch", on_click=open_audit)
+            else:
+                confirm_label = ("Accept late return" if awkward else "Accept alternative" if parsed.behaviour == "refuse"
+                                 else f"Assign to {name}")
+                if st.button(confirm_label, key="desk_confirm", type="primary", width="stretch", disabled=not status.ready):
+                    confirm(preview)
+                if st.button("View other options", key="desk_options", width="stretch"):
+                    inspector(workshops, focus="options")
+                note = status.reason if not status.ready else "Records the decision. Nothing is sent to the workshop."
+                html(f'<div class="done-note">{esc(note)}</div>')
     if state.get("desk_confirm_error"):
         html(banner("Audit record not saved", " " + state["desk_confirm_error"], "risk"))
 
@@ -483,7 +589,7 @@ def decline_card(parsed, orders, workshops):
 # Decision inspector: a slide-over panel -------------------------------------------
 
 @st.dialog("Decision inspector", width="large")
-def inspector(workshops):
+def inspector(workshops, focus: str = "why"):
     preview = st.session_state.get("desk_preview")
     if preview is None:
         html('<div class="inspector"></div>')
@@ -497,15 +603,14 @@ def inspector(workshops):
     title = chosen["name"] if chosen else {"clarify": "Needs a reply", "decline": "Cannot answer"}.get(response.parsed_request.behaviour, "No recommendation")
     html(f'<div class="inspector"><div class="eyebrow">Why this decision</div><div class="ins-title">{esc(title)}</div>'
          f'<div class="ins-sub">{esc(explain.objective_label(record["objective_name"]))}. Every value below is read from the recorded decision.</div></div>')
-    why, why_not, breakdown, trace = st.tabs(["Why this won", "Why not another", "Score breakdown", "Evidence trace"])
-    with why:
-        why_tab(record)
-    with why_not:
-        why_not_tab(record, workshops)
-    with breakdown:
-        breakdown_tab(record)
-    with trace:
-        trace_tab(response, steps)
+    views = {"Why this won": lambda: why_tab(record), "Why not another": lambda: why_not_tab(record, workshops),
+             "Score breakdown": lambda: breakdown_tab(record), "Evidence trace": lambda: trace_tab(response, steps)}
+    names = list(views)
+    if focus == "options":
+        names.insert(0, names.pop(1))
+    for tab, view in zip(st.tabs(names), names):
+        with tab:
+            views[view]()
 
 
 def compare_grid(rows, winner, other) -> str:

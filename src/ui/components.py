@@ -90,6 +90,22 @@ def decision_stage(stages) -> str:
     return f'<div class="strip" role="list" aria-label="Decision stages">{"".join(cells)}</div>'
 
 
+def icon(name: str, cls: str = "") -> str:
+    """A Material Symbols glyph (the icon font Streamlit already loads), hidden from screen readers."""
+    return f'<span class="msym {cls}" aria-hidden="true">{esc(name)}</span>'
+
+
+def process_strip(steps) -> str:
+    """Homepage five-step strip. steps: (key, label, sublabel, status); status done, active, idle, skipped or blocked."""
+    cells = []
+    for n, (_, label, sub, status) in enumerate(steps, 1):
+        mark = "✓" if status == "done" else "!" if status == "blocked" else str(n)
+        cells.append(f'<div class="pstep {status}"><span class="pnum">{mark}</span><span class="ptxt"><b>{esc(label)}</b>'
+                     f'<small>{esc(sub)}</small></span></div>')
+    joined = '<span class="pline" aria-hidden="true"></span>'.join(cells)
+    return f'<div class="pstrip" role="list" aria-label="Decision steps">{joined}</div>'
+
+
 def candidate_row(name: str, sub: str, eta: str, spare: int | None, cost: str, tone: str) -> str:
     spare_text = "n/a" if spare is None else f"{spare:+d}"
     cls = "neg" if spare is not None and spare < 0 else ""

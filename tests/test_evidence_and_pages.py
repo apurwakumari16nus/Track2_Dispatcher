@@ -142,3 +142,19 @@ def test_objective_scorecard_is_computed_from_committed_results():
     assert cards["fairness"]["verdict"] == "Qualifies" and cards["robustness"]["verdict"] == "Qualifies"
     assert cards["defect"]["verdict"] == "Fails lateness guardrail" and cards["defect"]["tone"] == "risk"
     assert cards["hybrid_lateness_fairness"]["verdict"] == "Reported, no course pass rule"
+
+
+def test_homepage_recommendation_uses_the_real_decision_and_filters_inbox(rehearsal_app):
+    at, _ = rehearsal_app
+    at.button(key="inbox_R09").click().run()
+    at.button(key="desk_dispatch").click().run()
+    text = " ".join(m.value for m in at.markdown)
+    assert "Assign to Nimble Needle" in text and "Why this workshop?" in text  # The engine's choice, not a mock-up name.
+    assert at.button(key="desk_confirm").label == "Assign to Nimble Needle" and not at.button(key="desk_confirm").disabled
+    assert "SteadyHands" not in text.split("Why this workshop?")[0]
+    at.button(key="desk_options").click().run()  # Opens the inspector on the alternatives; changes nothing.
+    assert not at.exception and "desk_preview" in at.session_state and not desk.REHEARSAL_LOG.exists()
+    at.segmented_control(key="inbox_filter").set_value("reviewed").run()
+    assert [b.key for b in at.button if b.key and b.key.startswith("inbox_R")] == ["inbox_R09"]
+    at.segmented_control(key="inbox_filter").set_value("pending").run()
+    assert "inbox_R09" not in [b.key for b in at.button] and len([b for b in at.button if b.key and b.key.startswith("inbox_R")]) == 29

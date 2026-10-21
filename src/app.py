@@ -1,4 +1,4 @@
-"""Quick Response Desk. Run: uv run streamlit run src/app.py
+"""Threadline by Sweater Co, the subcontracting desk. Run: uv run streamlit run src/app.py
 
 Four areas: Dispatch (default), Workshop Network, Simulation Lab, Audit Trail.
 The model only reads requests; Python validates, estimates, scores and selects;
@@ -24,14 +24,14 @@ import rehearsal
 from desk import (TODAY, ConfirmState, Preview, confirm_preview, confirm_state, filtered_records,  # noqa: F401
                   init_session, load_inputs, make_preview, projected_queues, reset_session, signature)
 from ui import audit, dispatch, explain, lab, network
-from ui.components import banner, esc, html, inject_css
+from ui.components import banner, esc, html, icon, inject_css
 
 PAGES = ["Dispatch", "Workshop Network", "Simulation Lab", "Audit Trail"]
 ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Simulation Lab": ":material/science:",
          "Audit Trail": ":material/verified_user:"}
 # Streamlit drops a widget's state on runs where it is not drawn (other pages).
 # These values are restored when the page that owns them is shown again.
-KEEP = ("desk_today", "desk_preset", "desk_message", "inbox_search",
+KEEP = ("desk_today", "desk_preset", "desk_message", "inbox_search", "inbox_filter",
         "net_category", "net_pieces", "net_due", "net_view",
         "lab_seed", "lab_focus", "lab_scenario", "lab_late", "lab_order",
         "sb_lateness", "sb_defect", "sb_fairness", "sb_robustness", "sb_cost",
@@ -101,34 +101,39 @@ def system_details(state, orders, workshops, messages):
                        "The live audit log is never touched.")
 
 
-def session_card(state) -> str:
-    """Live context for the shell: how requests are read and what this session has done."""
+def status_card(state, workshops) -> str:
+    """System status for the shell. Every row is a real check of this session."""
     source, live = state["desk_source"], rehearsal.live_status()
-    if source == "cached":
-        dot, head, sub = "rehearsal", "Rehearsal mode", "Recorded model replies. Allocation is live."
-    elif source == "fixture":
-        dot, head, sub = "rehearsal", "Rehearsal mode", "Test fixtures, not model output. Allocation is live."
+    if source in ("cached", "fixture"):
+        dot, head, reading, tone = "rehearsal", "Rehearsal mode", ("Recorded replies" if source == "cached" else "Test fixtures"), "warn"
     elif live["ready"]:
-        dot, head, sub = "live", "Live model", live["model"]
+        dot, head, reading, tone = "live", "System ready", "Live model", "ok"
     else:
-        dot, head, sub = "off", "Model not configured", "Switch to rehearsal in System details."
+        dot, head, reading, tone = "off", "Model not configured", "Not set", "off"
+    active = sum(w.status == "ACTIVE" for w in workshops.values())
     queue = state["desk_queue_date"]
-    return (f'<div class="side-card"><div class="sc-head"><i class="{dot}"></i>{esc(head)}</div><div class="sc-sub">{esc(sub)}</div>'
-            f'<div class="sc-grid"><div><small>Queues as of</small><b>{queue.day} {queue:%b}</b></div>'
-            f'<div><small>Confirmed</small><b>{len(state["desk_saved"])}</b></div></div></div>')
+    rows = [("Request reading", reading, tone), ("Workshops", f"{active} of {len(workshops)} active", "ok"),
+            ("Allocation", "Python", "ok"), ("Queues as of", f"{queue.day} {queue:%b}", "ok"),
+            ("Confirmed", str(len(state["desk_saved"])), "ok")]
+    marks = {"ok": "check_circle", "warn": "error", "off": "cancel"}
+    lines = "".join(f'<div class="sc-row {t}">{icon(marks[t])}<span>{esc(k)}</span><b>{esc(v)}</b></div>' for k, v, t in rows)
+    return f'<div class="side-card"><div class="sc-head"><i class="{dot}"></i>{esc(head)}</div>{lines}</div>'
 
 
 def sidebar(state, orders, workshops, messages):
     with st.sidebar:
-        html('<div class="brand"><div class="brand-word"><i></i>Quick Response</div><div class="brand-sub">Subcontracting desk</div></div>'
+        html('<div class="brand"><img class="brand-mark" src="app/static/brand/threadline-mark.png" alt="">'
+             '<div><div class="brand-word">Thread<span>line</span></div><div class="brand-sub">by Sweater Co</div></div></div>'
              '<div class="side-label">Operations</div>')
         with st.container(key="nav"):
             st.radio("Navigate", PAGES, key="desk_page", label_visibility="collapsed", format_func=lambda p: f"{ICONS[p]} {p}")
         with st.container(key="side_foot"):
-            html(session_card(state))
+            html(status_card(state, workshops))
             st.button("Guided demo", key="demo_start", icon=":material/play_circle:", width="stretch",
                       on_click=tour_go, args=(0, messages))
             system_details(state, orders, workshops, messages)
+            html(f'<div class="user-card"><div class="uc-av">{icon("person")}</div><div><b>Dispatcher</b>'
+                 '<small>You approve every decision</small></div></div>')
 
 
 def mode_banner(state):
@@ -140,8 +145,8 @@ def mode_banner(state):
 
 
 def main():
-    st.set_page_config(page_title="Quick Response Desk", page_icon=":material/hub:", layout="wide",
-                       initial_sidebar_state="expanded")
+    st.set_page_config(page_title="Threadline by Sweater Co", page_icon=str(ROOT / "src/static/brand/threadline-mark.png"),
+                       layout="wide", initial_sidebar_state="expanded")
     state = st.session_state
     try:
         orders, workshops, messages = load_inputs()
@@ -159,8 +164,9 @@ def main():
         state["desk_source"] = "live"
     inject_css(presentation=state.get("presentation_mode", False))
     sidebar(state, orders, workshops, messages)
-    mode_banner(state)
     page = state["desk_page"]
+    if page != "Dispatch":  # Dispatch shows the mode in its top bar.
+        mode_banner(state)
     if page == "Workshop Network":
         network.render(workshops)
     elif page == "Simulation Lab":
