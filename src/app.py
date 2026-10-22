@@ -24,7 +24,7 @@ import rehearsal
 from desk import (TODAY, ConfirmState, Preview, confirm_preview, confirm_state, filtered_records,  # noqa: F401
                   init_session, load_inputs, make_preview, projected_queues, reset_session, signature)
 from ui import audit, dispatch, explain, lab, network
-from ui.components import banner, esc, html, icon, inject_css
+from ui.components import banner, esc, html, icon, inject_css, mode_ribbon
 
 PAGES = ["Dispatch", "Workshop Network", "Simulation Lab", "Audit Trail"]
 ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Simulation Lab": ":material/science:",
@@ -79,8 +79,8 @@ def demo_controller(messages):
 def system_details(state, orders, workshops, messages):
     live = rehearsal.live_status()
     with st.popover("System details", icon=":material/tune:", width="stretch"):
-        html('<div class="title" style="font-size:17px">System details</div>'
-             '<div class="meta" style="font-size:13px;margin-bottom:6px">How requests are read. Allocation logic is always live.</div>')
+        html('<div class="title" style="font-size:1.1667rem">System details</div>'
+             '<div class="meta" style="font-size:0.9333rem;margin-bottom:0.4rem">How requests are read. Allocation logic is always live.</div>')
         st.radio("Request reading", list(rehearsal.SOURCES), key="desk_source", format_func=SOURCE_LABELS.get,
                  on_change=dispatch.invalidate,
                  captions=["Reads each request with the configured model.",
@@ -92,10 +92,10 @@ def system_details(state, orders, workshops, messages):
                 ("Recorded replies", f"{recorded} of {len(messages)} inbox requests"),
                 ("Queue snapshot", explain.long_date(state["desk_queue_date"])),
                 ("Confirmed this session", str(len(state["desk_saved"])))]
-        html('<dl class="kv" style="grid-template-columns:160px 1fr;font-size:13.5px;margin:6px 0 8px">'
+        html('<dl class="kv" style="grid-template-columns:10.6667rem 1fr;font-size:0.9333rem;margin:0.4rem 0 0.5333rem">'
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in rows) + "</dl>")
         st.toggle("Presentation mode", key="presentation_mode",
-                  help="Hides developer detail and Streamlit chrome for screen recording. Calculations do not change.")
+                  help="Larger type for projectors and screen recording; hides developer detail and Streamlit chrome. Calculations do not change.")
         st.button("Reset demo session", key="demo_reset", width="stretch", on_click=reset_session, args=(state, workshops),
                   help="Restores the 1 April queues, clears decisions in this session and empties the rehearsal log. "
                        "The live audit log is never touched.")
@@ -139,9 +139,9 @@ def sidebar(state, orders, workshops, messages):
 def mode_banner(state):
     source = state["desk_source"]
     if source == "cached":
-        html('<div class="mode-banner"><b>REHEARSAL MODE</b><span>Uses verified cached extraction. Allocation logic remains live.</span></div>')
+        html(mode_ribbon("Rehearsal mode", "Uses verified cached extraction, not a live model call.", "Allocation logic remains live"))
     elif source == "fixture":
-        html('<div class="mode-banner"><b>REHEARSAL MODE</b><span>Uses test fixture extraction, not model output. Allocation logic remains live.</span></div>')
+        html(mode_ribbon("Rehearsal mode", "Uses test fixture extraction, not model output.", "Allocation logic remains live"))
 
 
 def main():
@@ -165,8 +165,7 @@ def main():
     inject_css(presentation=state.get("presentation_mode", False))
     sidebar(state, orders, workshops, messages)
     page = state["desk_page"]
-    if page != "Dispatch":  # Dispatch shows the mode in its top bar.
-        mode_banner(state)
+    mode_banner(state)
     if page == "Workshop Network":
         network.render(workshops)
     elif page == "Simulation Lab":

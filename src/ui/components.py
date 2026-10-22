@@ -16,12 +16,13 @@ from pathlib import Path
 import streamlit as st
 
 CSS_PATH = Path(__file__).with_name("theme.css")
-MATERIALS_PATH = Path(__file__).with_name("materials.css")  # V6 material system, layered over theme.css.
+SYSTEM_PATH = Path(__file__).with_name("threadline.css")  # V7 design system: materials, light, controls, states.
 # Chart palette, validated for colour-blind separation and 3:1 contrast on the light surface.
 OURS, BENCH, SHOCK, SLATE, SLATE_LIGHT, BEAM = "#5F78F5", "#149E8B", "#E8692F", "#A8B5C3", "#D6DEE7", "#48D9E6"
 TERM_CLASS = {"lateness": "t-lateness", "defect": "t-defect", "fairness": "t-fairness", "robustness": "t-robustness", "cost": "t-cost"}
 STAGE_ICONS = {"done": "✓", "blocked": "!", "active": "", "idle": "", "skipped": ""}
 PRESENTATION_CSS = """
+:root { --ui-zoom: 1.12; }
 [class*="st-key-dev_"] { display: none !important; }
 [data-testid="stSidebarCollapseButton"], [data-testid="stSidebarHeader"] button { display: none !important; }
 .block-container, [data-testid="stMainBlockContainer"] { padding-top: 1.8rem; }
@@ -37,7 +38,7 @@ def html(markup: str) -> None:
 
 
 def inject_css(presentation: bool = False) -> None:
-    css = CSS_PATH.read_text(encoding="utf-8") + MATERIALS_PATH.read_text(encoding="utf-8")
+    css = CSS_PATH.read_text(encoding="utf-8") + SYSTEM_PATH.read_text(encoding="utf-8")
     html("<style>" + css + (PRESENTATION_CSS if presentation else "") + "</style>")
 
 
@@ -58,13 +59,39 @@ def banner(title: str, text: str = "", tone: str = "info") -> str:
     return f'<div class="banner {tone}" role="status"><div><b>{esc(title)}</b>{esc(text)}</div></div>'
 
 
+def mode_ribbon(title: str, text: str, note: str = "") -> str:
+    """Operating-mode strip anchored to the top of the workspace (rehearsal, cached replies)."""
+    tail = f"<em>{esc(note)}</em>" if note else ""
+    return f'<div class="mode-ribbon" role="status">{icon("science")}<b>{esc(title)}</b><span>{esc(text)}</span>{tail}</div>'
+
+
+def thread_link(label: str, confirmed: bool = False) -> str:
+    """The stitch that ties the selected request to its recommendation and, later, to the confirmation."""
+    return f'<div class="dthread{" conf" if confirmed else ""}" aria-hidden="true"><i></i><span>{esc(label)}</span></div>'
+
+
+def loom_art() -> str:
+    """Dispatch empty state: requests on the left, the factory knot, eight workshops on the right. Purely illustrative."""
+    msgs = "".join(f'<g class="msg" transform="translate(8 {y})"><rect width="92" height="34" rx="9"/><line x1="12" y1="13" x2="70" y2="13"/>'
+                   f'<line x1="12" y1="22" x2="50" y2="22"/></g>' for y in (36, 104, 172))
+    ins = "".join(f'<path class="th in" d="M100 {y + 17} C170 {y + 17} 170 150 236 150"/>' for y in (36, 104, 172))
+    ws = [(410, 34), (444, 78), (462, 128), (464, 178), (446, 228), (410, 268), (370, 24), (372, 276)]
+    outs = "".join(f'<path class="th {"lit" if i == 2 else "out"}" d="M262 150 C320 150 {x - 60} {y} {x - 12} {y}"/>' for i, (x, y) in enumerate(ws))
+    nodes = "".join(f'<g class="ws{" lit" if i == 2 else ""}"><circle cx="{x}" cy="{y}" r="11"/></g>' for i, (x, y) in enumerate(ws))
+    return ('<svg class="loom" viewBox="0 0 500 300" role="img" aria-label="Requests are routed through the factory to one of eight workshops">'
+            '<defs><linearGradient id="loomLit" x1="0" x2="1"><stop offset="0" stop-color="#3278E9"/><stop offset="1" stop-color="#9BE8FB"/></linearGradient></defs>'
+            f'{ins}{outs}{msgs}<circle class="hubr" cx="249" cy="150" r="27"/><circle class="hubc" cx="249" cy="150" r="23"/>'
+            f'<image href="app/static/brand/threadline-mark.png" x="236" y="138" width="26" height="23"/>{nodes}'
+            '<text class="k" x="8" y="22">REQUESTS</text><text class="k" x="206" y="200">FACTORY</text><text class="k" x="392" y="300">WORKSHOPS</text></svg>')
+
+
 def page_head(eyebrow: str, title: str, lede: str = "") -> None:
     html(f'<div class="eyebrow">{esc(eyebrow)}</div><div class="display">{esc(title)}</div>'
          + (f'<div class="lede">{esc(lede)}</div>' if lede else ""))
 
 
 def section(title: str, note: str = "") -> None:
-    html(f'<div class="title">{esc(title)}</div>' + (f'<div class="meta" style="font-size:13px;margin-top:2px">{esc(note)}</div>' if note else ""))
+    html(f'<div class="title">{esc(title)}</div>' + (f'<div class="meta" style="font-size:0.9333rem;margin-top:2px">{esc(note)}</div>' if note else ""))
 
 
 def metric_tile(label: str, value: str, note: str = "") -> str:
@@ -177,7 +204,7 @@ def json_block(value, *, height: int | None = None) -> None:
 # Charts -----------------------------------------------------------------------
 
 FONT = "Mona Sans, -apple-system, Segoe UI, Arial, sans-serif"
-AXIS = {"labelFontSize": 12.5, "titleFontSize": 12.5, "titleFontWeight": 600, "labelColor": "#5E6D82", "titleColor": "#33465E",
+AXIS = {"labelFontSize": 13.5, "titleFontSize": 13.5, "titleFontWeight": 600, "labelColor": "#5A6B80", "titleColor": "#33465E",
         "gridColor": "rgba(38,119,216,0.13)", "gridDash": [2, 4], "domain": False, "ticks": False, "labelPadding": 8, "titlePadding": 12,
         "labelFont": FONT, "titleFont": FONT}
 
@@ -186,9 +213,9 @@ def chart(data, spec: dict, *, height: int = 300) -> None:
     """Shared chart theme: transparent, quiet axes, product palette; exact values in tooltips."""
     st.vega_lite_chart(data, {
         "height": height, "background": "transparent", "padding": {"left": 4, "right": 16, "top": 10, "bottom": 4},
-        "config": {"view": {"stroke": None}, "axis": AXIS,
-                   "legend": {"labelFontSize": 12.5, "labelColor": "#617182", "title": None, "orient": "top", "symbolSize": 80,
+        "config": {"view": {"stroke": None}, "axis": AXIS, "bar": {"cornerRadiusEnd": 3},
+                   "legend": {"labelFontSize": 13.5, "labelColor": "#5A6B80", "title": None, "orient": "top", "symbolSize": 90,
                               "labelFont": FONT, "symbolStrokeWidth": 0},
-                   "text": {"color": "#122233", "fontSize": 12.5, "font": FONT}},
+                   "text": {"color": "#10263C", "fontSize": 13.5, "font": FONT}},
         **spec,
     }, width="stretch", theme=None)

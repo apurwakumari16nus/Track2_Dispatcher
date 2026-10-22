@@ -57,7 +57,7 @@ def rehearsal_app(monkeypatch, tmp_path):
 
 def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at, tmp = rehearsal_app
-    assert "REHEARSAL MODE" in " ".join(m.value for m in at.markdown)
+    assert "Rehearsal mode" in " ".join(m.value for m in at.markdown)  # the mode ribbon
     at.button(key="demo_start").click().run()  # Guided demo loads R09; the dispatcher still evaluates it.
     assert "desk_preview" not in at.session_state and at.session_state["desk_message"].startswith("R09 ")
     assert "DEMO 1 OF 6" in " ".join(m.value for m in at.markdown)
