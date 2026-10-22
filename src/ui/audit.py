@@ -22,7 +22,7 @@ from ui.components import banner, chart, esc, html, icon, json_block, status_pil
 LOGS = {"live": "Live log", "rehearsal": "Rehearsal log"}
 KINDS = ["Allocation", "Alternative accepted", "Late return accepted"]
 KIND_TONE = {"Allocation": "conf", "Alternative accepted": "info", "Late return accepted": "warn"}
-COLUMNS = [1.05, .95, .85, 1.25, 1.25, 1.45, 1.0, .8]
+COLUMNS = [1.3, .95, .95, 1.25, 1.2, 1.2, .95, .75]
 SHOWN = 60
 
 
@@ -88,7 +88,7 @@ def render(workshops):
     head, log_col = st.columns([3, 1], vertical_alignment="bottom")
     with head:
         html('<div class="kicker"><span>Audit trail</span></div>'
-             '<div class="home-title" style="margin-top:12px">Every confirmed decision, with its evidence</div>'
+             '<div class="home-title" style="margin-top:0.8rem">Every confirmed decision, with its evidence</div>'
              '<div class="home-sub">A record is written only when a dispatcher confirms. Recommendations, previews and simulator runs are never logged here.</div>')
     with log_col:
         log = st.segmented_control("Log", list(LOGS), key="audit_log", format_func=LOGS.get, required=True)
@@ -112,7 +112,7 @@ def render(workshops):
              '<ol class="ae-steps"><li><b>Evaluate a request</b><span>Dispatch reads it and the engine recommends a workshop.</span></li>'
              '<li><b>Confirm it</b><span>Only an explicit confirmation by the dispatcher writes a record.</span></li>'
              '<li><b>Review it here</b><span>The request, candidates, reasons and evidence, kept append-only.</span></li></ol>'
-             f'{hint}</div></div>')
+             f'{hint}</div><div class="ae-sheet" aria-hidden="true"><b>{esc(LOGS[log])}</b><i></i><span>No entries yet</span></div></div>')
         return
     senders = sorted({r.get("sender") for r in rows} - {None, ""})
     shops = sorted({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None})
@@ -130,7 +130,8 @@ def render(workshops):
         with c:
             sender = st.multiselect("Requester", senders, key="audit_sender")
         with d:
-            day = st.selectbox("Date", [None, *reversed(days)], key="audit_day", format_func=lambda v: "Any date" if v is None else explain.long_date(v))
+            day = st.selectbox("Date", [None, *reversed(days)], key="audit_day", placeholder="Any date",
+                               format_func=lambda v: "Any date" if v is None else explain.long_date(v))
         with e:
             kinds = st.multiselect("Decision type", KINDS, key="audit_kind")
     found = search(rows, query, sender, workshop, kinds, (day, day) if day else None)
@@ -142,7 +143,7 @@ def render(workshops):
     with main:
         ledger(found[:SHOWN], workshops)
         more = f" Showing the newest {SHOWN}; narrow the filters to reach older records." if len(found) > SHOWN else ""
-        html(f'<div class="meta" style="margin-top:6px">{len(found)} of {len(rows)} records, newest first.{esc(more)}</div>')
+        html(f'<div class="meta" style="margin-top:0.4rem">{len(found)} of {len(rows)} records, newest first.{esc(more)}</div>')
         st.download_button("Export shown records (JSONL)", "\n".join(json.dumps(r, ensure_ascii=False) for r in found) + "\n",
                            file_name=f"{log}-audit-records.jsonl", mime="application/x-ndjson", key="audit_export",
                            icon=":material/download:")
@@ -171,7 +172,7 @@ def summary_row(rows, log, workshops):
                                        "y": {"aggregate": "count", "type": "quantitative", "title": "Decisions", "axis": {"tickMinStep": 1}},
                                        "color": {"field": "type", "title": None, "scale": {"domain": KINDS, "range": ["#2A77E8", "#7FB0F2", "#E09A2C"]}},
                                        "tooltip": [{"field": "day", "title": "Day"}, {"field": "type", "title": "Type"}, {"aggregate": "count", "title": "Decisions"}]}},
-                  height=150)
+                  height=176)
         html('<div class="an-src">Source: the audit log file. Nothing here is simulated.</div>')
 
 
@@ -229,7 +230,7 @@ def record_panel(row, workshops):
             if chosen else "")
     html(f'<div class="inspector"><div class="eyebrow">Record {esc(record.get("order_id"))}, logged {esc(when(row))} UTC</div>'
          f'<div class="ins-title">{esc(workshop_name(wid, workshops))}</div><div class="ins-sub">{esc(back)}</div>'
-         f'<div style="display:flex;gap:8px;margin-top:12px">{status_pill(kind(row), "dark-muted")}'
+         f'<div style="display:flex;gap:0.5333rem;margin-top:0.8rem">{status_pill(kind(row), "dark-muted")}'
          f'{status_pill("Evidence verified" if passed else "Evidence failed", "dark" if passed else "dark-risk")}'
          f'{status_pill("Confirmed by dispatcher" if confirmation.get("confirmed") else "Not confirmed", "dark-conf" if confirmation.get("confirmed") else "dark-muted")}</div></div>')
     summary_tab, candidates_tab, evidence_tab = st.tabs(["Decision", "Candidates", "Evidence"])
@@ -243,13 +244,13 @@ def record_panel(row, workshops):
         lines = [f"“{s.get('text')}”, imposed by {s.get('imposed_by') or 'unknown'}" + (f", relayed by {s['relayed_by']}" if s.get("relayed_by") else "")
                  for s in statements] + ([f"Excluded workshops: {', '.join(excluded)}"] if excluded else [])
         won = explain.why_won(record)
-        html(f'<div class="dk-card" style="margin-top:6px"><div class="eyebrow" style="color:var(--cyan)">Original request</div>'
-             f'<p style="font-size:16px;margin:6px 0 0">{esc(parsed.get("raw_text"))}</p></div>'
-             f'<div class="dk-card beam" style="margin-top:12px"><div class="eyebrow" style="color:var(--cyan)">Why this workshop</div>'
-             f'<p style="font-size:16px;margin:6px 0 4px">{esc(won["sentence"] if won else record.get("reason_chosen"))}</p>'
+        html(f'<div class="dk-card" style="margin-top:0.4rem"><div class="eyebrow" style="color:var(--cyan)">Original request</div>'
+             f'<p style="font-size:1.1rem;margin:0.4rem 0 0">{esc(parsed.get("raw_text"))}</p></div>'
+             f'<div class="dk-card beam" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Why this workshop</div>'
+             f'<p style="font-size:1.1rem;margin:0.4rem 0 0.2667rem">{esc(won["sentence"] if won else record.get("reason_chosen"))}</p>'
              f'<div class="ev">Objective {esc(explain.objective_label(record.get("objective_name", "")))}.</div></div>'
-             '<div class="grid g2" style="margin-top:12px">'
-             f'<div class="dk-card"><div class="eyebrow" style="color:var(--cyan)">Parsed request</div><dl class="kv" style="grid-template-columns:110px 1fr;font-size:14px;margin-top:8px">'
+             '<div class="grid g2" style="margin-top:0.8rem">'
+             f'<div class="dk-card"><div class="eyebrow" style="color:var(--cyan)">Parsed request</div><dl class="kv" style="grid-template-columns:7.3333rem 1fr;font-size:0.9667rem;margin-top:0.5333rem">'
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in fields if v is not None) + "</dl></div>"
              f'<div class="dk-card"><div class="eyebrow" style="color:var(--cyan)">Constraints</div><ul class="dk-list">'
              + ("".join(f"<li>{esc(t)}</li>" for t in lines) or "<li>None stated</li>") + "</ul></div></div>")
@@ -262,7 +263,7 @@ def record_panel(row, workshops):
         for c in record.get("ineligible", []):
             body.append(f'<tr class="off"><td>{esc(c["name"])}</td><td colspan="4">{esc(explain.ineligible_headline(c["reason"]))}</td></tr>')
         html('<table class="ev-table cand"><tr class="h"><td>Workshop</td><td class="r">Return</td><td class="r">Spare</td><td class="r">Cost</td>'
-             f'<td class="r">Score</td></tr>{"".join(body)}</table><p class="ev" style="margin-top:10px">Lower score wins. Values are the stored record, not a recalculation.</p>')
+             f'<td class="r">Score</td></tr>{"".join(body)}</table><p class="ev" style="margin-top:0.6667rem">Lower score wins. Values are the stored record, not a recalculation.</p>')
     with evidence_tab:
         items = [("Values checked", f'{len(check.get("numbers_in_text", []))}, unsupported {len(check.get("unmatched", []))}'),
                  ("Confirmed by dispatcher", "Yes" if confirmation.get("confirmed") else "No"),
@@ -271,9 +272,9 @@ def record_panel(row, workshops):
                  ("Request reading", confirmation.get("extraction_source") or "live"),
                  ("Logged at (UTC)", (row.get("timestamp") or "")[:19].replace("T", " ")),
                  ("Business date", record.get("timestamp", "")[:10])]
-        html('<div class="dk-card" style="margin-top:6px"><dl class="kv" style="grid-template-columns:190px 1fr;font-size:14px">'
+        html('<div class="dk-card" style="margin-top:0.4rem"><dl class="kv" style="grid-template-columns:12.6667rem 1fr;font-size:0.9667rem">'
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in items) + "</dl>"
-             '<p class="ev" style="margin:12px 0 0">Confirmation records the decision locally. It does not contact the workshop.</p></div>')
+             '<p class="ev" style="margin:0.8rem 0 0">Confirmation records the decision locally. It does not contact the workshop.</p></div>')
         if st.toggle("View tool trace", key="audit_raw_trace"):
             json_block(record.get("tool_outputs", {}).get("call_trace", []), height=300)
         if st.toggle("View raw record", key="audit_raw_record"):

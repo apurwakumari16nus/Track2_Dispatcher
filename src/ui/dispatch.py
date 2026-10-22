@@ -23,7 +23,7 @@ from objectives import PRESETS
 import rehearsal
 import tools
 from ui import explain
-from ui.components import (banner, candidate_row, esc, html, icon, json_block, process_strip, score_bars, section, state_line,
+from ui.components import (banner, candidate_row, loom_art, thread_link, esc, html, icon, json_block, process_strip, score_bars, section, state_line,
                            status_pill, table, weight_bars)
 
 STATUS_WORDS = {"allocate": "Reviewed", "clarify": "Needs reply", "refuse": "Reviewed", "decline": "Cannot answer"}
@@ -140,10 +140,7 @@ def topbar(workshops):
     with st.container(key="topbar"):
         kick, search, bell, date_col, objective_col, ready_col = st.columns([1.7, 2.1, .42, .95, 1.22, 1.15], vertical_alignment="center")
         with kick:
-            note = ("Uses recorded model replies. Allocation logic remains live." if source.key == "cached"
-                    else "Uses test fixture extraction, not model output. Allocation logic remains live.")
-            pill = f'<span class="mode-pill" title="{esc(note)}">REHEARSAL MODE</span>' if source.rehearsal else ""
-            html(f'<div class="kicker"><span>Dispatch</span>{pill}</div>')
+            html('<div class="kicker"><span>Dispatch</span></div>')
         with search:
             st.text_input("Search requests", key="inbox_search", placeholder="Search requests, customers or order numbers",
                           label_visibility="collapsed", icon=":material/search:")
@@ -165,12 +162,12 @@ def alerts():
     outcomes = st.session_state.get("desk_outcomes", {})
     waiting = sorted(rid for rid, word in outcomes.items() if word == "Needs reply")
     with st.popover(str(len(waiting)), icon=":material/notifications:"):
-        html('<div class="title" style="font-size:16px">Needs a reply</div>')
+        html('<div class="title" style="font-size:1.1rem">Needs a reply</div>')
         if waiting:
-            html("".join(f'<div class="meta" style="font-size:13.5px;margin-top:6px">Request <span class="id">{esc(r)}</span> '
+            html("".join(f'<div class="meta" style="font-size:0.9333rem;margin-top:0.4rem">Request <span class="id">{esc(r)}</span> '
                          "is waiting for a detail from the sender.</div>" for r in waiting))
         else:
-            html('<div class="meta" style="font-size:13.5px;margin-top:6px">Nothing is waiting. Requests that need a detail from '
+            html('<div class="meta" style="font-size:0.9333rem;margin-top:0.4rem">Nothing is waiting. Requests that need a detail from '
                  "the sender appear here.</div>")
 
 
@@ -185,7 +182,7 @@ def system_ready(workshops):
         rows = [("Allocation engine", "Ready"), ("Workshops", f"{len(workshops)} on the register, {active} active"),
                 ("Queues", f"As of {explain.long_date(state['desk_queue_date'])}"), ("Request reading", language),
                 ("Confirmed this session", str(len(state["desk_saved"])))]
-        html('<dl class="kv" style="grid-template-columns:170px 1fr;font-size:14px">' + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in rows) + "</dl>")
+        html('<dl class="kv" style="grid-template-columns:11.3333rem 1fr;font-size:0.9667rem">' + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in rows) + "</dl>")
 
 
 def inbox(messages):
@@ -213,7 +210,7 @@ def inbox(messages):
                     st.button(f"Open request {rid} from {sender}", key="inbox_" + rid, width="stretch",
                               on_click=select_message, args=(message,))
             if not shown:
-                html('<div class="meta" style="padding:12px 4px">No request matches. Clear the search or the filter.</div>')
+                html('<div class="meta" style="padding:0.8rem 0.2667rem">No request matches. Clear the search or the filter.</div>')
 
 
 def workspace(orders, workshops, today, config, queues):
@@ -233,8 +230,12 @@ def workspace(orders, workshops, today, config, queues):
         elif preview:
             result(preview, current_signature, workshops, orders, queues, progress)
         elif not message.strip():
-            html('<div class="empty"><i></i><div class="say">Select a request to begin.</div>'
-                 '<div class="ask">Python verifies the request and ranks eligible workshops. You approve the final decision.</div></div>')
+            html('<div class="home-empty"><div class="he-copy"><div class="he-k">Ready when you are</div><div class="say">Select a request to begin.</div>'
+                 '<p>Choose a message from the inbox or type one. Python verifies it and ranks the eligible workshops; you approve the final decision.</p>'
+                 '<ol class="he-steps"><li><i>1</i><div><b>Read the request</b><span>Order, pieces, due date and preference, checked against the order book.</span></div></li>'
+                 '<li><i>2</i><div><b>Rank the workshops</b><span>Eligibility, queue, return date and cost for each of the eight.</span></div></li>'
+                 f'<li><i>3</i><div><b>Confirm it yourself</b><span>Nothing is assigned or sent until you confirm.</span></div></li></ol></div>'
+                 f'<div class="he-art">{loom_art()}</div></div>')
 
 
 def request_surface(message, orders) -> bool:
@@ -255,7 +256,7 @@ def request_surface(message, orders) -> bool:
                 html(f'<div class="msg-text">{esc(body)}</div>')
             else:
                 html('<div class="msg-head"><div class="avatar">+</div><div><b>New request</b><br>'
-                     '<span>Type or paste the chat message</span></div></div><div style="height:10px"></div>')
+                     '<span>Type or paste the chat message</span></div></div><div style="height:0.6667rem"></div>')
                 st.text_area("Request", key="desk_message", height=96, label_visibility="collapsed", on_change=invalidate,
                              placeholder="For example: ORD-045, 150 vests for Cotton Club, due Apr 09. Fastest turnaround please.")
             if on_file is not None:
@@ -347,6 +348,9 @@ def result(preview, current_signature, workshops, orders, queues, progress):
         html(banner(f"No eligible workshop can meet {explain.short_date(parsed.due_date)}.",
                     f" Earliest achievable: {explain.short_date(chosen['eta_date'])} at {chosen['name']}. You decide what happens next.", "warn"))
     if chosen is not None:
+        done = status.state == "confirmed"
+        html(thread_link(f"Confirmed by you for {parsed.order_id or 'this request'}" if done else
+                         f"Engine recommendation for {parsed.order_id or 'this request'}, waiting for you", confirmed=done))
         recommendation(preview, chosen, record, parsed, workshops, status)
         compare_options(record, chosen, workshops)
         if record.get("awkward_case") == "none_makes_date" or record.get("tool_outputs", {}).get("split"):
@@ -370,6 +374,13 @@ def trace_on_network(parsed):
     state["desk_page"] = "Workshop Network"
 
 
+def thumb(wid, name) -> str:
+    """Small illustrative photo for an option card; never presented as the real workshop."""
+    if not (WORKSHOP_PHOTOS / f"{wid}.webp").exists():
+        return ""
+    return f'<img class="co-ph" src="{BRAND}/workshops/{wid}.webp" alt="Illustrative photo for {esc(name)}" title="Illustrative photo">'
+
+
 def compare_options(record, chosen, workshops):
     """The next permitted workshops against the recommendation, from the same recorded decision."""
     rows = [r for r in explain.selection_order(record) if r["workshop_id"] != chosen["workshop_id"]][:3]
@@ -382,7 +393,7 @@ def compare_options(record, chosen, workshops):
         spare = r["days_to_spare"]
         verdict = explain.why_not(record, r["workshop_id"], workshops)
         cells.append(
-            f'<div class="co"><div class="co-h"><b>{esc(r["name"])}</b><span class="{"neg" if spare < 0 else ""}">'
+            f'<div class="co">{thumb(r["workshop_id"], r["name"])}<div class="co-h"><b>{esc(r["name"])}</b><span class="{"neg" if spare < 0 else ""}">'
             f'{esc("Late" if spare < 0 else "On time")}</span></div>'
             f'<dl><dt>Back</dt><dd>{esc(explain.short_date(r["eta_date"]))}</dd>'
             f'<dt>Time</dt><dd>{later:+.1f} days</dd>'
@@ -449,7 +460,7 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     with st.container(key="rec"):
         main, card, act = st.columns([1.28, 1.02, .86], gap="medium", vertical_alignment="center")
         with main:
-            html(f'<div class="{state_cls}">{line}'
+            html(f'<div class="{state_cls}">{line}{batch_line(parsed)}'
                  f'<div class="rec-head">{esc(headline)}</div>'
                  f'<p class="rec-reason">{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
                  f'<div class="rec-why-title">Why this workshop?</div><ul class="rec-list">{points}</ul>'
@@ -481,6 +492,17 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
                 html(f'<div class="done-note">{esc(note)}</div>')
     if state.get("desk_confirm_error"):
         html(banner("Audit record not saved", " " + state["desk_confirm_error"], "risk"))
+
+
+def batch_line(parsed) -> str:
+    """Order, quantity and customer above the hero headline, read from the parsed request."""
+    if not (parsed.pieces and parsed.product):
+        return ""
+    product = parsed.product.lower()
+    plural = product[:-1] + "ves" if product.endswith("f") else product if product.endswith("s") else product + "s"
+    who = f" for {parsed.customer}" if parsed.customer else ""
+    order = f'<span class="id">{esc(parsed.order_id)}</span>' if parsed.order_id else ""
+    return f'<div class="rec-batch">{order}{esc(f"{parsed.pieces:,} {plural}{who}")}</div>'
 
 
 def confirm(preview):
@@ -522,7 +544,7 @@ def alternatives(record, workshops):
     permitted = [row for kind, row in rows if kind == "permitted"]
     others = [row for row in permitted if row["workshop_id"] != chosen][:3]
     with st.container(key="alts"):
-        html(f'<div style="display:flex;flex-wrap:wrap;gap:2px 12px;justify-content:space-between;align-items:baseline"><div class="title" style="font-size:18px">Alternatives</div>'
+        html(f'<div style="display:flex;flex-wrap:wrap;gap:2px 0.8rem;justify-content:space-between;align-items:baseline"><div class="title" style="font-size:1.2333rem">Alternatives</div>'
              f'<div class="meta">{len(permitted)} of {len(workshops)} workshops permitted</div></div>')
         lines = ['<div class="alt head"><span>Workshop</span><span class="r">Back</span><span class="r">Spare</span><span class="r">Cost</span></div>']
         for row in others:
@@ -530,7 +552,7 @@ def alternatives(record, workshops):
             lines.append(candidate_row(row["name"], "Late" if spare < 0 else "On time", explain.short_date(row["eta_date"]), spare,
                                        f"{row['total_cost']:,.0f}", "warn" if spare < 0 else "ok"))
         if not others:
-            lines.append('<div class="meta" style="padding:12px 4px">No other permitted workshop.</div>')
+            lines.append('<div class="meta" style="padding:0.8rem 0.2667rem">No other permitted workshop.</div>')
         html("".join(lines))
         with st.expander(f"View all candidates ({len(workshops)})"):
             full_table(record, workshops, rows)
@@ -560,10 +582,10 @@ def options_card(preview, record, parsed, workshops, queues):
     with st.container(key="options"):
         if awkward:
             section("Your options", "The system will not decide this for you.")
-            html('<div class="grid g3" style="margin-top:10px">'
-                 '<div class="card soft"><b>Accept the late return</b><div class="meta" style="font-size:13.5px;margin-top:4px">Use the button on the recommendation. The record marks the lateness as accepted.</div></div>'
-                 '<div class="card soft"><b>Preview a split</b><div class="meta" style="font-size:13.5px;margin-top:4px">Fastest legal two-workshop split. A preview only.</div></div>'
-                 '<div class="card soft"><b>Escalate</b><div class="meta" style="font-size:13.5px;margin-top:4px">Leave it unconfirmed and raise it with the planner or customer.</div></div></div>')
+            html('<div class="grid g3" style="margin-top:0.6667rem">'
+                 '<div class="card soft"><b>Accept the late return</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">Use the button on the recommendation. The record marks the lateness as accepted.</div></div>'
+                 '<div class="card soft"><b>Preview a split</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">Fastest legal two-workshop split. A preview only.</div></div>'
+                 '<div class="card soft"><b>Escalate</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">Leave it unconfirmed and raise it with the planner or customer.</div></div></div>')
         if split is None and awkward:
             if st.button("Preview a two-workshop split", key="desk_split", icon=":material/call_split:"):
                 batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
@@ -579,7 +601,7 @@ def split_view(split):
     if not split.get("available"):
         html(banner("Split preview", " No legal two-workshop split is available: " + split.get("reason", "") + ".", "muted"))
         return
-    parts = "".join(f'<div class="card soft"><b>{esc(p["name"])}</b><div class="meta" style="font-size:13.5px;margin-top:4px">'
+    parts = "".join(f'<div class="card soft"><b>{esc(p["name"])}</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">'
                     f'{p["pieces"]:,} pieces, back {esc(explain.short_date(p["eta_date"]))}, cost {p["total_cost"]:,.0f}</div></div>' for p in split["parts"])
     single = split.get("single")
     compare = ""
@@ -587,8 +609,8 @@ def split_view(split):
         compare = (f'Whole batch at {esc(single["name"])}: back {esc(explain.short_date(single["eta_date"]))}. '
                    + (f'The split saves {split["days_saved"]:.1f} days' if split.get("faster") else "The split is not faster")
                    + ("" if split.get("earlier_eta") or not split.get("faster") else ", but the return date is the same") + ".")
-    html(f'<div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:17px">Split preview</div>'
-         f'{status_pill("Preview only", "muted")}</div><div class="meta" style="font-size:13.5px;margin:4px 0 10px">Both parts run in parallel. '
+    html(f'<div style="margin-top:0.9333rem;display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:1.1667rem">Split preview</div>'
+         f'{status_pill("Preview only", "muted")}</div><div class="meta" style="font-size:0.9333rem;margin:0.2667rem 0 0.6667rem">Both parts run in parallel. '
          f'Completion is the later part: {esc(explain.short_date(split["eta_date"]))}, {split["days_to_spare"]:+d} days to spare, combined cost '
          f'{split["total_cost"]:,.0f}. {compare}</div><div class="grid g2">{parts}</div>')
 
@@ -601,7 +623,7 @@ def clarify_card(parsed, record, workshops):
     with st.container(key="clarify"):
         html(f'<div class="say">I need one detail before I can continue.</div><div class="ask">{esc(prompt["question"])}</div>')
         if prompt["missing"]:
-            html('<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">' + "".join(status_pill(m, "warn") for m in prompt["missing"]) + "</div>")
+            html('<div style="display:flex;flex-wrap:wrap;gap:0.5333rem;margin-top:0.8rem">' + "".join(status_pill(m, "warn") for m in prompt["missing"]) + "</div>")
         if prompt["options"]:
             cols = st.columns(min(len(prompt["options"]), 3))
             for i, option in enumerate(prompt["options"]):
@@ -617,7 +639,7 @@ def clarify_card(parsed, record, workshops):
         note = "Nothing has been allocated. The reply is added to the request; evaluate again to read it."
         if source.rehearsal:
             note += " Rehearsal covers the original inbox lines only, so a reply needs the live model."
-        html(f'<div class="meta" style="font-size:13px;margin-top:6px">{esc(note)}</div>')
+        html(f'<div class="meta" style="font-size:0.9333rem;margin-top:0.4rem">{esc(note)}</div>')
     if st.button("Why this decision?", key="desk_inspect", icon=":material/insights:"):
         inspector(workshops)
 
@@ -630,8 +652,8 @@ def decline_card(parsed, orders, workshops):
     with st.container(key="decline"):
         html('<div class="say">This information is not available in the supplied data.</div>'
              '<div class="ask">The desk answers from orders, workshop profiles and the inbox. It does not guess.</div>'
-             f'<div class="grid g2" style="margin-top:16px"><div class="card soft"><b>Missing source</b><div class="meta" style="font-size:13.5px;margin-top:4px">{esc(needed)}</div></div>'
-             f'<div class="card soft"><b>Sources available</b><div class="meta" style="font-size:13.5px;margin-top:4px">orders.csv ({len(orders)} orders), workshops.csv '
+             f'<div class="grid g2" style="margin-top:1.0667rem"><div class="card soft"><b>Missing source</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">{esc(needed)}</div></div>'
+             f'<div class="card soft"><b>Sources available</b><div class="meta" style="font-size:0.9333rem;margin-top:0.2667rem">orders.csv ({len(orders)} orders), workshops.csv '
              '(8 profiles), the 30-message inbox.</div></div></div>')
     if st.button("Why this decision?", key="desk_inspect", icon=":material/insights:"):
         inspector(workshops)
@@ -678,12 +700,12 @@ def why_tab(record):
         html('<p>No workshop is recommended until the request can be allocated.</p>')
         return
     won = explain.why_won(record)
-    html(f'<div class="dk-card beam" style="margin:6px 0 14px"><div class="eyebrow" style="color:var(--cyan)">Why this won</div>'
-         f'<p style="font-size:17px;margin:6px 0 0">{esc(won["sentence"])}</p></div>')
+    html(f'<div class="dk-card beam" style="margin:0.4rem 0 0.9333rem"><div class="eyebrow" style="color:var(--cyan)">Why this won</div>'
+         f'<p style="font-size:1.1667rem;margin:0.4rem 0 0">{esc(won["sentence"])}</p></div>')
     other = won.get("runner_up")
     if other is not None:
         html(compare_grid(explain.deciding_metrics(record, chosen, other), chosen["name"], other["name"]))
-        html(f'<p class="ev" style="margin-top:10px">Only the measures the {esc(explain.objective_label(record["objective_name"]).lower())} '
+        html(f'<p class="ev" style="margin-top:0.6667rem">Only the measures the {esc(explain.objective_label(record["objective_name"]).lower())} '
              f'rule used are shown. {esc(other["name"])} is the next option under the same rule.</p>')
     else:
         html('<p class="ev">No other permitted workshop remained, so there is nothing to compare.</p>')
@@ -703,10 +725,10 @@ def why_not_tab(record, workshops):
     tone = {"Eligible": "dark", "Not eligible": "dark-risk", "Excluded": "dark-risk"}.get(verdict["verdict"], "dark-muted")
     facts = "".join(f"<li>{esc(f)}</li>" for f in (verdict["facts"] or verdict["detail"]))
     result_line = f'<div class="dk-result"><b>Result</b> {esc(verdict["result"])}</div>' if verdict["result"] else ""
-    html(f'<div class="dk-card" style="margin-top:6px"><div class="dk-head"><b>{esc(verdict["name"])}</b>{status_pill(verdict["verdict"], tone)}</div>'
-         f'<div class="ev" style="margin-top:4px">{esc(verdict["headline"])}</div><ul class="dk-list">{facts}</ul>{result_line}</div>')
+    html(f'<div class="dk-card" style="margin-top:0.4rem"><div class="dk-head"><b>{esc(verdict["name"])}</b>{status_pill(verdict["verdict"], tone)}</div>'
+         f'<div class="ev" style="margin-top:0.2667rem">{esc(verdict["headline"])}</div><ul class="dk-list">{facts}</ul>{result_line}</div>')
     if chosen is not None and verdict.get("row") is not None and verdict["status"] in {"outscored", "later", "misses_date"}:
-        html('<div style="height:12px"></div>' + compare_grid(explain.deciding_metrics(record, chosen, verdict["row"]), chosen["name"], verdict["name"]))
+        html('<div style="height:0.8rem"></div>' + compare_grid(explain.deciding_metrics(record, chosen, verdict["row"]), chosen["name"], verdict["name"]))
 
 
 def breakdown_tab(record):
@@ -716,17 +738,17 @@ def breakdown_tab(record):
         return
     config = explain.effective_config(record["objective_name"])
     runner = explain.runner_up(record)
-    html(f'<div class="eyebrow" style="color:var(--cyan);margin:4px 0 12px">Objective weights, {esc(explain.objective_label(record["objective_name"]).lower())}</div>'
+    html(f'<div class="eyebrow" style="color:var(--cyan);margin:0.2667rem 0 0.8rem">Objective weights, {esc(explain.objective_label(record["objective_name"]).lower())}</div>'
          + weight_bars(config, explain.TERMS, explain.TERM_LABELS))
     other = f'<span class="ev">{esc(runner["name"])} {runner["score"]:.5f}</span>' if runner else ""
-    html(f'<div class="final" style="margin-top:16px"><b>Final score, lower wins</b><div style="text-align:right"><strong>{chosen["score"]:.5f}</strong><br>{other}</div></div>')
+    html(f'<div class="final" style="margin-top:1.0667rem"><b>Final score, lower wins</b><div style="text-align:right"><strong>{chosen["score"]:.5f}</strong><br>{other}</div></div>')
     order = explain.selection_order(record)[:6]
-    html('<div class="eyebrow" style="color:var(--cyan);margin:20px 0 10px">Weighted contribution per candidate</div>'
+    html('<div class="eyebrow" style="color:var(--cyan);margin:1.3333rem 0 0.6667rem">Weighted contribution per candidate</div>'
          + score_bars(explain.score_breakdown(order, config), chosen["workshop_id"], explain.TERMS, explain.TERM_LABELS))
     note = ("Every option is late, so the least-late rule chose the workshop, not the weighted score."
             if record.get("awkward_case") == "none_makes_date" else explain.TERM_NOTES["lateness"] if config.w_lateness else "")
     if note:
-        html(f'<p class="ev" style="margin-top:12px">{esc(note)}</p>')
+        html(f'<p class="ev" style="margin-top:0.8rem">{esc(note)}</p>')
 
 
 def evidence_view(step) -> str:
@@ -770,7 +792,7 @@ def evidence_view(step) -> str:
 
 
 def trace_tab(response, steps):
-    html('<p class="ev" style="margin:2px 0 10px">Recorded program events, in order. These are tool calls and checks that actually ran, not model reasoning.</p>')
+    html('<p class="ev" style="margin:2px 0 0.6667rem">Recorded program events, in order. These are tool calls and checks that actually ran, not model reasoning.</p>')
     icons = {"done": ":material/radio_button_checked:", "pending": ":material/radio_button_unchecked:",
              "blocked": ":material/block:", "skipped": ":material/radio_button_unchecked:"}
     who = {"model": "Language model", "fixture": "Test fixture", "python": "Python", "human": "Dispatcher"}
@@ -778,7 +800,7 @@ def trace_tab(response, steps):
         for number, step in enumerate(steps, 1):
             label = step["title"] + (", not needed" if step["status"] == "skipped" else "")
             with st.container(key=f"tr_{step['status']}_{number}"), st.expander(label, expanded=False, icon=icons[step["status"]]):
-                html(f'<p class="ev" style="margin:0">{esc(step["summary"])}</p><p class="ev" style="margin:2px 0 0;font-size:12px">'
+                html(f'<p class="ev" style="margin:0">{esc(step["summary"])}</p><p class="ev" style="margin:2px 0 0;font-size:0.8667rem">'
                      f'Performed by {esc(who[step["actor"]])}</p>' + evidence_view(step))
                 if step.get("evidence") is not None:
                     with st.container(key=f"dev_trace_{number}"):

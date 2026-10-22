@@ -125,7 +125,7 @@ def render(workshops):
     head, tools_col = st.columns([1.5, 1], vertical_alignment="bottom")
     with head:
         html('<div class="kicker"><span>Workshop network</span></div>'
-             '<div class="home-title" style="margin-top:12px">Find the right workshop, faster</div>'
+             '<div class="home-title" style="margin-top:0.8rem">Find the right workshop, faster</div>'
              '<div class="home-sub">Explore the vetted network, see live capacity, and route each batch to the workshop that fits it best.</div>')
     with tools_col, st.container(key="net_tools"):
         query = st.text_input("Search workshops", key="net_q", placeholder="Search workshop, product or note",
@@ -173,7 +173,7 @@ def render(workshops):
         demo_bar(today)
     tick = TICK if state.get("net_playing") else None
     st.fragment(live, run_every=tick)(model, match, today, workshops, view)
-    html('<div class="meta" style="margin-top:8px">Estimates are queue plus pieces divided by capacity plus transport, rounded to a day, '
+    html('<div class="meta" style="margin-top:0.5333rem">Estimates are queue plus pieces divided by capacity plus transport, rounded to a day, '
          'from the session queues. Photos illustrate each workshop\'s character; they are not photographs of these workshops.</div>')
 
 
@@ -293,7 +293,7 @@ def network_map(model, target, picked, match, phase, playing, plan, workshops):
             badge = "✓"
         elif r["rank"] and rt.ranks_visible(shown):
             badge = str(r["rank"])
-        badge_svg = (f'<g class="badge b-{state.value}" style="--r:{r["rank"] or 0}"><circle cx="{x + 25:.1f}" cy="{y - 25:.1f}" r="11"/>'
+        badge_svg = (f'<g class="badge b-{state.value}" style="--r:{r["rank"] or 0}"><rect x="{x + 15:.1f}" y="{y - 35:.1f}" width="20" height="20" rx="6"/>'
                      f'<text x="{x + 25:.1f}" y="{y - 21:.1f}">{badge}</text></g>') if badge else ""
         defs.append(f'<clipPath id="nc-{wid}"><circle cx="{x:.1f}" cy="{y:.1f}" r="27"/></clipPath>')
         sel = f'<circle class="sel" cx="{x:.1f}" cy="{y:.1f}" r="40"/>' if wid == picked and shown not in rt.EVALUATION else ""
@@ -307,8 +307,10 @@ def network_map(model, target, picked, match, phase, playing, plan, workshops):
         buttons.append((wid, r["name"], x / VIEW[0] * 100, y / VIEW[1] * 100))
     hx, hy = HUB
     summary = f'{model["pieces"]:,} {model["category"].lower()}, due {explain.short_date(str(model["due"]))}'
-    hub = (f'<g class="hub{" arriving" if shown == rt.Phase.IDLE else ""}"><circle class="halo" cx="{hx}" cy="{hy}" r="62"/>'
-           f'<circle class="core" cx="{hx}" cy="{hy}" r="46"/><image href="{MARK}" x="{hx - 22}" y="{hy - 24}" width="44" height="40"/>'
+    # The mark keeps its own colours on a pearl disc: its navy stem would vanish on a dark one.
+    hub = (f'<g class="hub{" arriving" if shown == rt.Phase.IDLE else ""}"><circle class="halo" cx="{hx}" cy="{hy}" r="64"/>'
+           f'<circle class="rim" cx="{hx}" cy="{hy}" r="54"/><circle class="core" cx="{hx}" cy="{hy}" r="48"/>'
+           f'<image href="{MARK}" x="{hx - 28}" y="{hy - 26}" width="56" height="50"/>'
            f'<text class="hub-n" x="{hx}" y="{hy + 74}">Sweater Co Factory</text><text class="hub-s" x="{hx}" y="{hy + 90}">{esc(summary)}</text></g>')
     moving = ""
     if playing and route_path and shown == rt.Phase.RECOMMENDED:
@@ -333,7 +335,8 @@ def network_map(model, target, picked, match, phase, playing, plan, workshops):
     cls = f"tl-map p-{shown.value}" + (" live" if playing else "")
     svg = (f'<svg class="{cls}" viewBox="0 0 {VIEW[0]} {VIEW[1]}" role="img" '
            f'aria-label="Sweater Co Factory connected to its eight partner workshops, {esc(shown.value.replace("_", " "))}">'
-           f'<defs><linearGradient id="routeGrad" x1="0" x2="1"><stop offset="0" stop-color="#2A77E8"/><stop offset="1" stop-color="#5ED8FF"/></linearGradient><linearGradient id="recGrad" x1="0" x2="1"><stop offset="0" stop-color="#0F9F8A"/><stop offset="1" stop-color="#5ED8FF"/></linearGradient>{"".join(defs)}</defs>'
+           f'<defs><linearGradient id="routeGrad" x1="0" x2="1"><stop offset="0" stop-color="#3278E9"/><stop offset="1" stop-color="#68CAFA"/></linearGradient><linearGradient id="recGrad" x1="0" x2="1"><stop offset="0" stop-color="#0F9F8A"/><stop offset="1" stop-color="#68CAFA"/></linearGradient>'
+           f'<radialGradient id="hubPearl" cx=".38" cy=".3" r=".78"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".62" stop-color="#F4F8FD"/><stop offset="1" stop-color="#DCE6F2"/></radialGradient>{"".join(defs)}</defs>'
            f'{"".join(lines)}{hub}{request}{"".join(nodes)}{moving}{pill}</svg>')
     style = "".join(f'.st-key-netmap .st-key-node_{wid}{{left:{px:.2f}%;top:{py:.2f}%}}' for wid, _, px, py in buttons)
     with st.container(key="netmap"):
@@ -358,7 +361,7 @@ def route_card(model, target, today, phase, plan):
     state = st.session_state
     with st.container(key="net_stage"):
         if not target:
-            html('<div class="title" style="font-size:18px">No route</div><div class="meta" style="font-size:14px;margin-top:4px">'
+            html('<div class="title" style="font-size:1.2333rem">No route</div><div class="meta" style="font-size:0.9667rem;margin-top:0.2667rem">'
                  'No active workshop can take this batch as one job. Try a smaller batch, or preview a split in Dispatch.</div>')
             return
         r = model["rows"][target]
@@ -400,7 +403,7 @@ def route_card(model, target, today, phase, plan):
             else:
                 html('<div class="rc-alt">' + icon("report") + '<div><b>No on-time alternative</b><span>Accept the least-late option, '
                      'preview a split in Dispatch, or escalate to the planner.</span></div></div>')
-        html('<div class="meta" style="margin-top:6px">Outcomes apply the course simulator\'s rules to this plan. They are previews, not forecasts.</div>')
+        html('<div class="meta" style="margin-top:0.4rem">Outcomes apply the course simulator\'s rules to this plan. They are previews, not forecasts.</div>')
 
 
 # Detail panel --------------------------------------------------------------------
@@ -550,9 +553,9 @@ def profile(r, today):
              ("Fit for this batch", r["label"]), ("Engine rank", str(r["rank"]) if r["rank"] else "Not eligible")]
     if e:
         facts += [("Earliest finish", explain.long_date(e["eta_date"])), ("Batch cost", f"{e['total_cost']:,.0f}")]
-    html('<div class="dk-card" style="margin-top:8px"><dl class="kv" style="grid-template-columns:190px 1fr;font-size:14px">'
+    html('<div class="dk-card" style="margin-top:0.5333rem"><dl class="kv" style="grid-template-columns:12.6667rem 1fr;font-size:0.9667rem">'
          + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in facts) + "</dl></div>"
-         '<p class="ev" style="margin-top:10px">Every value is read from workshops.csv and the session queues. The photo illustrates the '
+         '<p class="ev" style="margin-top:0.6667rem">Every value is read from workshops.csv and the session queues. The photo illustrates the '
          'workshop\'s character and is credited in static/brand/CREDITS.md.</p>')
 
 
@@ -581,4 +584,4 @@ def list_view(model, match):
                      f'<div class="lv-why">{esc(r["reason"])}</div></div>')
                 st.button(f"Open {r['name']}", key=f"lvb_{r['id']}", on_click=pick, args=(r["id"],))
         if not shown:
-            html('<div class="meta" style="padding:14px 4px">No workshop matches the search.</div>')
+            html('<div class="meta" style="padding:0.9333rem 0.2667rem">No workshop matches the search.</div>')

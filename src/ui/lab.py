@@ -126,7 +126,7 @@ def render(workshops):
     head, bar = st.columns([1.05, 1.1], vertical_alignment="bottom")
     with head:
         html('<div class="kicker"><span>Simulation lab</span></div>'
-             '<div class="home-title" style="margin-top:12px">How does our policy perform?</div>'
+             '<div class="home-title" style="margin-top:0.8rem">How does our policy perform?</div>'
              '<div class="home-sub">120 orders replayed through the shared course simulator and compared with the supplied baselines over ten seeds.</div>')
     with bar, st.container(key="lab_bar"):
         a, b = st.columns([1.4, 1.1], vertical_alignment="bottom")
@@ -262,7 +262,7 @@ def tradeoffs_space(data, focus, shock, workshops):
                               "size": {"condition": {"test": "datum.role === 'Our policy'", "value": 300}, "value": 130},
                               "tooltip": [{"field": "label", "title": "Policy"}, {"field": "pct_late", "format": ".2f", "title": "Late (%)"},
                                           {"field": y, "format": f, "title": title}]}},
-                {"mark": {"type": "text", "align": "left", "dx": 12, "dy": -17, "fontSize": 12.5, "fontWeight": 600},
+                {"mark": {"type": "text", "align": "left", "dx": 12, "dy": -17, "fontSize": 13.5, "fontWeight": 600},
                  "encoding": {"x": {"field": "pct_late", "type": "quantitative"}, "y": {"field": y, "type": "quantitative"},
                               "text": {"field": "text"}, "color": {"value": "#33465E"}}}]}, height=330)
             source_note(f"eval/ ten-seed results, {'shock' if shock else 'normal'} scenario. No point is an optimised result; each is a preset run as is.")
@@ -303,7 +303,7 @@ def workload_heatmap(bundle, shock, workshops):
                       "y": {"field": "policy", "type": "nominal", "title": None, "sort": order, "axis": {"labelLimit": 200}},
                       "color": {"field": "share", "type": "quantitative", "scale": {"range": ["#F2F6FB", "#9DBDF0", "#1F63C9"], "domain": [0, 75]}, "legend": None},
                       "tooltip": [{"field": "policy"}, {"field": "workshop"}, {"field": "share", "format": ".1f", "title": "Share (%)"}]}},
-        {"mark": {"type": "text", "fontSize": 12},
+        {"mark": {"type": "text", "fontSize": 13},
          "encoding": {"x": {"field": "workshop", "type": "nominal", "sort": names}, "y": {"field": "policy", "type": "nominal", "sort": order},
                       "text": {"field": "text"}, "color": {"condition": {"test": "datum.share > 40", "value": "#FFFFFF"}, "value": "#102238"}}}]},
         height=320)
@@ -373,7 +373,7 @@ def disruption_space(data, focus, workshops):
                               "tooltip": [{"field": "day"}, {"field": "date"}, {"field": "series"}, {"field": "pieces", "format": ","}]}},
                 {"data": {"values": rules}, "mark": {"type": "rule", "strokeDash": [5, 4], "strokeWidth": 2},
                  "encoding": {"x": {"field": "day", "type": "quantitative"}, "color": {"field": "color", "type": "nominal", "scale": None}}},
-                {"data": {"values": [{**r, "y": top * 1.15} for r in rules]}, "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12.5, "fontWeight": 600},
+                {"data": {"values": [{**r, "y": top * 1.15} for r in rules]}, "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 13.5, "fontWeight": 600},
                  "encoding": {"x": {"field": "day", "type": "quantitative"}, "y": {"field": "y", "type": "quantitative"}, "text": {"field": "text"},
                               "color": {"field": "color", "type": "nominal", "scale": None}}}]}, height=250)
             source_note(f"shock_trace.py, seed {bundle['seed']}.")
@@ -398,7 +398,7 @@ def shock_change_chart(data, focus):
                           "x": {"field": "change", "type": "quantitative", "title": "Change in late batches (points)"},
                           "color": {"field": "tone", "legend": None, "scale": {"domain": ["Our policy", "Other"], "range": [OURS, BASE]}},
                           "tooltip": [{"field": "label", "title": "Policy"}, {"field": "change", "format": "+.2f", "title": "Change (points)"}]}},
-            *[{"transform": [{"filter": f"datum.change {op} 0"}], "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 12},
+            *[{"transform": [{"filter": f"datum.change {op} 0"}], "mark": {"type": "text", "align": "left", "dx": 6, "fontSize": 13},
                "encoding": {"y": {"field": "label", "type": "nominal", "sort": order}, "x": x, "text": {"field": "text"}, "color": {"value": "#33465E"}}}
               for op, x in ((">=", {"field": "change", "type": "quantitative"}), ("<", {"datum": 0, "type": "quantitative"}))]]}, height=300)
         source_note("eval/ ten-seed results, shock minus normal.")
@@ -444,7 +444,7 @@ def sources(data):
     meta, prov = data["metadata"], data["provenance"]
     hashes = meta.get("source_hashes", {})
     rows = "".join(f"<dt>{esc(k)}</dt><dd><span class=\"id\">{esc(str(v)[:12])}</span></dd>" for k, v in list(hashes.items())[:8])
-    html(f'<div class="an-card" style="margin-top:12px"><div class="an-title">Where these numbers come from</div><div class="an-sub">'
+    html(f'<div class="an-card" style="margin-top:0.8rem"><div class="an-title">Where these numbers come from</div><div class="an-sub">'
          f'{meta.get("seeds")} paired seeds ({esc(", ".join(map(str, meta.get("seed_values", [])[:1])))} to {esc(str(meta.get("seed_values", [""])[-1]))}), '
          f'{meta.get("batch_count")} orders, {meta.get("total_pieces", 0):,} pieces, aggregated as {esc(str(meta.get("aggregation", "mean")))}. '
          f'Files in eval/ are read, never recomputed by this page. Source hashes {"match" if prov["matches"] else "do not match"} the current code.</div>'
@@ -594,7 +594,7 @@ def course_evidence(data):
                    for (o, s), g in groups.items())
     html(f'<div class="mx"><div class="mx-t"><div class="an-title">Objective qualification matrix</div><div class="an-sub">Each objective against each '
          f'comparison policy, from eval/objective_checks.csv.</div></div><div class="mx-r mx-h"><span>Objective, scenario</span>{head}</div>{body}</div>'
-         '<div class="meta" style="margin-top:6px">Beats: the course pass rule holds. Tie: the required metric is equal. '
+         '<div class="meta" style="margin-top:0.4rem">Beats: the course pass rule holds. Tie: the required metric is equal. '
          'Guardrail fails: it wins its own metric but is later than the lateness guardrail allows. Hybrids have no pass rule.</div>')
 
 
@@ -602,7 +602,7 @@ def course_evidence(data):
 
 def sandbox(bundle, focus, shock, fp):
     state = st.session_state
-    html(f'<div style="display:flex;gap:12px;align-items:center">{status_pill("Sandbox, not an evaluated preset", "warn")}'
+    html(f'<div style="display:flex;gap:0.8rem;align-items:center">{status_pill("Sandbox, not an evaluated preset", "warn")}'
          '<span class="note">Set your own weights and replay this seed. Nothing is saved and the official presets do not change.</span></div>')
     cols = st.columns(5)
     for col, term in zip(cols, explain.TERMS):
@@ -619,7 +619,7 @@ def sandbox(bundle, focus, shock, fp):
         ef = subset[subset.policy == "earliest_finish"].iloc[0]
         shown = ", ".join(f"{explain.TERM_LABELS[t].lower()} {w:g}" for t, w in zip(explain.TERMS, result["weights"]) if w)
         rows = [[esc(METRIC_LABELS[m]), f"<b>{esc(fmt(m, metrics[m]))}</b>", esc(fmt(m, ours[m])), esc(fmt(m, ef[m]))] for m, _, _ in HERO]
-        html(f'<div class="meta" style="margin:6px 0">Sandbox weights: {esc(shown)}. Seed {result["seed"]}, {"shock" if shock else "normal"} scenario.</div>'
+        html(f'<div class="meta" style="margin:0.4rem 0">Sandbox weights: {esc(shown)}. Seed {result["seed"]}, {"shock" if shock else "normal"} scenario.</div>'
              + table(["Measure", "Sandbox", LABELS[focus], "Earliest finish"], rows, right=range(1, 4)))
     elif result:
         html('<div class="meta">Seed or scenario changed. Run the sandbox again.</div>')
@@ -653,10 +653,10 @@ def audit_tab(bundle, focus, shock, workshops, fp):
                  ("Pieces", f"{int(outcome.pieces):,}"), ("Chosen", workshops[outcome.workshop].name),
                  ("Estimated return", explain.long_date(chosen["eta_date"])), ("Actual turnaround", f"{outcome.turnaround:.1f} days"),
                  ("Outcome", ("Late" if outcome.late else "On time") + (", rework after a defect" if outcome.defective else ""))]
-        html(f'<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:18px">Automatic decision</div>'
+        html(f'<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:1.2333rem">Automatic decision</div>'
              f'{status_pill("Late" if outcome.late else "On time", "warn" if outcome.late else "ok")}</div>'
-             f'<dl class="kv" style="margin-top:12px">{"".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in facts)}</dl>'
-             f'<p style="margin:14px 0 0">{esc(won["sentence"] if won else record["reason_chosen"])}</p></div>')
+             f'<dl class="kv" style="margin-top:0.8rem">{"".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in facts)}</dl>'
+             f'<p style="margin:0.9333rem 0 0">{esc(won["sentence"] if won else record["reason_chosen"])}</p></div>')
         st.download_button("Download this decision", json.dumps(record, indent=2, default=str),
                            file_name=f"{order}-simulation-decision.json", mime="application/json", key="lab_download")
     with right:
@@ -687,8 +687,8 @@ def language_card():
             ("Reconciliation", status["reconciliation"].capitalize()), ("Live inbox evaluation", run_text),
             ("Held-out requests", "None yet")]
     mix = "".join(f'<span class="weight"><b>{n}</b> {esc(kind)}</span>' for kind, n in status["mix"])
-    html(f'<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:18px">Language evaluation</div>'
-         f'{status_pill("Accuracy not reported yet", "warn")}</div><div class="grid g2" style="margin-top:12px">'
+    html(f'<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div class="title" style="font-size:1.2333rem">Language evaluation</div>'
+         f'{status_pill("Accuracy not reported yet", "warn")}</div><div class="grid g2" style="margin-top:0.8rem">'
          f'<dl class="kv">{"".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in rows)}</dl>'
-         f'<div><div class="weights">{mix}</div><div class="note" style="margin-top:12px">Accuracy appears only after two independent reviewers '
+         f'<div><div class="weights">{mix}</div><div class="note" style="margin-top:0.8rem">Accuracy appears only after two independent reviewers '
          'label and reconcile all 30 requests. Test fixtures and rehearsal runs are never evidence of language accuracy.</div></div></div></div>')
