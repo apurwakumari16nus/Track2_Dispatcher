@@ -43,17 +43,17 @@ def test_lab_seed_controls_and_page_navigation():
     assert not app.exception and app.session_state["lab_space"] == "performance"
     assert "Tie" in " ".join(m.value for m in app.markdown)
     for space in ("tradeoffs", "disruption", "evidence"):
-        app.segmented_control(key="lab_space").set_value(space).run()
+        app.segmented_control(key="_w_lab_space").set_value(space).run()
         assert not app.exception, space
     assert "Accuracy not reported yet" in " ".join(m.value for m in app.markdown)  # Never an unsupported accuracy.
-    app.segmented_control(key="lab_space").set_value("disruption").run()
+    app.segmented_control(key="_w_lab_space").set_value("disruption").run()
     assert len(app.get("vega_lite_chart")) >= 2 and app.session_state["desk_saved"] == {}
-    app.number_input(key="lab_seed").set_value(42).run()
+    app.number_input(key="_w_lab_seed").set_value(42).run()
     assert app.session_state["lab_bundle"]["seed"] == 5105
     app.button(key="lab_run").click().run()
     assert not app.exception and app.session_state["lab_bundle"]["seed"] == 42
-    app.selectbox(key="lab_focus").set_value("fairness").run()
-    app.radio(key="lab_scenario").set_value("Shock").run()
+    app.selectbox(key="_w_lab_focus").set_value("fairness").run()
+    app.radio(key="_w_lab_scenario").set_value("Shock").run()
     assert not app.exception
     text = " ".join(m.value for m in app.markdown)
     assert "single-seed diagnostic" in text and "official ten-seed results are under Evidence" in text
@@ -62,9 +62,9 @@ def test_lab_seed_controls_and_page_navigation():
     app.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not app.exception
     assert app.session_state["lab_bundle"]["seed"] == 42 and app.session_state["lab_space"] == "disruption"
-    assert app.number_input(key="lab_seed").value == 42
-    assert app.selectbox(key="lab_focus").value == "fairness"
-    assert app.radio(key="lab_scenario").value == "Shock"
+    assert app.number_input(key="_w_lab_seed").value == 42
+    assert app.selectbox(key="_w_lab_focus").value == "fairness"
+    assert app.radio(key="_w_lab_scenario").value == "Shock"
     assert app.session_state["desk_saved"] == {}
 
 
@@ -74,7 +74,7 @@ def test_sandbox_runs_custom_weights_without_touching_presets():
     app.session_state["desk_page"] = "Simulation Lab"
     app.session_state["lab_space"] = "tradeoffs"
     app.run()
-    app.slider(key="sb_defect").set_value(0.3).run()
+    app.slider(key="_w_sb_defect").set_value(0.3).run()
     app.button(key="sb_run").click().run()
     assert not app.exception
     assert app.session_state["sb_result"]["weights"] == (0.5, 0.3, 0.5, 0.0, 0.0)

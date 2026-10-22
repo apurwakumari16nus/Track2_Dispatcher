@@ -16,10 +16,12 @@ import streamlit as st
 
 import desk
 import records
-from ui import explain
+from ui import explain, performance
 from ui.components import banner, chart, esc, html, icon, json_block, status_pill
+from ui.state import bind, one_of, subset_of, text
 
 LOGS = {"live": "Live log", "rehearsal": "Rehearsal log"}
+VIEWS = {"decisions": "Decision audit", "performance": "Performance diagnostics"}
 KINDS = ["Allocation", "Alternative accepted", "Late return accepted"]
 KIND_TONE = {"Allocation": "conf", "Alternative accepted": "info", "Late return accepted": "warn"}
 COLUMNS = [1.3, .95, .95, 1.25, 1.2, 1.2, .95, .75]
@@ -84,14 +86,20 @@ def search(rows, query="", senders=(), workshops=(), kinds=(), dates=None):
 
 def render(workshops):
     state = st.session_state
-    state.setdefault("audit_log", "rehearsal" if state.get("desk_source", "live") != "live" else "live")
-    head, log_col = st.columns([3, 1], vertical_alignment="bottom")
-    with head:
-        html('<div class="kicker"><span>Audit trail</span></div>'
-             '<div class="home-title" style="margin-top:0.8rem">Every confirmed decision, with its evidence</div>'
-             '<div class="home-sub">A record is written only when a dispatcher confirms. Recommendations, previews and simulator runs are never logged here.</div>')
-    with log_col:
-        log = st.segmented_control("Log", list(LOGS), key="audit_log", format_func=LOGS.get, required=True)
+    html('<div class="kicker"><span>Audit trail</span></div>'
+         '<div class="home-title" style="margin-top:0.8rem">Every confirmed decision, with its evidence</div>'
+         '<div class="home-sub">A record is written only when a dispatcher confirms. Recommendations, previews and simulator runs are never logged here.</div>')
+    with st.container(key="audit_switches", horizontal=True, vertical_alignment="bottom"):
+        view = bind(st.segmented_control, "View", list(VIEWS), key="audit_view", fallback="decisions", format_func=VIEWS.get, required=True)
+        log = None
+        if view == "decisions":
+            # A missing or stale selection falls back to the log that matches the current reading mode.
+            default = "rehearsal" if state.get("desk_source", "live") != "live" else "live"
+            log = bind(st.segmented_control, "Log", list(LOGS), key="audit_log", fallback=default, format_func=LOGS.get, required=True)
+    if view == "performance":
+        html('<div class="home-sub" style="margin:0.2rem 0 0.8rem">Diagnostics only. Timing never changes a recommendation, and nothing here is a decision record.</div>')
+        performance.render()
+        return
     if log == "rehearsal":
         html(banner("Rehearsal log.", " Confirmations made in rehearsal mode. They are kept apart from the live log and are not operational decisions.", "warn"))
     path = desk.REHEARSAL_LOG if log == "rehearsal" else None
@@ -114,26 +122,33 @@ def render(workshops):
              '<li><b>Review it here</b><span>The request, candidates, reasons and evidence, kept append-only.</span></li></ol>'
              f'{hint}</div><div class="ae-sheet" aria-hidden="true"><b>{esc(LOGS[log])}</b><i></i><span>No entries yet</span></div></div>')
         return
+    focus = state.pop("audit_focus", None)
+    focused = next((r for r in rows if focus and r.get("timestamp") == focus), None)
+    if focused is not None:
+        # Arriving from Dispatch or a trace: clear the filters so the record is in view, then open it once.
+        for key, empty in (("audit_q", ""), ("audit_sender", []), ("audit_workshop", []), ("audit_kind", []), ("audit_day", "any")):
+            state[key] = empty
+        state["audit_opened"] = focus
     senders = sorted({r.get("sender") for r in rows} - {None, ""})
     shops = sorted({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None})
     days = sorted(set(d for d in (logged_date(r) for r in rows) if d))
     for key, options in (("audit_sender", senders), ("audit_workshop", shops), ("audit_kind", KINDS)):
-        state[key] = [v for v in state.get(key, []) if v in options]
-    if state.get("audit_day") not in [None, *days]:
-        state["audit_day"] = None
+        state[key] = [v for v in state.get(key) or [] if v in options]
     with st.container(key="audit_bar"):
         a, b, c, d, e = st.columns([1.3, 1.1, 1.1, 1, 1.2], vertical_alignment="bottom")
         with a:
-            query = st.text_input("Order or text", key="audit_q", placeholder="ORD-045")
+            query = bind(st.text_input, "Order or text", key="audit_q", fallback="", accept=text, placeholder="ORD-045")
         with b:
-            workshop = st.multiselect("Workshop", shops, key="audit_workshop", format_func=lambda wid: workshop_name(wid, workshops))
+            workshop = bind(st.multiselect, "Workshop", shops, key="audit_workshop", fallback=[], accept=subset_of(shops),
+                            format_func=lambda wid: workshop_name(wid, workshops))
         with c:
-            sender = st.multiselect("Requester", senders, key="audit_sender")
+            sender = bind(st.multiselect, "Requester", senders, key="audit_sender", fallback=[], accept=subset_of(senders))
         with d:
-            day = st.selectbox("Date", [None, *reversed(days)], key="audit_day", placeholder="Any date",
-                               format_func=lambda v: "Any date" if v is None else explain.long_date(v))
+            choice = bind(st.selectbox, "Date", ["any", *reversed(days)], key="audit_day", fallback="any",
+                          format_func=lambda v: "Any date" if v == "any" else explain.long_date(v))
+            day = None if choice == "any" else choice
         with e:
-            kinds = st.multiselect("Decision type", KINDS, key="audit_kind")
+            kinds = bind(st.multiselect, "Decision type", KINDS, key="audit_kind", fallback=[], accept=subset_of(KINDS))
     found = search(rows, query, sender, workshop, kinds, (day, day) if day else None)
     summary_row(rows, log, workshops)
     if not found:
@@ -149,6 +164,8 @@ def render(workshops):
                            icon=":material/download:")
     with side:
         timeline(found[:12], workshops, log)
+    if focused is not None:
+        record_panel(focused, workshops)
 
 
 def summary_row(rows, log, workshops):
@@ -270,6 +287,8 @@ def record_panel(row, workshops):
                  ("Accepted late return", "Yes" if confirmation.get("accepted_lateness") else "No"),
                  ("Accepted an alternative", "Yes" if confirmation.get("accepted_alternative") else "No"),
                  ("Request reading", confirmation.get("extraction_source") or "live"),
+                 ("Made in the guided demo", "Yes" if confirmation.get("guided_demo") else "No"),
+                 ("Execution trace", confirmation.get("trace_id") or "Not recorded"),
                  ("Logged at (UTC)", (row.get("timestamp") or "")[:19].replace("T", " ")),
                  ("Business date", record.get("timestamp", "")[:10])]
         html('<div class="dk-card" style="margin-top:0.4rem"><dl class="kv" style="grid-template-columns:12.6667rem 1fr;font-size:0.9667rem">'

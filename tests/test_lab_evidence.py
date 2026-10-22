@@ -43,9 +43,9 @@ def test_lab_page_shows_the_tie_and_switches_objective():
     at.run()
     text = " ".join(m.value for m in at.markdown)
     assert not at.exception and "with earliest finish (1.67%)" in text
-    at.segmented_control(key="lab_space").set_value("evidence").run()
+    at.segmented_control(key="_w_lab_space").set_value("evidence").run()
     assert "Official ten-seed evidence" in " ".join(m.value for m in at.markdown)
-    at.segmented_control(key="lab_space").set_value("tradeoffs").run()
+    at.segmented_control(key="_w_lab_space").set_value("tradeoffs").run()
     at.button(key="objbtn_defect").click().run()
     assert at.session_state["lab_focus"] == "defect"
     assert "Fails the lateness guardrail" in " ".join(m.value for m in at.markdown)

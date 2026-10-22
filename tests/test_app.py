@@ -137,10 +137,10 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     at.run()
     assert not at.exception
     assert len([b for b in at.button if b.key and b.key.startswith("inbox_R")]) == 30
-    assert at.date_input(key="desk_today").value == app.TODAY
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
     assert not records.DEFAULT_PATH.exists()
     at.button(key="inbox_R30").click().run()
-    assert at.text_area(key="desk_message").value == setup[3]["R30"]
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R30"]
     at.button(key="desk_dispatch").click().run()
     assert not at.exception and not records.DEFAULT_PATH.exists()
     assert len(setup[4]) == 1
@@ -154,11 +154,11 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     assert len(records.load()) == 1 and len(setup[4]) == 1
     at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception
-    assert at.multiselect(key="audit_sender").options == ["Mei"]
+    assert at.multiselect(key="_w_audit_sender").options == ["Mei"]
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception and len(records.load()) == 1
-    assert at.date_input(key="desk_today").value == app.TODAY
-    assert at.text_area(key="desk_message").value == setup[3]["R30"]
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R30"]
 
 
 @pytest.mark.parametrize("rid,verdict", [("R01", "I need one detail before I can continue."),
@@ -186,7 +186,7 @@ def test_streamlit_editing_request_invalidates_old_confirmation(setup):
     at.run()
     at.button(key="inbox_R30").click().run()
     at.button(key="desk_dispatch").click().run()
-    at.text_area(key="desk_message").set_value("A different request").run()
+    at.text_area(key="_w_desk_message__edit").set_value("A different request").run()
     assert "desk_confirm" not in [b.key for b in at.button]
     assert "desk_preview" not in at.session_state
     assert not records.DEFAULT_PATH.exists()
@@ -196,13 +196,13 @@ def test_streamlit_date_and_objective_survive_log_navigation(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.date_input(key="desk_today").set_value(date(2026, 4, 3)).run()
-    at.selectbox(key="desk_preset").set_value("fairness").run()
+    at.date_input(key="_w_desk_today").set_value(date(2026, 4, 3)).run()
+    at.selectbox(key="_w_desk_preset").set_value("fairness").run()
     at.radio(key="desk_page").set_value("Audit Trail").run()
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception
-    assert at.date_input(key="desk_today").value == date(2026, 4, 3)
-    assert at.selectbox(key="desk_preset").value == "fairness"
+    assert at.date_input(key="_w_desk_today").value == date(2026, 4, 3)
+    assert at.selectbox(key="_w_desk_preset").value == "fairness"
 
 
 def test_register_explores_eligibility_without_calling_model_or_saving(setup):
@@ -217,17 +217,17 @@ def test_register_explores_eligibility_without_calling_model_or_saving(setup):
     assert not setup[4] and not records.DEFAULT_PATH.exists()
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception
-    assert at.date_input(key="desk_today").value == app.TODAY
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
 
 
 def test_inbox_search_preserves_selection_and_does_not_dispatch(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.text_input(key="inbox_search").set_value("R09").run()
+    at.text_input(key="_w_inbox_search").set_value("R09").run()
     assert [b.key for b in at.button if b.key and b.key.startswith("inbox_R")] == ["inbox_R09"]
     at.button(key="inbox_R09").click().run()
-    assert at.text_area(key="desk_message").value == setup[3]["R09"]
-    at.text_input(key="inbox_search").set_value("no matching request").run()
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R09"]
+    at.text_input(key="_w_inbox_search").set_value("no matching request").run()
     assert not at.exception and not setup[4]
-    assert at.text_area(key="desk_message").value == setup[3]["R09"]
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R09"]

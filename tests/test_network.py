@@ -55,7 +55,7 @@ def test_dispatch_hands_the_batch_to_the_network_without_saving(monkeypatch, tmp
     at.button(key="desk_dispatch").click().run()
     at.button(key="desk_trace").click().run()
     assert not at.exception and at.session_state["desk_page"] == "Workshop Network"
-    assert at.number_input(key="net_pieces").value == 150 and at.session_state["net_target"] == "W6"
+    assert at.number_input(key="_w_net_pieces").value == 150 and at.session_state["net_target"] == "W6"
     assert at.session_state["net_phase"] == "idle" and at.session_state["net_playing"]  # The routing replay starts.
     phases = []
     for _ in range(10):  # Each rerun is one playback tick here; the browser ticks on a timer.
@@ -72,7 +72,7 @@ def test_dispatch_hands_the_batch_to_the_network_without_saving(monkeypatch, tmp
     assert at.session_state["net_target"] == "W5"  # A routing preview; Dispatch's recommendation is untouched.
     assert at.session_state["desk_preview"].response.decision_record["chosen_workshop"] == "W6"
     assert not records.DEFAULT_PATH.exists() and not desk.REHEARSAL_LOG.exists()
-    at.segmented_control(key="net_view").set_value("List").run()
+    at.segmented_control(key="_w_net_view").set_value("List").run()
     assert not at.exception and "first pass" in " ".join(m.value for m in at.markdown)
 
 

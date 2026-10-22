@@ -58,9 +58,8 @@ def rehearsal_app(monkeypatch, tmp_path):
 def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     at, tmp = rehearsal_app
     assert "Rehearsal mode" in " ".join(m.value for m in at.markdown)  # the mode ribbon
-    at.button(key="demo_start").click().run()  # Guided demo loads R09; the dispatcher still evaluates it.
+    at.button(key="inbox_R09").click().run()  # Selecting a request loads it; the dispatcher still evaluates it.
     assert "desk_preview" not in at.session_state and at.session_state["desk_message"].startswith("R09 ")
-    assert "DEMO 1 OF 6" in " ".join(m.value for m in at.markdown)
     at.button(key="desk_dispatch").click().run()
     assert not at.exception and at.session_state["desk_preview"].source == "fixture"
     text = " ".join(m.value for m in at.markdown)
@@ -77,7 +76,7 @@ def test_rehearsal_confirmations_stay_out_of_the_live_log(rehearsal_app):
     assert saved["decision_record"]["constraints_applied"]["confirmation"]["extraction_source"] == "fixture"
     assert saved["parsed_request"]["llm_metadata"]["model"] == "synthetic-fixture"
     at.radio(key="desk_page").set_value("Audit Trail").run()
-    assert not at.exception and at.segmented_control(key="audit_log").value == "rehearsal"
+    assert not at.exception and at.segmented_control(key="_w_audit_log").value == "rehearsal"
     assert "Nimble Needle" in " ".join(m.value for m in at.markdown)
     at.button(key="audit_open_0").click().run()
     text = " ".join(m.value for m in at.markdown)
@@ -109,8 +108,8 @@ def test_every_page_renders_and_network_answers_the_register_question(rehearsal_
     at.radio(key="desk_page").set_value("Workshop Network").run()
     assert not at.exception
     text = " ".join(m.value for m in at.markdown)
-    assert "Fastest for 1,500 tops" in text and "Suspended" in text and "can take this batch" in text
-    at.segmented_control(key="net_category").set_value("ACCESSORIES").run()
+    assert "Fastest for 1,500 tops" in text and "Suspended" in text and "can take 1,500 tops" in text
+    at.segmented_control(key="_w_net_category").set_value("ACCESSORIES").run()
     assert not at.exception and "can make accessories" in " ".join(m.value for m in at.markdown)
     at.radio(key="desk_page").set_value("Simulation Lab").run()
     assert not at.exception
@@ -118,22 +117,57 @@ def test_every_page_renders_and_network_answers_the_register_question(rehearsal_
     assert not at.exception
 
 
-def test_guided_demo_steps_through_real_cases_without_running_them(rehearsal_app):
+def test_guided_demo_walks_r09_from_inbox_to_audit_record(rehearsal_app):
+    """The guide waits for real actions, confirms nothing itself and writes one rehearsal record."""
+    at, _ = rehearsal_app
+    at.button(key="inbox_R01").click().run()   # Work in progress, set aside by the demo and restored on exit.
+    at.button(key="demo_start").click().run()
+    at.button(key="guide_begin").click().run()
+    guide = lambda: at.session_state["guide"]
+    assert guide()["running"] and guide()["step"] == 0 and guide()["source"] in {"cached", "fixture"}
+    assert at.session_state["desk_message"] == "" and "desk_preview" not in at.session_state
+    assert not [b for b in at.button if b.key == "guide_next"]          # An event step: no Continue to skip it.
+    at.button(key="inbox_R09").click().run()
+    assert guide()["step"] == 1 and "desk_preview" not in at.session_state  # Loading is not evaluating.
+    assert at.button(key="guide_next").disabled
+    at.button(key="desk_dispatch").click().run()
+    assert not at.exception and not at.button(key="guide_next").disabled
+    at.button(key="guide_next").click().run()
+    at.button(key="guide_next").click().run()
+    assert guide()["step"] == 3
+    at.button(key="desk_trace").click().run()
+    assert at.session_state["desk_page"] == "Workshop Network" and guide()["step"] == 4
+    assert at.button(key="guide_next").disabled                        # Inspect another workshop first.
+    chosen = at.session_state["desk_preview"].response.decision_record["chosen_workshop"]
+    other = next(w for w in ("W8", "W2", "W1") if w != chosen)
+    at.button(key=f"node_{other}").click().run()
+    at.button(key="guide_next").click().run()
+    assert guide()["step"] == 5 and at.session_state["desk_page"] == "Dispatch"
+    assert not desk.REHEARSAL_LOG.exists() and not records.DEFAULT_PATH.exists()  # Nothing saved until the user confirms.
+    at.button(key="desk_confirm").click().run()
+    assert not at.exception and guide()["step"] == 6
+    saved = records.load(desk.REHEARSAL_LOG)
+    assert len(saved) == 1 and not records.DEFAULT_PATH.exists()
+    confirmation = saved[0]["decision_record"]["constraints_applied"]["confirmation"]
+    assert confirmation["guided_demo"] is True and confirmation["trace_id"]
+    assert at.button(key="guide_prev").disabled                         # Cannot step back past a confirmation.
+    at.button(key="desk_view_audit").click().run()
+    assert not at.exception and at.session_state["desk_page"] == "Audit Trail"
+    assert at.session_state["audit_log"] == "rehearsal" and at.session_state["audit_opened"] == saved[0]["timestamp"]
+    at.button(key="guide_next").click().run()
+    assert guide()["step"] == 7 and "Human approval" in " ".join(m.value for m in at.markdown)
+    assert len(records.load(desk.REHEARSAL_LOG)) == 1                   # Navigation never writes again.
+    at.button(key="guide_exit").click().run()
+    assert "guide" not in at.session_state and at.session_state["desk_message"].startswith("R01 ")
+
+
+def test_scenario_library_loads_a_case_without_evaluating_it(rehearsal_app):
     at, _ = rehearsal_app
     at.button(key="demo_start").click().run()
-    seen = []
-    for _ in range(5):
-        seen.append(at.session_state["desk_message"].split(" ", 1)[0])
-        assert "desk_preview" not in at.session_state  # The tour loads a case; it never evaluates or confirms it.
-        at.button(key="demo_next").click().run()
-        assert not at.exception
-    assert seen == ["R09", "R01", "R08", "R02", "R30"]
-    assert at.session_state["desk_page"] == "Audit Trail" and at.session_state["demo_step"] == 5
-    assert not [b for b in at.button if b.key == "demo_next"]
-    at.button(key="demo_prev").click().run()
-    assert at.session_state["desk_page"] == "Dispatch" and at.session_state["desk_message"].startswith("R30 ")
-    at.button(key="demo_exit").click().run()
-    assert "demo_step" not in at.session_state and not [b for b in at.button if b.key == "demo_prev"]
+    at.button(key="guide_scn_R30").click().run()
+    assert not at.exception and "guide" not in at.session_state
+    assert at.session_state["desk_message"].startswith("R30 ") and "desk_preview" not in at.session_state
+    assert "Scenario R30." in " ".join(m.value for m in at.markdown)
 
 
 def test_objective_scorecard_is_computed_from_committed_results():
@@ -150,12 +184,11 @@ def test_homepage_recommendation_uses_the_real_decision_and_filters_inbox(rehear
     at.button(key="inbox_R09").click().run()
     at.button(key="desk_dispatch").click().run()
     text = " ".join(m.value for m in at.markdown)
-    assert "Assign to Nimble Needle" in text and "Why this workshop?" in text  # The engine's choice, not a mock-up name.
+    assert "Nimble Needle" in text and "Not yet confirmed" in text  # The engine's choice, not a mock-up name.
     assert at.button(key="desk_confirm").label == "Assign to Nimble Needle" and not at.button(key="desk_confirm").disabled
-    assert "SteadyHands" not in text.split("Why this workshop?")[0]
-    at.button(key="desk_options").click().run()  # Opens the inspector on the alternatives; changes nothing.
+    at.button(key="desk_inspect").click().run()  # Opens the inspector; changes nothing.
     assert not at.exception and "desk_preview" in at.session_state and not desk.REHEARSAL_LOG.exists()
-    at.segmented_control(key="inbox_filter").set_value("reviewed").run()
+    at.segmented_control(key="_w_inbox_filter").set_value("reviewed").run()
     assert [b.key for b in at.button if b.key and b.key.startswith("inbox_R")] == ["inbox_R09"]
-    at.segmented_control(key="inbox_filter").set_value("pending").run()
+    at.segmented_control(key="_w_inbox_filter").set_value("pending").run()
     assert "inbox_R09" not in [b.key for b in at.button] and len([b for b in at.button if b.key and b.key.startswith("inbox_R")]) == 29

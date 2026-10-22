@@ -284,8 +284,9 @@ def test_provider_uses_strict_schema_temperature_zero_and_separate_user_message(
     assert "ORD-099" not in prompt and "expected_behaviour" not in prompt
     assert result.llm_metadata["model"] == "configured-model"
     response.choices[0].finish_reason = "length"
-    with pytest.raises(intake.IntakeError, match="incomplete"):
+    with pytest.raises(intake.IntakeError) as cut:
         intake.parse_request(message, TODAY, *data)
+    assert cut.value.category == "incomplete"
 
 
 def test_anthropic_provider_uses_structured_output_without_temperature(data, monkeypatch):
@@ -321,12 +322,15 @@ def test_anthropic_provider_uses_structured_output_without_temperature(data, mon
     assert captured["fallbacks"] == "default"
     assert result.llm_metadata["provider"] == "anthropic"
     assert result.llm_metadata["model"] == "claude-sonnet-5-5"
+    assert result.llm_metadata["requested_model"] == "claude-sonnet-5-5" and result.llm_metadata["fallback"] is False
     response.stop_reason = "refusal"
-    with pytest.raises(intake.IntakeError, match="refused"):
+    with pytest.raises(intake.IntakeError) as refused:
         intake.parse_request(message, TODAY, *data)
+    assert refused.value.category == "refusal"
     response.stop_reason, response.content = "max_tokens", []
-    with pytest.raises(intake.IntakeError, match="incomplete"):
+    with pytest.raises(intake.IntakeError) as cut:
         intake.parse_request(message, TODAY, *data)
+    assert cut.value.category == "incomplete"
 
 
 def test_missing_provider_configuration_names_the_variables(data, monkeypatch):

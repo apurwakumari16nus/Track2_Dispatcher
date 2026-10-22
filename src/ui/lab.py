@@ -25,6 +25,7 @@ from simulate import Simulator
 from ui import evidence, explain
 from ui import lab_evidence as le
 from ui.components import (TERM_CLASS, banner, chart, esc, html, icon, metric_tile, score_bars, section, status_pill, table)
+from ui.state import bind, one_of
 
 LABELS = {"random_choice": "Random", "greedy_biggest": "Biggest", "cheapest": "Cheapest",
           "earliest_finish": "Earliest finish", "lateness": "Lateness", "defect": "Quality only", "fairness": "Fairness",
@@ -120,9 +121,6 @@ QUESTIONS = {"performance": "How does our policy perform against the baselines?"
 
 def render(workshops):
     state = st.session_state
-    for key, value in DEFAULTS.items():
-        state.setdefault(key, value)
-    state.setdefault("lab_space", "performance")
     head, bar = st.columns([1.05, 1.1], vertical_alignment="bottom")
     with head:
         html('<div class="kicker"><span>Simulation lab</span></div>'
@@ -131,12 +129,13 @@ def render(workshops):
     with bar, st.container(key="lab_bar"):
         a, b = st.columns([1.4, 1.1], vertical_alignment="bottom")
         with a:
-            focus = st.selectbox("Objective", list(PRESETS), key="lab_focus", format_func=lambda k: LABELS[k])
+            focus = bind(st.selectbox, "Objective", list(PRESETS), key="lab_focus", fallback=DEFAULTS["lab_focus"],
+                         format_func=lambda k: LABELS[k])
         with b:
-            scenario = st.radio("Scenario", ["Normal", "Shock"], key="lab_scenario", horizontal=True)
+            scenario = bind(st.radio, "Scenario", ["Normal", "Shock"], key="lab_scenario", fallback=DEFAULTS["lab_scenario"], horizontal=True)
     with st.container(key="lab_nav"):
-        space = st.segmented_control("Workspace", list(SPACES), key="lab_space", required=True, format_func=SPACES.get,
-                                     label_visibility="collapsed")
+        space = bind(st.segmented_control, "Workspace", list(SPACES), key="lab_space", fallback="performance", required=True,
+                     format_func=SPACES.get, label_visibility="collapsed")
         html(f'<div class="ws-q">{esc(QUESTIONS[space])}</div>')
     shock = scenario == "Shock"
     data = evidence.load()
@@ -153,22 +152,17 @@ def render(workshops):
         evidence_space(data, focus, shock, workshops)
 
 
-def keep_seed():
-    st.session_state["lab_seed_value"] = st.session_state["lab_seed"]
-
-
 def seed_bar(label: str):
     """Seed controls for single-seed diagnostics. Returns (bundle, fingerprint) or (None, fp) if it cannot run."""
     state = st.session_state
-    # The seed widget is not drawn on every workspace, so Streamlit forgets it; this mirror is the source of truth.
-    state.setdefault("lab_seed_value", int(state.get("lab_bundle", {}).get("seed", DEFAULTS["lab_seed"])))
-    state["lab_seed"] = state["lab_seed_value"]
+    state.setdefault("lab_seed", int(state.get("lab_bundle", {}).get("seed", DEFAULTS["lab_seed"])))
     with st.container(key="lab_seedbar"):
         a, b, c = st.columns([2.6, .8, .6], vertical_alignment="bottom")
         with a:
             html(f'<div class="sd-note"><b>{esc(label)}</b><span>A single-seed diagnostic: the official ten-seed results are under Evidence.</span></div>')
         with b:
-            seed = st.number_input("Seed", min_value=0, max_value=2_147_483_647, key="lab_seed", on_change=keep_seed)
+            seed = bind(st.number_input, "Seed", key="lab_seed", fallback=DEFAULTS["lab_seed"],
+                        accept=lambda v: isinstance(v, int) and 0 <= v <= 2_147_483_647, min_value=0, max_value=2_147_483_647)
         with c:
             run = st.button("Run", key="lab_run", type="primary", width="stretch", icon=":material/play_arrow:")
     fp = fingerprint()
@@ -229,7 +223,7 @@ def performance_space(data, focus, shock):
 # Tradeoffs ------------------------------------------------------------------------
 
 def tradeoffs_space(data, focus, shock, workshops):
-    objectives_row(data, focus, shock)
+    objectives_matrix(data, focus, shock)
     config = PRESETS[focus]
     chips = "".join(f'<span class="weight"><i class="{TERM_CLASS[t]}"></i>{esc(explain.TERM_LABELS[t])} <b>{getattr(config, "w_" + t):g}</b></span>'
                     for t in explain.TERMS if getattr(config, "w_" + t))
@@ -244,7 +238,8 @@ def tradeoffs_space(data, focus, shock, workshops):
         box, _ = chart_card("trade", "Lateness against a second goal",
                             "Each point is one policy, ten-seed average. Down and to the left is better on both.", "")
         with box:
-            pick = st.segmented_control("Second goal", list(axes), key="lab_tradeoff", default="Cost", label_visibility="collapsed") or "Cost"
+            pick = bind(st.segmented_control, "Second goal", list(axes), key="lab_tradeoff", fallback="Cost", required=True,
+                        label_visibility="collapsed")
             y, title, f = axes[pick]
             res["text"] = ""
             for _, group in res.groupby([res.pct_late.round(6), res[y].round(4)]):
@@ -267,15 +262,7 @@ def tradeoffs_space(data, focus, shock, workshops):
                               "text": {"field": "text"}, "color": {"value": "#33465E"}}}]}, height=330)
             source_note(f"eval/ ten-seed results, {'shock' if shock else 'normal'} scenario. No point is an optimised result; each is a preset run as is.")
     with right:
-        cards = []
-        for key, cfg in PRESETS.items():
-            row = evidence.row(data["results"], "allocator", key, shock)
-            weights = ", ".join(f"{explain.TERM_LABELS[t].lower()} {getattr(cfg, 'w_' + t):g}" for t in explain.TERMS if getattr(cfg, "w_" + t))
-            cards.append(f'<div class="tw{" on" if key == focus else ""}"><div><b>{esc(LABELS[key])}</b><small>{esc(weights)}</small></div>'
-                         f'<dl><dt>Late</dt><dd>{row.pct_late:.1f}%</dd><dt>Cost</dt><dd>{row.total_cost:,.0f}</dd>'
-                         f'<dt>Share</dt><dd>{row.max_share:.1f}%</dd><dt>Defect</dt><dd>{row.pct_defect_pieces:.1f}%</dd></dl></div>')
-        html('<div class="an-card"><div class="an-title">What each objective trades</div><div class="an-sub">Ten-seed averages for every preset. '
-             'Lower is better in every column.</div><div class="tws">' + "".join(cards) + '</div><div class="an-src">Source: eval/ ten-seed results.</div></div>')
+        objective_radar(data, focus, shock)
     with st.expander("Workload by workshop and custom weights (single seed)"):
         bundle, fp = seed_bar("Seed diagnostics")
         if bundle is not None:
@@ -407,8 +394,8 @@ def shock_change_chart(data, focus):
 # Evidence -------------------------------------------------------------------------
 
 def evidence_space(data, focus, shock, workshops):
-    part = st.segmented_control("Evidence view", ["official", "explorer"], key="lab_evidence_view", default="official", required=True,
-                                format_func={"official": "Official ten-seed evidence", "explorer": "Single-seed explorer"}.get,
+    part = bind(st.segmented_control, "Evidence view", ["official", "explorer"], key="lab_evidence_view", fallback="official", required=True,
+                format_func={"official": "Official ten-seed evidence", "explorer": "Single-seed explorer"}.get,
                                 label_visibility="collapsed")
     if part == "explorer":
         bundle, fp = seed_bar("Single-seed explorer")
@@ -498,17 +485,87 @@ def comparison_cards(data, focus, shock):
          f'Status is the course pass rule for the {esc(LABELS[focus].lower())} objective.</div></div><div class="pcs">{"".join(cards)}</div>')
 
 
-def objectives_row(data, focus, shock):
-    html('<div class="lab-sec"><div class="title">Every objective</div><div class="meta">One verdict per objective from the committed '
-         'objective checks. Select one to compare it below and in Performance.</div></div>')
-    cols = st.columns(len(OBJECTIVES), gap="small")
-    for col, objective in zip(cols, OBJECTIVES):
+# The four measures every objective is judged on. Lower is better on all of them.
+MEASURES = [("pct_late", "Late batches", "{:.1f}%"), ("total_cost", "Cost", "{:,.0f}"),
+            ("max_share", "Largest share", "{:.1f}%"), ("pct_defect_pieces", "Defect exposure", "{:.1f}%")]
+VERDICT_TONE = {"ok": "ok", "conf": "ok", "info": "info", "warn": "warn", "risk": "risk", "muted": "muted"}
+
+
+def objective_table(data, shock) -> list[dict]:
+    """Ten-seed averages for our policy under each objective, with each measure placed between the best and worst objective."""
+    rows = []
+    for objective in OBJECTIVES:
+        r = evidence.row(data["results"], "allocator", objective, shock)
         h = le.hero(data, objective, shock)
-        with col, st.container(key=f"obj_{objective}"):
-            html(f'<div class="ob-card{" on" if objective == focus else ""} t-{h["tone"]}"><small>{esc(evidence.OBJECTIVE_LABELS[objective])}</small>'
-                 f'<b>{esc(h["overall"])}</b><span>{esc(le.fmt_headline(objective, h["ours"]))} '
-                 f'{esc("shock change" if objective == "robustness" else le.METRIC[objective][1])}</span></div>')
-            st.button(f"Show {LABELS[objective]}", key=f"objbtn_{objective}", on_click=set_focus, args=(objective,))
+        rows.append({"key": objective, "label": evidence.OBJECTIVE_LABELS[objective], "verdict": h["overall"], "tone": h["tone"],
+                     "values": {m: float(getattr(r, m)) for m, _, _ in MEASURES}})
+    for m, _, _ in MEASURES:
+        values = [r["values"][m] for r in rows]
+        low, high = min(values), max(values)
+        for r in rows:   # 0 is the best objective on this measure, 1 the worst.
+            r.setdefault("pos", {})[m] = 0.0 if high == low else (r["values"][m] - low) / (high - low)
+    return rows
+
+
+def objectives_matrix(data, focus, shock):
+    """One table instead of a row of cards: every objective, its verdict and what it costs on each measure."""
+    rows = objective_table(data, shock)
+    html('<div class="lab-sec"><div class="title">Every objective at a glance</div><div class="meta">Our policy run under each objective, '
+         f'ten-seed averages, {"shock" if shock else "normal"} scenario. Darker cells are better: the darkest is the best of the six on that measure. '
+         'Click a row to select that objective.</div></div>')
+    head = "".join(f'<span class="r">{esc(t)}</span>' for _, t, _ in MEASURES)
+    with st.container(key="objmx"):
+        html(f'<div class="omx-row omx-head"><span>Objective</span><span>Verdict</span>{head}</div>')
+        for r in rows:
+            cfg = PRESETS[r["key"]]
+            weights = ", ".join(f"{explain.TERM_LABELS[t].lower()} {getattr(cfg, 'w_' + t):g}" for t in explain.TERMS if getattr(cfg, "w_" + t))
+            cells = []
+            for m, _, fmt_ in MEASURES:
+                good = 1 - r["pos"][m]
+                best = " best" if r["pos"][m] == 0 else ""
+                cells.append(f'<span class="r omx-v{best}" style="--g:{good:.3f}">{esc(fmt_.format(r["values"][m]))}</span>')
+            with st.container(key=f"obj_{r['key']}"):
+                html(f'<div class="omx-row{" on" if r["key"] == focus else ""}"><span class="omx-n"><b>{esc(r["label"])}</b><small>{esc(weights)}</small></span>'
+                     f'<span>{status_pill(r["verdict"], VERDICT_TONE.get(r["tone"], "muted"))}</span>{"".join(cells)}</div>')
+                st.button(f"Show {LABELS[r['key']]}", key=f"objbtn_{r['key']}", on_click=set_focus, args=(r["key"],))
+    source_note("eval/ ten-seed results and the committed objective checks. Shading compares the six objectives with each other, not with the baselines.")
+
+
+def objective_radar(data, focus, shock):
+    """The selected objective's shape across the four measures, over the other five in grey. Outward is worse."""
+    rows = objective_table(data, shock)
+    cx, cy, radius = 220, 172, 96
+    n = len(MEASURES)
+
+    def point(i, value):
+        import math
+        angle = -math.pi / 2 + i * 2 * math.pi / n
+        reach = 0.12 + 0.88 * value   # A small floor so the best value is still visible.
+        return cx + radius * reach * math.cos(angle), cy + radius * reach * math.sin(angle)
+
+    def polygon(r, cls):
+        pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in (point(i, r["pos"][m]) for i, (m, _, _) in enumerate(MEASURES)))
+        return f'<polygon class="{cls}" points="{pts}"/>'
+    rings = "".join(f'<polygon class="rd-ring" points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in (point(i, v) for i in range(n)))}"/>'
+                    for v in (0, .5, 1))
+    spokes, labels = [], []
+    for i, (m, title, fmt_) in enumerate(MEASURES):
+        x, y = point(i, 1)
+        spokes.append(f'<line class="rd-spoke" x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}"/>')
+        lx, ly = point(i, 1.16)
+        anchor = "middle" if abs(lx - cx) < 10 else ("start" if lx > cx else "end")
+        top = ly - 18 if ly < cy - 10 else (ly + 4 if ly > cy + 10 else ly - 6)   # Name over value, clear of the shape.
+        mine = next(r for r in rows if r["key"] == focus)
+        labels.append(f'<text class="rd-l" x="{lx:.1f}" y="{top:.1f}" text-anchor="{anchor}">{esc(title)}'
+                      f'<tspan class="rd-v" x="{lx:.1f}" dy="16">{esc(fmt_.format(mine["values"][m]))}</tspan></text>')
+    others = "".join(polygon(r, "rd-other") for r in rows if r["key"] != focus)
+    mine = polygon(next(r for r in rows if r["key"] == focus), "rd-mine")
+    svg = (f'<svg class="radar" viewBox="0 0 440 344" role="img" aria-label="Profile of the {esc(evidence.OBJECTIVE_LABELS[focus])} objective '
+           f'across late batches, cost, largest share and defect exposure">{rings}{"".join(spokes)}{others}{mine}{"".join(labels)}</svg>')
+    html('<div class="an-card"><div class="an-title">Shape of the selected objective</div>'
+         f'<div class="an-sub"><b>{esc(evidence.OBJECTIVE_LABELS[focus])}</b> in blue, the other five in grey. '
+         'Closer to the centre is better. Each axis runs from the best to the worst of the six.</div>'
+         f'{svg}<div class="an-src">Exact values are in the table above and in Performance.</div></div>')
 
 
 # Analysis tabs --------------------------------------------------------------------
@@ -607,7 +664,8 @@ def sandbox(bundle, focus, shock, fp):
     cols = st.columns(5)
     for col, term in zip(cols, explain.TERMS):
         with col:
-            st.slider(explain.TERM_LABELS[term], 0.0, 1.0, step=0.05, key=f"sb_{term}")
+            bind(st.slider, explain.TERM_LABELS[term], key=f"sb_{term}", fallback=DEFAULTS.get(f"sb_{term}", 0.0),
+                 accept=lambda v: isinstance(v, float) and 0.0 <= v <= 1.0, min_value=0.0, max_value=1.0, step=0.05)
     weights = tuple(float(state[f"sb_{t}"]) for t in explain.TERMS)
     if st.button("Run sandbox replay", key="sb_run", disabled=not any(weights)):
         state["sb_result"] = {"weights": weights, "seed": bundle["seed"], "shock": shock}
@@ -632,17 +690,15 @@ def audit_tab(bundle, focus, shock, workshops, fp):
     own = outcomes[(outcomes.shock == shock) & (outcomes.policy == "allocator") & (outcomes.objective == focus)]
     a, b = st.columns([1, 3], vertical_alignment="bottom")
     with a:
-        only_late = st.toggle("Late orders only", key="lab_late")
+        only_late = bind(st.toggle, "Late orders only", key="lab_late", fallback=False, accept=lambda v: isinstance(v, bool))
     visible = own[own["late"]] if only_late else own
     if visible.empty:
         html(banner("No late orders", " Every order in this view was on time.", "info"))
         return
     labels = {r.order_id: f"{r.order_id}, sent {explain.short_date(r.sent_date)}, {workshops[r.workshop].name}, " + ("late" if r.late else "on time")
               for r in visible.itertuples()}
-    if state.get("lab_order") not in labels:
-        state["lab_order"] = next(iter(labels))
     with b:
-        order = st.selectbox("Automatic decision", list(labels), key="lab_order", format_func=labels.get)
+        order = bind(st.selectbox, "Automatic decision", list(labels), key="lab_order", fallback=next(iter(labels)), format_func=labels.get)
     record = replay(bundle["seed"], focus, shock, fp)[order]
     outcome = visible[visible.order_id == order].iloc[0]
     chosen = explain.chosen_row(record)
