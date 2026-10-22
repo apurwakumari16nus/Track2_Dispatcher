@@ -25,6 +25,7 @@ from objectives import ObjectiveConfig, PRESETS, score_candidate, score_terms
 import records
 from simulate import load_workshops
 import tools
+import tracing
 
 ROOT = Path(__file__).resolve().parents[1]
 TODAY = date(2026, 4, 1)
@@ -42,6 +43,7 @@ class Preview:
     block_reason: str | None
     agent_calls: int | None = None
     source: str = "live"
+    trace_id: str | None = None
 
 
 def load_inputs():
@@ -70,59 +72,66 @@ def make_preview(message, today, config, orders, workshops, queues, allocator, r
     The caller chooses where the raw extraction comes from (intake.extraction_source);
     source only labels the preview and is part of its signature.
     """
-    current_signature = signature(message, today, config, orders, workshops, queues, revision, source)
-    worker = Agent(config)
-    worker.allocator = deepcopy(allocator)
-    worker.allocator.config = config
+    with tracing.span("prepare"):
+        current_signature = signature(message, today, config, orders, workshops, queues, revision, source)
+        worker = Agent(config)
+        worker.allocator = deepcopy(allocator)
+        worker.allocator.config = config
     accepted, next_queues = None, dict(queues)
     with tools.trace_calls() as calls:
         response = worker.handle(message, today, orders, workshops, queues)
         agent_calls = len(calls)
-        parsed, record = response.parsed_request, response.decision_record
-        block = None
-        if parsed.behaviour not in {"allocate", "refuse"}:
-            block = "This request needs a reply, not an allocation."
-        elif record["chosen_workshop"] is None:
-            block = "There is no whole-batch allocation to confirm."
-        if any(row.get("current_stage") == "PACKING" for row in record.get("tool_outputs", {}).get("order_options", [])):
-            block = "Resolve the packing-stage clarification before allocating."
-        complete = all(getattr(parsed, k) is not None for k in ("order_id", "category", "pieces", "due_date"))
-        if complete and parsed.behaviour in {"allocate", "refuse"}:
-            effective = (ObjectiveConfig(w_cost=1, name="cheapest_on_time") if record["objective_name"] == "cheapest_on_time"
-                         else PRESETS[record["objective_name"]])
-            accepted = deepcopy(allocator)
-            accepted.config = effective
-            batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
-                     "due_date": parsed.due_date, "sent_date": today}
-            constraints = record["constraints_applied"]
-            verified = accepted.decide(batch, workshops, queues, today,
-                                      exclude=constraints["exclude"], must_make_date=constraints["must_make_date"])
-            if verified.chosen_workshop != record["chosen_workshop"] or verified.candidates != record["candidates"]:
-                raise ValueError("The allocation changed during preparation; dispatch again.")
-            permitted = {row["workshop_id"]: row for row in record["candidates"]}
-            all_rows = tools.candidates(batch, workshops, queues, today)
-            state = {"pieces_by_workshop": allocator.pieces_by_workshop, "shock_monitor": accepted.shock_monitor,
-                     "workshops": workshops}
-            any_on_time = any(row["days_to_spare"] >= 0 for row in record["candidates"])
-            for row in all_rows:
-                wid = row["workshop_id"]
-                row.update(score_terms=score_terms(row, state), score=score_candidate(row, effective, state))
-                row["exclusion_reason"] = ("Excluded by request" if wid not in permitted else
-                    "Misses required due date" if constraints["must_make_date"] and any_on_time and row["days_to_spare"] < 0 else "")
-            record["tool_outputs"]["ui_candidate_inventory"] = sorted(all_rows, key=lambda row: (row["score"], row["total_days"], row["workshop_id"]))
-            if verified.chosen_workshop:
-                probe = tools.overload_probe(batch, verified.chosen_workshop, workshops, queues)
-                next_queues[verified.chosen_workshop] = probe["queue_after"]
-            accepted.config = config
-        else:
-            block = block or "Confirm all order details before allocating."
+        with tracing.span("verification"):
+            parsed, record = response.parsed_request, response.decision_record
+            block = None
+            if parsed.behaviour not in {"allocate", "refuse"}:
+                block = "This request needs a reply, not an allocation."
+            elif record["chosen_workshop"] is None:
+                block = "There is no whole-batch allocation to confirm."
+            if any(row.get("current_stage") == "PACKING" for row in record.get("tool_outputs", {}).get("order_options", [])):
+                block = "Resolve the packing-stage clarification before allocating."
+            complete = all(getattr(parsed, k) is not None for k in ("order_id", "category", "pieces", "due_date"))
+            if complete and parsed.behaviour in {"allocate", "refuse"}:
+                effective = (ObjectiveConfig(w_cost=1, name="cheapest_on_time") if record["objective_name"] == "cheapest_on_time"
+                             else PRESETS[record["objective_name"]])
+                accepted = deepcopy(allocator)
+                accepted.config = effective
+                batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
+                         "due_date": parsed.due_date, "sent_date": today}
+                constraints = record["constraints_applied"]
+                verified = accepted.decide(batch, workshops, queues, today,
+                                          exclude=constraints["exclude"], must_make_date=constraints["must_make_date"])
+                if verified.chosen_workshop != record["chosen_workshop"] or verified.candidates != record["candidates"]:
+                    raise ValueError("The allocation changed during preparation; dispatch again.")
+                permitted = {row["workshop_id"]: row for row in record["candidates"]}
+                all_rows = tools.candidates(batch, workshops, queues, today)
+                state = {"pieces_by_workshop": allocator.pieces_by_workshop, "shock_monitor": accepted.shock_monitor,
+                         "workshops": workshops}
+                any_on_time = any(row["days_to_spare"] >= 0 for row in record["candidates"])
+                for row in all_rows:
+                    wid = row["workshop_id"]
+                    row.update(score_terms=score_terms(row, state), score=score_candidate(row, effective, state))
+                    row["exclusion_reason"] = ("Excluded by request" if wid not in permitted else
+                        "Misses required due date" if constraints["must_make_date"] and any_on_time and row["days_to_spare"] < 0 else "")
+                record["tool_outputs"]["ui_candidate_inventory"] = sorted(all_rows, key=lambda row: (row["score"], row["total_days"], row["workshop_id"]))
+                if verified.chosen_workshop:
+                    probe = tools.overload_probe(batch, verified.chosen_workshop, workshops, queues)
+                    next_queues[verified.chosen_workshop] = probe["queue_after"]
+                accepted.config = config
+            else:
+                block = block or "Confirm all order details before allocating."
     response.decision_record["tool_outputs"]["call_trace"] = deepcopy(calls)
-    response.faithfulness = faithfulness.check(response.explanation_text, response.decision_record)
+    with tracing.span("explanation_check"):
+        response.faithfulness = faithfulness.check(response.explanation_text, response.decision_record)
     if not response.faithfulness["passed"]:
         block = "The explanation failed its numerical evidence check."
     # Preparing a copy must not present the request as confirmed in the UI/log.
     response.allocation_committed = False
-    return Preview(response, current_signature, uuid4().hex, accepted, next_queues, today, block, agent_calls, source)
+    active = tracing.current()
+    tracing.note(tool_calls=agent_calls, behaviour=response.parsed_request.behaviour,
+                 chosen_workshop=response.decision_record.get("chosen_workshop"), blocked=bool(block))
+    return Preview(response, current_signature, uuid4().hex, accepted, next_queues, today, block, agent_calls, source,
+                   active.trace_id if active else None)
 
 
 @dataclass(frozen=True)
@@ -149,8 +158,11 @@ def confirm_state(preview, current_signature, saved) -> ConfirmState:
     return ConfirmState("ready")
 
 
-def confirm_preview(preview, current_signature, saved, *, append=None):
-    """Validate first; append once; caller adopts new state only after success."""
+def confirm_preview(preview, current_signature, saved, *, append=None, guided_demo=False):
+    """Validate first; append once; caller adopts new state only after success.
+
+    guided_demo marks a confirmation made inside the guided demo; it is stored in
+    the record and the caller writes it to the rehearsal log (see audit_path)."""
     status = confirm_state(preview, current_signature, saved)
     if status.state == "confirmed":
         return saved[preview.token]
@@ -164,15 +176,24 @@ def confirm_preview(preview, current_signature, saved, *, append=None):
         "accepted_lateness": bool(response.already_late or response.awkward_case == "none_makes_date"),
         "accepted_alternative": response.parsed_request.behaviour == "refuse",
         "extraction_source": preview.source,
+        "trace_id": preview.trace_id,
+        "guided_demo": bool(guided_demo),
     }
     row = (append or records.append)(response)
     saved[preview.token] = row
     return row
 
 
-def audit_path(source: str) -> Path | None:
-    """Rehearsal confirmations stay out of the live audit log."""
-    return REHEARSAL_LOG if source != "live" else None
+def audit_path(source: str, demo: bool = False) -> Path | None:
+    """Rehearsal and guided-demo confirmations stay out of the live audit log.
+
+    A demo confirmation is a demonstration, not an operational decision, even when
+    the live model read the request; the record still says which source it used."""
+    return REHEARSAL_LOG if source != "live" or demo else None
+
+
+def audit_log_name(source: str, demo: bool = False) -> str:
+    return "live" if audit_path(source, demo) is None else "rehearsal"
 
 
 def filtered_records(rows, workshop=None, sender=None):
@@ -199,7 +220,6 @@ def reset_session(state, workshops, *, clear_rehearsal_log=True) -> None:
     for key in [k for k in state.keys() if k.startswith(("desk_", "inbox_", "net_", "audit_"))
                 and k not in {"desk_page", "desk_source", "presentation_mode"}]:
         del state[key]
-    state.pop("kept_controls", None)
     if clear_rehearsal_log:
         REHEARSAL_LOG.unlink(missing_ok=True)
     init_session(state, workshops)

@@ -1,0 +1,12 @@
+{
+  "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "fetched": "2026-10-22",
+  "currency": "USD per million tokens, Claude API first-party rates, standard (global) inference",
+  "note": "Estimates from recorded token usage. They are not bills and have not been reconciled with billing records.",
+  "models": {
+    "claude-sonnet-5-5": {"input": 2.00, "cache_write_5m": 2.50, "cache_write_1h": 4.00, "cache_read": 0.10, "output": 10.00},
+    "claude-haiku-5-5": {"input": 0.10, "cache_write_5m": 0.125, "cache_write_1h": 0.20, "cache_read": 0.01, "output": 0.50,
+                         "long_prompt_threshold_tokens": 100000,
+                         "long_prompt": {"input": 0.50, "cache_write_5m": 0.625, "cache_write_1h": 1.00, "cache_read": 0.05, "output": 2.50}}
+  }
+}

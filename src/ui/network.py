@@ -12,7 +12,7 @@ mode (demo_scenarios.py) loads scripted batches and plays the outcome too.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 import math
 
 import streamlit as st
@@ -24,6 +24,7 @@ from ui import network_model as nm
 from ui import routing as rt
 from ui.components import esc, html, icon, state_line, status_pill
 from ui.demo_scenarios import BY_KEY, SCENARIOS
+from ui.state import bind, one_of, text
 
 PHOTOS = "app/static/brand/workshops"   # One 4:3 photo per workshop ID; see static/brand/CREDITS.md.
 MARK = "app/static/brand/threadline-mark.png"
@@ -31,6 +32,7 @@ TONE_PILL = {"rec": "info", "ok": "ok", "warn": "warn", "late": "warn", "out": "
 VIEW = (800, 600)
 HUB = (400, 292)
 OUTCOMES = {"plan": "On plan", "rework": "Rework", "closure": "Closure"}
+CATEGORIES = ("TOPS", "ACCESSORIES")
 TICK = 1.1  # seconds per phase during playback
 NODE_PILL = {rt.Node.EVALUATING: ("Checking", "info"), rt.Node.SHORTLISTED: ("Shortlisted", "ok"), rt.Node.SELECTED: ("Routed here", "info"),
              rt.Node.REJECTED: ("Not selected", "muted"), rt.Node.SUSPENDED: ("Suspended", "risk"), rt.Node.BLOCKED: ("Needs decision", "warn"),
@@ -99,21 +101,19 @@ def reset_route():
 def defaults(state, today):
     hand = state.pop("net_handoff", None)
     if hand:  # Arrived from a Dispatch recommendation: prefill and replay the routing.
-        state["net_category"], state["net_pieces"] = hand["category"], hand["pieces"]
+        # An unknown category is kept as "not chosen" (None) with a notice; it is never swapped for another one.
+        known = hand["category"] in CATEGORIES
+        state["net_category"] = hand["category"] if known else None
+        state["net_category_note"] = None if known else f"Dispatch passed the category {hand['category']!r}, which the network does not route."
+        state["net_pieces"] = hand["pieces"]
         state["net_due"], state["net_from"] = hand["due"], hand["label"]
         state.pop("net_target", None)
         state.pop("net_pick", None)
         start_play(bool(state.get("net_demo")))
+    # First visit of a session: an example batch. Later visits keep whatever the user or Dispatch set.
     state.setdefault("net_category", "TOPS")
     state.setdefault("net_pieces", 1500)
     state.setdefault("net_due", today + timedelta(days=14))
-    state.setdefault("net_view", "Network")
-    state.setdefault("net_scenario", "plan")
-    state.setdefault("net_demo_scn", SCENARIOS[0].key)
-    if state["net_view"] not in ("Network", "List"):
-        state["net_view"] = "Network"
-    if state["net_due"] < today:
-        state["net_due"] = today
 
 
 # Page ---------------------------------------------------------------------------
@@ -128,21 +128,25 @@ def render(workshops):
              '<div class="home-title" style="margin-top:0.8rem">Find the right workshop, faster</div>'
              '<div class="home-sub">Explore the vetted network, see live capacity, and route each batch to the workshop that fits it best.</div>')
     with tools_col, st.container(key="net_tools"):
-        query = st.text_input("Search workshops", key="net_q", placeholder="Search workshop, product or note",
-                              label_visibility="collapsed", icon=":material/search:")
+        query = bind(st.text_input, "Search workshops", key="net_q", fallback="", accept=text,
+                     placeholder="Search workshop, product or note", label_visibility="collapsed", icon=":material/search:")
         with st.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center", key="net_toggles"):
-            demo = st.toggle("Demo mode", key="net_demo", help="Scripted batches for screen recording. Routing stays the live engine.")
-            view = st.segmented_control("View", ["Network", "List"], key="net_view", required=True, label_visibility="collapsed",
-                                        format_func=lambda v: {"Network": ":material/hub: Network", "List": ":material/view_agenda: List"}[v])
+            demo = bind(st.toggle, "Demo mode", key="net_demo", fallback=False, accept=lambda v: isinstance(v, bool),
+                        help="Scripted batches for screen recording. Routing stays the live engine.")
+            view = bind(st.segmented_control, "View", ["Network", "List"], key="net_view", fallback="Network", required=True,
+                        label_visibility="collapsed",
+                        format_func=lambda v: {"Network": ":material/hub: Network", "List": ":material/view_agenda: List"}[v])
     with st.container(key="net_bar"):
         a, b, c, d, e = st.columns([1.25, .95, 1, 1.25, 1.05], vertical_alignment="bottom")
         with a:
-            category = st.segmented_control("Category", ["TOPS", "ACCESSORIES"], key="net_category", required=True,
-                                            format_func=str.capitalize)
+            category = bind(st.segmented_control, "Category", CATEGORIES, key="net_category", fallback=None, allow_none=True,
+                            required=True, format_func=str.capitalize)
         with b:
-            pieces = st.number_input("Batch size", min_value=1, max_value=1_000_000, step=100, key="net_pieces")
+            pieces = bind(st.number_input, "Batch size", key="net_pieces", fallback=1500,
+                          accept=lambda v: isinstance(v, int) and 1 <= v <= 1_000_000, min_value=1, max_value=1_000_000, step=100)
         with c:
-            due = st.date_input("Due date", key="net_due", min_value=today, format="DD/MM/YYYY")
+            due = bind(st.date_input, "Due date", key="net_due", fallback=today, accept=lambda v: isinstance(v, date) and v >= today,
+                       min_value=today, format="DD/MM/YYYY")
         with d:
             source = state.get("net_from")
             html(f'<div class="nb-meta"><small>Objective, set in Dispatch</small><b>{esc(explain.objective_label(state["desk_preset"]))}</b>'
@@ -151,6 +155,11 @@ def render(workshops):
             st.button("Route this batch", key="net_route", type="primary", width="stretch", icon=":material/route:",
                       on_click=start_play, args=(bool(demo),))
 
+    if category is None:
+        html(state_line("warn", "Choose a category to route this batch",
+                        (state.get("net_category_note") or "Tops or Accessories decides which workshops are eligible.")))
+        return
+    state.pop("net_category_note", None)
     queues = desk.projected_queues(state["desk_queues"], state["desk_queue_date"], today)
     flags = set(state["desk_allocator"].shock_monitor.flags)
     batch = {"category": category, "pieces": int(pieces), "due_date": due}
@@ -183,7 +192,7 @@ def live(model, match, today, workshops, view):
     target = state.get("net_target")
     if target is None or target not in model["rows"] or not model["rows"][target]["eligible"]:
         target = state["net_target"] = model["chosen"]
-    outcome = state.get("net_scenario", "plan")
+    outcome = state.get("net_scenario") if state.get("net_scenario") in OUTCOMES else "plan"
     through = bool(state.get("net_through"))
     seq = rt.sequence(model, target, outcome, through)
     state["net_seq"] = [p.value for p in seq]
@@ -209,12 +218,20 @@ def live(model, match, today, workshops, view):
             list_view(model, match)
         else:
             network_map(model, target, state.get("net_pick"), match, phase, playing, plan, workshops)
-            route_card(model, target, today, phase, plan)
+            if phase is not None:   # During a routing run the tracker is the story, so it stays open.
+                route_card(model, target, today, phase, plan)
+            else:
+                name = model["rows"][target]["name"] if target else "this batch"
+                with st.expander(f"Route to {name} and what-if outcomes", key="net_route_more"):
+                    route_card(model, target, today, phase, plan)
     with right:
         if phase is not None and not rt.at_least(phase, rt.Phase.RECOMMENDED):
             evaluating_panel(model, phase, today)
         else:
             detail(model, state.get("net_pick") or target or next(iter(workshops)), target, today, phase)
+    from ui import guide
+    if guide.stale():  # A click inside this fragment completed a guided-demo step: redraw the coach too.
+        st.rerun(scope="app")
 
 
 def demo_bar(today):
@@ -228,8 +245,8 @@ def demo_bar(today):
             html('<div class="db-label"><b>Demo playback</b><span>Scripted batches, live routing engine. '
                  'Outcomes after routing follow the simulator\'s rules.</span></div>')
         with pick_col:
-            st.selectbox("Scenario", [s.key for s in SCENARIOS], key="net_demo_scn", format_func=lambda k: BY_KEY[k].title,
-                         label_visibility="collapsed")
+            bind(st.selectbox, "Scenario", [s.key for s in SCENARIOS], key="net_demo_scn", fallback=SCENARIOS[0].key,
+                 format_func=lambda k: BY_KEY[k].title, label_visibility="collapsed")
         with play_col:
             st.button("Play scenario", key="net_demo_play", type="primary", width="stretch", icon=":material/play_arrow:",
                       on_click=load_scenario, args=(today,))
@@ -248,17 +265,16 @@ def answers(model, category, pieces, due, workshops):
     head = (f'<em>{len(model["eligible"])} of {len(workshops)}</em> can take {pieces:,} {esc(noun)}. '
             f'<em>{len(model["on_time"])}</em> return by {esc(explain.short_date(due))}.') if model["eligible"] \
         else f'No active workshop can take {pieces:,} {esc(noun)} as one job.'
-    fastest = model["fastest"]
-    chips = [("verified", "Recommended", chosen["name"] if chosen else "None", "rec"),
-             ("bolt", f"Fastest for {pieces:,} {noun}", f'{fastest["name"]}, back {explain.short_date(fastest["eta"]["eta_date"])}' if fastest else "None", ""),
-             ("payments", "Cheapest", f'{model["cheapest"]["name"]}, {model["cheapest"]["eta"]["total_cost"]:,.0f}' if model["cheapest"] else "None", ""),
-             ("workspace_premium", "Most reliable", f'{model["reliable"]["name"]}, {model["reliable"]["w"].defect_rate:.0%} rework' if model["reliable"] else "None", ""),
-             ("block", "Cannot take it", ", ".join(r["name"] for r in model["unavailable"]) or "None", "muted")]
-    stats = (f'{len(workshops)} workshops, {sum(w.status == "ACTIVE" for w in workshops.values())} active, {capable} can make {esc(noun)}, '
-             f'{len(model["eligible"])} can take this batch')
-    html(f'<div class="net-answer"><div class="na-head">{head}</div><div class="na-stats">{stats}</div><div class="na-chips">'
-         + "".join(f'<div class="na-chip {t}">{icon(i)}<div><small>{esc(k)}</small><b>{esc(v)}</b></div></div>' for i, k, v, t in chips)
-         + "</div></div>")
+    fastest, cheapest = model["fastest"], model["cheapest"]
+    # One line of facts instead of a row of cards: the map and the panel carry the rest.
+    facts = [("Recommended", chosen["name"] if chosen else "None", "rec"),
+             (f"Fastest for {pieces:,} {noun}", f'{fastest["name"]}, back {explain.short_date(fastest["eta"]["eta_date"])}' if fastest else "None", ""),
+             ("Cheapest", f'{cheapest["name"]}, {cheapest["eta"]["total_cost"]:,.0f}' if cheapest else "None", ""),
+             ("Cannot take it", str(len(model["unavailable"])) if model["unavailable"] else "None", "muted")]
+    stats = (f'{len(workshops)} workshops, {sum(w.status == "ACTIVE" for w in workshops.values())} active, {capable} can make {esc(noun)}.')
+    html(f'<div class="net-answer"><div class="na-head">{head}</div><div class="na-line">'
+         + "".join(f'<span class="{t}"><small>{esc(k)}</small><b>{esc(v)}</b></span>' for k, v, t in facts)
+         + f'<span class="na-stats">{stats}</span></div></div>')
 
 
 # Network map ----------------------------------------------------------------------
@@ -345,14 +361,14 @@ def network_map(model, target, picked, match, phase, playing, plan, workshops):
             st.button(f"Open {name}", key=f"node_{wid}", on_click=pick, args=(wid,))
     through = bool(st.session_state.get("net_through"))
     steps = rt.steps(model, shown, target, st.session_state.get("net_scenario", "plan"), through, plan)
-    html(legend() + '<ol class="flow">' + "".join(f'<li class="{s}">{esc(t)}</li>' for s, t in steps) + "</ol>")
+    flow = ('<ol class="flow">' + "".join(f'<li class="{s}">{esc(t)}</li>' for s, t in steps) + "</ol>") if phase is not None else ""
+    html(legend() + flow)   # The step list only while a routing run plays; the plain view is the result.
 
 
 def legend() -> str:
-    items = [("rec", "Recommended"), ("sel", "Routing preview"), ("ok", "Strong fit"), ("warn", "Tight fit"), ("late", "Misses the date"),
-             ("out", "Cannot take it"), ("down", "Suspended")]
+    items = [("rec", "Recommended"), ("ok", "Can take it"), ("late", "Misses the date"), ("out", "Cannot take it")]
     return ('<div class="tl-legend">' + "".join(f'<span><i class="{t}"></i>{esc(k)}</span>' for t, k in items)
-            + '<span><i class="flag"></i>Suspect queue</span><span class="hint">Numbers show the engine\'s ranking. Click a workshop for details.</span></div>')
+            + '<span class="hint">Numbers are the engine\'s ranking. Click a workshop for details.</span></div>')
 
 
 # Route tracker --------------------------------------------------------------------
@@ -365,11 +381,10 @@ def route_card(model, target, today, phase, plan):
                  'No active workshop can take this batch as one job. Try a smaller batch, or preview a split in Dispatch.</div>')
             return
         r = model["rows"][target]
-        outcome = state.get("net_scenario", "plan")
         top, ctl = st.columns([1.6, 1], vertical_alignment="center")
         with ctl:
-            st.segmented_control("Outcome", list(OUTCOMES), key="net_scenario", required=True, format_func=OUTCOMES.get,
-                                 label_visibility="collapsed")
+            outcome = bind(st.segmented_control, "Outcome", list(OUTCOMES), key="net_scenario", fallback="plan", required=True,
+                           format_func=OUTCOMES.get, label_visibility="collapsed")
         statuses, word, tone = rt.tracker(phase)
         if phase is None:  # Plain view: a plan preview with the chosen outcome applied.
             if outcome != "plan" and plan["late"] > 0:
@@ -477,27 +492,31 @@ def detail(model, wid, target, today, phase):
             html(f'<div class="tc-primary"><div class="na"><small>Earliest return</small><b>Not eligible</b>'
                  f'<span>{esc(r["reason"].split(". ", 1)[-1])}</span></div>'
                  f'<div><small>Price list</small><b>{w.cost:g}</b><span>a piece</span></div></div>')
-        facts = [("Capacity", f"{w.capacity:,}", "pieces a day"), ("Queue now", f"{r['queue']:.1f}", "days ahead"),
-                 ("Rework rate", f"{w.defect_rate:.0%}", "of batches")]
-        html('<dl class="tc-facts">' + "".join(f"<div><dt>{esc(k)}</dt><dd><b>{esc(v)}</b> {esc(u)}</dd></div>" for k, v, u in facts) + "</dl>")
         why_title = {"rec": "Why this workshop", "sel": "Why it ranks where it does", "warn": "What to know",
                      "block": "Why it cannot take the batch"}.get(variant, "Against the recommendation")
         html(f'<div class="tc-why is-{variant}"><small>{esc(why_title)}</small><p>{esc(r["reason"])}</p></div>')
-        if r["eligible"]:
-            html(outlook_chart(r, today))
-        if r["risks"]:
-            html('<div class="tc-sec">Operational risk</div><ul class="dp-risks">'
-                 + "".join(f'<li class="{t}">{icon({"risk": "error", "warn": "warning", "info": "info"}[t])}<span>{esc(s)}</span></li>' for t, s in r["risks"][:3])
-                 + "</ul>")
         a, b = st.columns(2)
         with a:
             if st.button("View full profile", key="net_profile", width="stretch", icon=":material/badge:"):
                 profile(r, today)
         with b:
             routed = wid == target
-            st.button("Routed here" if routed else "Select for routing", key="net_select", type="primary", width="stretch",
+            st.button("Routed here" if routed else "Route here", key="net_select", type="primary", width="stretch",
                       icon=":material/check:" if routed else ":material/route:", disabled=routed or not r["eligible"],
                       on_click=route_to, args=(wid,), help=None if r["eligible"] else "This workshop cannot take the batch.")
+        html('<p class="ev" style="margin:0.2667rem 0 0">Routing here is a preview. Only Dispatch confirms a decision.</p>')
+        # Details on demand: the facts above decide; these explain.
+        risks = f", {len(r['risks'])} risk flag{'s' if len(r['risks']) != 1 else ''}" if r["risks"] else ""
+        with st.expander(f"Capacity, queue and rework{risks}"):
+            facts = [("Capacity", f"{w.capacity:,}", "pieces a day"), ("Queue now", f"{r['queue']:.1f}", "days ahead"),
+                     ("Rework rate", f"{w.defect_rate:.0%}", "of batches")]
+            html('<dl class="tc-facts">' + "".join(f"<div><dt>{esc(k)}</dt><dd><b>{esc(v)}</b> {esc(u)}</dd></div>" for k, v, u in facts) + "</dl>")
+            if r["eligible"]:
+                html(outlook_chart(r, today))
+            if r["risks"]:
+                html('<div class="tc-sec">Operational risk</div><ul class="dp-risks">'
+                     + "".join(f'<li class="{t}">{icon({"risk": "error", "warn": "warning", "info": "info"}[t])}<span>{esc(s)}</span></li>' for t, s in r["risks"][:3])
+                     + "</ul>")
 
 
 def readiness(r) -> str:

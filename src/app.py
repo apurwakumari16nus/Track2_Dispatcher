@@ -23,57 +23,15 @@ import intake
 import rehearsal
 from desk import (TODAY, ConfirmState, Preview, confirm_preview, confirm_state, filtered_records,  # noqa: F401
                   init_session, load_inputs, make_preview, projected_queues, reset_session, signature)
-from ui import audit, dispatch, explain, lab, network
+from ui import audit, dispatch, explain, guide, lab, network
 from ui.components import banner, esc, html, icon, inject_css, mode_ribbon
 
 PAGES = ["Dispatch", "Workshop Network", "Simulation Lab", "Audit Trail"]
 ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Simulation Lab": ":material/science:",
          "Audit Trail": ":material/verified_user:"}
-# Streamlit drops a widget's state on runs where it is not drawn (other pages).
-# These values are restored when the page that owns them is shown again.
-KEEP = ("desk_today", "desk_preset", "desk_message", "inbox_search", "inbox_filter",
-        "net_category", "net_pieces", "net_due", "net_view", "net_q", "net_scenario", "net_demo", "net_demo_scn",
-        "lab_seed", "lab_focus", "lab_scenario", "lab_late", "lab_order", "lab_space", "lab_evidence_view", "lab_tradeoff",
-        "sb_lateness", "sb_defect", "sb_fairness", "sb_robustness", "sb_cost",
-        "audit_log", "audit_q", "audit_sender", "audit_workshop", "audit_kind", "audit_day")
-TOUR = [("R09", "Normal allocation", "Press Evaluate request, open Why this decision, then confirm."),
-        ("R01", "Clarification", "Press Evaluate request. The desk asks which order is meant."),
-        ("R08", "Refused workshop", "Press Evaluate request. FreshStart is refused with its reason."),
-        ("R02", "Unanswerable request", "Press Evaluate request. The desk names the missing data."),
-        ("R30", "Impossible deadline", "Press Evaluate request, then preview a two-workshop split."),
-        (None, "Audit trail", "Open the confirmed record and its evidence.")]
+# Page values that must survive navigation are kept under their own session keys,
+# never under widget keys (see ui/state.py), so no restore step is needed here.
 SOURCE_LABELS = {"live": "Live model", "cached": "Rehearsal: recorded model replies", "fixture": "Rehearsal: test fixtures"}
-
-
-def tour_go(step, messages):
-    state = st.session_state
-    state["demo_step"] = step
-    rid = TOUR[step][0]
-    if rid is None:
-        state["desk_page"] = "Audit Trail"
-        return
-    line = next((m for m in messages if m.startswith(rid + " ")), "")
-    state["desk_page"] = "Dispatch"
-    dispatch.select_message(line)
-
-
-def tour_exit():
-    st.session_state.pop("demo_step", None)
-
-
-def demo_controller(messages):
-    """Floating product-tour controller. Every step runs the real decision engine."""
-    step = st.session_state.get("demo_step")
-    if step is None:
-        return
-    rid, name, hint = TOUR[step]
-    with st.container(key="demo_ctl", horizontal=True):
-        html(f'<div class="demo-label"><em>DEMO {step + 1} OF {len(TOUR)}</em><b>{esc(name)}</b>'
-             f'{(" " + esc(rid)) if rid else ""}<small>{esc(hint)}</small></div>')
-        st.button("Previous", key="demo_prev", on_click=tour_go, args=(max(step - 1, 0), messages), disabled=step == 0)
-        if step < len(TOUR) - 1:
-            st.button("Next", key="demo_next", on_click=tour_go, args=(step + 1, messages))
-        st.button("Exit", key="demo_exit", on_click=tour_exit)
 
 
 def system_details(state, orders, workshops, messages):
@@ -130,7 +88,7 @@ def sidebar(state, orders, workshops, messages):
         with st.container(key="side_foot"):
             html(status_card(state, workshops))
             st.button("Guided demo", key="demo_start", icon=":material/play_circle:", width="stretch",
-                      on_click=tour_go, args=(0, messages))
+                      on_click=guide.open_intro, help="Follow one request from the inbox to its audit record.")
             system_details(state, orders, workshops, messages)
             html(f'<div class="user-card"><div class="uc-av">{icon("person")}</div><div><b>Dispatcher</b>'
                  '<small>You approve every decision</small></div></div>')
@@ -154,9 +112,6 @@ def main():
         inject_css()
         html(banner("Could not load the register", " " + str(error), "risk"))
         return
-    for key, value in state.get("kept_controls", {}).items():
-        if key not in state:
-            state[key] = value
     init_session(state, workshops)
     if state.get("desk_page") not in PAGES:
         state["desk_page"] = "Dispatch"
@@ -165,6 +120,7 @@ def main():
     inject_css(presentation=state.get("presentation_mode", False))
     sidebar(state, orders, workshops, messages)
     page = state["desk_page"]
+    state["_app_run"] = True   # Cleared below; a fragment-only rerun sees False.
     mode_banner(state)
     if page == "Workshop Network":
         network.render(workshops)
@@ -174,8 +130,8 @@ def main():
         audit.render(workshops)
     else:
         dispatch.render(orders, workshops, messages)
-    demo_controller(messages)
-    state["kept_controls"] = {key: state[key] for key in KEEP if key in state}
+    guide.render(workshops, messages)
+    state["_app_run"] = False
     if page != "Simulation Lab":
         lab.prewarm()  # Cached once per server; the page is already drawn.
 

@@ -59,6 +59,7 @@ SOURCES = {
 
 class RehearsalMiss(intake.IntakeError):
     """The selected rehearsal source has no reply for this exact request."""
+    category = "rehearsal_miss"
 
 
 def live_status() -> dict:
