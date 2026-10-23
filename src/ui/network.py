@@ -137,7 +137,7 @@ def render(workshops):
                         label_visibility="collapsed",
                         format_func=lambda v: {"Network": ":material/hub: Network", "List": ":material/view_agenda: List"}[v])
     with st.container(key="net_bar"):
-        a, b, c, d, e = st.columns([1.25, .95, 1, 1.25, 1.05], vertical_alignment="bottom")
+        a, b, c, d, e = st.columns([1.15, .9, .95, 1.2, 1.25], vertical_alignment="bottom")
         with a:
             category = bind(st.segmented_control, "Category", CATEGORIES, key="net_category", fallback=None, allow_none=True,
                             required=True, format_func=str.capitalize)

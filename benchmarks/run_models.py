@@ -224,6 +224,25 @@ def human_labels():
     return rows
 
 
+def human_accuracy(rows, labels):
+    """Accuracy on the 30 inbox requests against the agreed human labels. None until every label is filled:
+    a partial file is not a frozen reference."""
+    if len(labels) < 30:
+        return None
+    def expected(row):
+        lab = labels.get(row["case"])
+        if lab is None:
+            return None
+        return {"behaviour": lab["expected_behaviour"], "order_id": lab["expected_order_id"] or None,
+                "pieces": int(lab["expected_pieces"]) if lab["expected_pieces"] else None,
+                "category": lab["expected_category"] or None, "due_date": lab["expected_due"] or None,
+                "excluded_workshops": None, "_unscored_exclusions": True}   # labels.csv records exclusions as free text
+    scores, errors, n = field_scores(rows, expected)
+    behaviour = scores.get("behaviour", {})
+    return {"cases": n, "fields": scores, "behaviour_rate": behaviour.get("rate"), "behaviour_ci95": behaviour.get("ci95"),
+            "critical_errors": errors}
+
+
 def field_scores(rows, expected_for):
     by_field, critical_errors, n_cases = defaultdict(lambda: [0, 0]), [], 0
     for row in rows:
@@ -233,7 +252,7 @@ def field_scores(rows, expected_for):
         n_cases += 1
         for field in FIELDS:
             want = exp.get(field)
-            if want is None and field != "excluded_workshops":
+            if want is None and (field != "excluded_workshops" or exp.get("_unscored_exclusions")):
                 continue
             got = row.get(field) if row["status"] == "ok" else "<error>"
             ok = (sorted(got or []) == sorted(want or [])) if field == "excluded_workshops" else got == want
@@ -285,7 +304,7 @@ def summarize(out: Path) -> dict:
             "official_agreement_with_fixture": {"note": "Agreement with the hand-written test fixtures, not accuracy: no human labels exist yet.",
                                                 "fields": agree_scores, "decision_agreement": round(agree_decision / len(decisions), 4) if decisions else None,
                                                 "decision_ci95": wilson(agree_decision, len(decisions))},
-            "official_accuracy_vs_human_labels": None if not labels else "computed when eval/labels.csv is filled",
+            "official_accuracy_vs_human_labels": human_accuracy([r for r in mine if r["set"] == "official"], labels),
         }
     summary = {"run": out.name, "generated_utc": datetime.now(timezone.utc).isoformat(), "models": models,
                "human_labels": f"{len(labels)} of 30 inbox requests labelled", "decision": decide(models)}
@@ -307,6 +326,10 @@ def decide(models) -> dict:
     checks = {}
     sa, ha = s["stress_accuracy"]["critical_field_rate"], h["stress_accuracy"]["critical_field_rate"]
     checks["critical_accuracy_non_inferior"] = None if sa is None or ha is None else ha >= sa - RULE["non_inferiority_margin_pp"] / 100
+    sh, hh = s.get("official_accuracy_vs_human_labels"), h.get("official_accuracy_vs_human_labels")
+    if sh and hh:   # Once the 30 agreed labels exist they are the primary accuracy evidence.
+        checks["inbox_behaviour_non_inferior"] = hh["behaviour_rate"] >= sh["behaviour_rate"] - RULE["non_inferiority_margin_pp"] / 100
+        checks["no_inbox_critical_errors"] = len(hh["critical_errors"]) <= RULE["max_unresolved_critical_errors"]
     checks["no_critical_errors"] = len(h["stress_accuracy"]["critical_errors"]) <= RULE["max_unresolved_critical_errors"]
     checks["clarifies_instead_of_guessing"] = (h["stress_accuracy"]["clarification_recall"] or 0) >= RULE["clarification_recall"]
     checks["schema_valid"] = (h["schema_valid_rate"] or 0) >= RULE["min_schema_valid_rate"]
@@ -315,6 +338,10 @@ def decide(models) -> dict:
     sc, hc = s["cost"]["mean_per_success_usd"], h["cost"]["mean_per_success_usd"]
     checks["cheaper"] = bool(sc and hc and hc <= sc * RULE["max_cost_ratio"])
     passed = all(v is True for v in checks.values())
+    labelled = bool(sh and hh)
+    if labelled and passed:
+        return {"checks": checks, "accuracy_evidence": "30 agreed human labels plus the author-labelled stress set",
+                "verdict": "Haiku 5.5 meets every condition of the pre-registered rule on this run."}
     return {"checks": checks, "accuracy_evidence": "author-labelled stress set only; the 30 inbox requests have no human labels",
             "verdict": ("Haiku meets the rule on this sample, but accuracy rests on unreviewed labels: keep Sonnet as the default "
                         "until the human labels are complete and the run is repeated." if passed else
