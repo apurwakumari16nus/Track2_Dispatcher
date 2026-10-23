@@ -479,8 +479,8 @@ def detail(model, wid, target, today, phase):
     makes = " and ".join(sorted(m.lower() for m in w.makes))
     with st.container(key="net_detail"):
         html(state_line(variant, title, context)
-             + f'<div class="tc-photo"><img src="{photo(wid)}" alt="Illustrative photo for {esc(r["name"])}" width="640" height="360">'
-             f'<span class="ill">Illustrative photo</span><div class="tc-name"><b>{esc(r["name"])}</b>'
+             + f'<div class="tc-photo"><img src="{photo(wid)}" alt="{esc(r["name"])}" width="640" height="360">'
+             f'<div class="tc-name"><b>{esc(r["name"])}</b>'
              f'<span><span class="id">{esc(wid)}</span>, makes {esc(makes)}. {esc(r["note"].capitalize())}</span></div></div>')
         if e:
             spare = e["days_to_spare"]

@@ -466,8 +466,8 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
                ("Total cost", f"{chosen['total_cost']:,.0f}", ""),
                ("Defect risk", f"{chosen['expected_defect_rate']:.0%}", "")]
     tiles = "".join(f'<div class="{cls}"><small>{esc(k)}</small><strong>{esc(v)}</strong></div>' for k, v, cls in metrics)
-    photo = (f'<div class="ws-ph"><img class="ws-photo" src="{BRAND}/workshops/{wid}.webp" alt="Illustrative photo for {esc(name)}">'
-             '<span class="ill">Illustrative photo</span></div>' if (WORKSHOP_PHOTOS / f"{wid}.webp").exists() else "")
+    photo = (f'<div class="ws-ph"><img class="ws-photo" src="{BRAND}/workshops/{wid}.webp" alt="{esc(name)}"></div>'
+             if (WORKSHOP_PHOTOS / f"{wid}.webp").exists() else "")
     evidence = (f'<div class="ws-ev {"ok" if passed else "bad"}">{icon("fact_check" if passed else "error")}'
                 f'{"Every number checked against the tools" if passed else "Evidence check failed"}</div>')
     points = "".join(f"<li>{icon('check_circle')}<span>{esc(p)}</span></li>" for p in why_points(record, chosen, parsed))
