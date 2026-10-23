@@ -18,6 +18,7 @@ for path in (ROOT / "src", ROOT / "harness"):
         sys.path.insert(0, str(path))
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 import intake
 import rehearsal
@@ -63,7 +64,7 @@ def status_card(state, workshops) -> str:
     """System status for the shell. Every row is a real check of this session."""
     source, live = state["desk_source"], rehearsal.live_status()
     if source in ("cached", "fixture"):
-        dot, head, reading, tone = "rehearsal", "Rehearsal mode", ("Recorded replies" if source == "cached" else "Test fixtures"), "warn"
+        dot, head, reading, tone = "rehearsal", "Rehearsal mode", ("Recorded" if source == "cached" else "Fixtures"), "warn"
     elif live["ready"]:
         dot, head, reading, tone = "live", "System ready", "Live model", "ok"
     else:
@@ -132,6 +133,14 @@ def main():
         dispatch.render(orders, workshops, messages)
     guide.render(workshops, messages)
     state["_app_run"] = False
+    if state.get("_shown_page") != page:
+        # A new page opens at its top. Streamlit keeps the old scroll offset, which hid each page's header.
+        # The guided demo scrolls to its own highlighted target instead.
+        if "_shown_page" in state and not guide.active():
+            components.html("<script>try{const d=window.parent.document;"
+                            "for(const s of ['[data-testid=\"stMain\"]','[data-testid=\"stAppViewContainer\"]']){"
+                            "const el=d.querySelector(s);if(el){el.scrollTop=0;}}}catch(e){}</script>", height=0)
+        state["_shown_page"] = page
     if page != "Simulation Lab":
         lab.prewarm()  # Cached once per server; the page is already drawn.
 

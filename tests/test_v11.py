@@ -314,3 +314,17 @@ def test_choosing_a_clarification_option_evaluates_again_without_a_second_click(
     assert len(tracing.load()) == 2   # The edited request was read again in the same click.
     # Rehearsal fixtures cover only the original inbox lines, so the honest outcome here is a named rehearsal miss.
     assert app.session_state["desk_error"]["kind"] == "rehearsal_miss"
+
+
+def test_benchmark_scores_against_human_labels_only_when_all_30_exist():
+    sys.path.insert(0, str(ROOT / "benchmarks"))
+    import run_models
+    # Synthetic test rows, not labels: they exercise the scoring code only.
+    labels = {f"R{i:02d}": {"expected_behaviour": "clarify", "expected_order_id": "", "expected_pieces": "",
+                            "expected_category": "", "expected_due": ""} for i in range(1, 31)}
+    rows = [{"case": "R01", "trial": 1, "status": "ok", "behaviour": "clarify"},
+            {"case": "R02", "trial": 1, "status": "ok", "behaviour": "allocate"}]
+    assert run_models.human_accuracy(rows, dict(list(labels.items())[:29])) is None   # Partial labels are not a reference.
+    scored = run_models.human_accuracy(rows, labels)
+    assert scored["behaviour_rate"] == 0.5 and scored["cases"] == 2 and len(scored["critical_errors"]) == 1
+    assert "excluded_workshops" not in scored["fields"]
