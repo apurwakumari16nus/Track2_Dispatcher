@@ -16,6 +16,7 @@ in `reviewer_1.csv` and `reviewer_2.csv`. Labelling took place after the intake 
 | Agreement before discussion | Behaviour 27/30; issue 29/30 |
 | Reconciled | 24 Oct 2026 |
 | Frozen at commit | 47c0212 (24 Oct 2026) |
+| Revised after freezing | R20, R28, R30 (see below) |
 
 ## Disagreements and resolutions
 
@@ -38,3 +39,4 @@ with no content changes. The final notes in `labels.csv` were simplified by the 
 
 | Date | Request | Change | Reason |
 |---|---|---|---|
+| 24 Oct 2026 | R20, R28, R30 | `refuse` → `allocate` (issues unchanged: `none_makes_date`, `due_date_passed`) | The data dictionary calls these "complete but impossible" and says to give the numbers, the earliest date and the options, and not to allocate silently. Recommending the least-late option while stating that the date is missed fits that better than refusing. Agreed by Vanshika Dhamija and Apurwa Kumari. **This change was made after seeing the system's answers** (the system answered `allocate` for all three). Agreement with the original frozen labels: 27/30. |

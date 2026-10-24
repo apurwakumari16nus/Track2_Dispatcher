@@ -18,7 +18,7 @@ R16,allocate,ORD-024,300,TOPS,2026-04-15,none,none,"Message matches the order. '
 R17,allocate,ORD-017,800,TOPS,2026-04-10,none,none,Message matches the order.
 R18,decline,,,,,order_not_found,none,ORD-999 is not in the order file.
 R19,clarify,,,,,no_order_id,whoever is quickest - Boss,No order named; 'last week's big reorder' could be several orders. Ask which one.
-R20,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,none,"No workshop can make Apr 4 (earliest Apr 17). Say so, give the earliest date and options."
+R20,allocate,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,none,"No workshop can make Apr 4 (earliest Apr 17). Recommend the least-late option, say so, give the earliest date and options."
 R21,allocate,ORD-081,1500,TOPS,2026-04-13,none,cheapest shop that can still make Apr 13 - Chen,Message matches the order. Cheapest workshop that still makes Apr 13; only 2 can.
 R22,allocate,ORD-040,1200,TOPS,2026-04-21,none,none,Message matches the order.
 R23,allocate,ORD-005,500,ACCESSORIES,2026-04-20,none,split across two shops if faster - Priya,Message matches the order. Splitting is allowed.
@@ -26,6 +26,6 @@ R24,refuse,ORD-015,300,TOPS,2026-04-16,ineligible_suggested_workshop,none,Little
 R25,allocate,ORD-109,500,TOPS,2026-04-13,none,keep it away from BudgetWorks - Mei,Message matches the order. Keep it away from BudgetWorks.
 R26,allocate,ORD-010,1000,TOPS,2026-04-25,none,none,Message matches the order.
 R27,allocate,ORD-095,800,TOPS,2026-04-26,none,lowest defect rate - Ravi,Message matches the order. Lowest defect rate wanted.
-R28,refuse,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none,Due Mar 29 has already passed (earliest return Apr 9). Say so and give options.
+R28,allocate,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none,"Due Mar 29 has already passed (earliest return Apr 9). Recommend the least-late option, say so and give options."
 R29,clarify,,,,,multiple_matches,none,"Six open vest orders, no customer named. Ask which one."
-R30,refuse,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none,"No workshop can make Apr 5 (earliest Apr 11). Say so, give the earliest date and options."
+R30,allocate,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none,"No workshop can make Apr 5 (earliest Apr 11). Recommend the least-late option, say so, give the earliest date and options."
