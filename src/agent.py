@@ -17,6 +17,7 @@ import faithfulness
 import intake
 from objectives import ObjectiveConfig, PRESETS
 import tools
+import tracing
 
 
 @dataclass
@@ -138,7 +139,10 @@ class Agent:
         effective = _objective(parsed, self.config)
         exclude = list(parsed.excluded_workshops)
         must_make_date = parsed.must_make_date or parsed.preference == "cheapest"
-        lookups = tools.order_options(orders_df, parsed.candidate_order_ids or ([parsed.order_id] if parsed.order_id else []))
+        with tracing.span("order_lookup"):
+            lookups = tools.order_options(orders_df, parsed.candidate_order_ids or ([parsed.order_id] if parsed.order_id else []))
+        if parsed.behaviour not in {"allocate", "refuse"}:
+            tracing.skipped("allocation", f"behaviour is {parsed.behaviour}")
         record = DecisionRecord(
             order_id=parsed.order_id or "", chosen_workshop=None, objective_name=effective.name,
             candidates=[], ineligible=[], reason_chosen="No allocation decision requested",
@@ -170,14 +174,18 @@ class Agent:
                          "sent_date": today, "due_date": parsed.due_date}
                 preview = deepcopy(self.allocator)
                 preview.config = effective
-                record = preview.decide(batch, workshops, queues, today, exclude=exclude, must_make_date=must_make_date)
-                evidence["eligibility"] = tools.check_eligibility(batch, workshops)
+                with tracing.span("allocation"):
+                    record = preview.decide(batch, workshops, queues, today, exclude=exclude, must_make_date=must_make_date)
+                with tracing.span("eligibility"):
+                    evidence["eligibility"] = tools.check_eligibility(batch, workshops)
                 text = prefix + _choice_text(record, alternative=parsed.behaviour == "refuse")
-                if record.chosen_workshop:
-                    evidence["queue"] = tools.queue_check(record.chosen_workshop, workshops, queues)
-                    evidence["overload"] = tools.overload_probe(batch, record.chosen_workshop, workshops, queues)
+                with tracing.span("evidence"):
+                    if record.chosen_workshop:
+                        evidence["queue"] = tools.queue_check(record.chosen_workshop, workshops, queues)
+                        evidence["overload"] = tools.overload_probe(batch, record.chosen_workshop, workshops, queues)
+                    split = (tools.estimate_split(batch, workshops, queues, today, exclude, record.chosen_workshop)
+                             if parsed.split_allowed else None)
                 if parsed.split_allowed:
-                    split = tools.estimate_split(batch, workshops, queues, today, exclude, record.chosen_workshop)
                     evidence["split"] = split
                     text += " " + _split_text(split)
                     for option in record.options:
@@ -206,7 +214,8 @@ class Agent:
             warnings.append("AWKWARD CASE: no_eligible. No whole-batch allocation has been made.")
         text = "\n".join([*warnings, text])
         serialized = record.to_dict()
-        audit = faithfulness.check(text, serialized)
+        with tracing.span("explanation_check"):
+            audit = faithfulness.check(text, serialized)
         if not audit["passed"]:
             raise ValueError(f"Explanation contains unsupported numbers: {audit['unmatched']}")
         committed = (preview is not None and parsed.behaviour == "allocate"

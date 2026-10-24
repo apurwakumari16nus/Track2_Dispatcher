@@ -9,18 +9,22 @@ Labels are not read by this module or included in the prompt.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 import json
 import os
 from pathlib import Path
 import re
+import time
 from typing import Any, Literal
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from tools import check_eligibility
+import tracing
 
 Behaviour = Literal["allocate", "clarify", "refuse", "decline"]
 Category = Literal["TOPS", "ACCESSORIES"]
@@ -79,13 +83,38 @@ class IntakeError(ValueError):
 
     Raw response and validation evidence remain available for caller-side logs.
     The caller must request human review, not dispatch on a failed extraction.
+    category names the failure class the UI explains (see ERROR_CATEGORIES).
     """
-    def __init__(self, reason: str, *, raw_response=None, raw_json=None, metadata=None):
+    category = "invalid_output"
+
+    def __init__(self, reason: str, *, raw_response=None, raw_json=None, metadata=None, category=None):
         super().__init__(reason)
         self.raw_llm_response = raw_response
         self.raw_llm_json = raw_json
         self.llm_metadata = metadata or {}
+        if category:
+            self.category = category
         self.post_checks = [{"rule": "extraction_validation", "result": "failed", "reason": reason}]
+
+
+class ProviderError(IntakeError):
+    """The model provider could not be reached or rejected the call. Transient or configuration, never business data."""
+
+
+# Failure classes a dispatcher sees. "retry" says whether trying again can help.
+ERROR_CATEGORIES = {
+    "unconfigured": ("Language model not configured", "Add the API key and model to .env, or use rehearsal mode.", False),
+    "auth": ("The model provider rejected the API key", "Check ANTHROPIC_API_KEY in .env, or use rehearsal mode.", False),
+    "bad_request": ("The model provider rejected the request", "Check the model name in .env. The request itself was not changed.", False),
+    "timeout": ("The model did not answer in time", "Try again. Nothing was allocated.", True),
+    "connection": ("The model provider could not be reached", "Check the network connection, then try again.", True),
+    "rate_limit": ("The model provider is limiting requests", "Wait a moment, then try again.", True),
+    "provider_unavailable": ("The model provider is temporarily unavailable", "Try again shortly, or use rehearsal mode.", True),
+    "refusal": ("The model declined to read this request", "Rephrase the request, or handle it manually.", False),
+    "incomplete": ("The model's answer was cut off", "Try again. Nothing was allocated.", True),
+    "invalid_output": ("The model's answer did not match the required structure", "Try again; Python will not act on it.", True),
+    "rehearsal_miss": ("No rehearsal extraction exists for this text", "Use the live model for new or edited text.", False),
+}
 
 
 @dataclass
@@ -178,7 +207,7 @@ def llm_settings() -> tuple[str, str]:
     load_dotenv(PROJECT_ROOT / ".env", override=False)
     provider = os.environ.get("LLM_PROVIDER", "anthropic").strip().lower() or "anthropic"
     if provider not in PROVIDERS:
-        raise IntakeError(f"LLM_PROVIDER must be one of {sorted(PROVIDERS)}, not {provider!r}")
+        raise IntakeError(f"LLM_PROVIDER must be one of {sorted(PROVIDERS)}, not {provider!r}", category="unconfigured")
     return provider, os.environ.get(PROVIDERS[provider][1], "").strip()
 
 
@@ -191,6 +220,25 @@ def _anthropic_schema(node):
     return node
 
 
+_EXTRACTION_SOURCE: ContextVar = ContextVar("intake_extraction_source", default=None)
+
+
+@contextmanager
+def extraction_source(call):
+    """Route this context's raw extraction to call(system_prompt, message).
+
+    The app uses this for its labelled rehearsal sources and stage display.
+    It is context-local, so concurrent Streamlit sessions cannot share a source.
+    Only the origin of the raw JSON reply changes: schema validation and every
+    Python post-check below run unchanged.
+    """
+    token = _EXTRACTION_SOURCE.set(call)
+    try:
+        yield
+    finally:
+        _EXTRACTION_SOURCE.reset(token)
+
+
 def _call_llm(system_prompt: str, message: str) -> LLMReply:
     """Single provider boundary, replaced with a fixture in normal CI.
 
@@ -201,37 +249,89 @@ def _call_llm(system_prompt: str, message: str) -> LLMReply:
     provider, model = llm_settings()
     key_var, model_var = PROVIDERS[provider]
     if not model or not os.environ.get(key_var):
-        raise IntakeError(f"Set {key_var} and {model_var} for live intake")
+        raise IntakeError(f"Set {key_var} and {model_var} for live intake", category="unconfigured")
     if provider == "anthropic":
         return _call_anthropic(model, system_prompt, message)
     return _call_openai(model, system_prompt, message)
 
 
-def _call_anthropic(model: str, system_prompt: str, message: str) -> LLMReply:
+ANTHROPIC_TIMEOUT_S, ANTHROPIC_MAX_RETRIES = 60.0, 2
+# Models that accept the server-side refusal fallback (fallbacks="default"). Claude Haiku 5.5 has no
+# server-side fallback, so the parameter is only sent where it is supported.
+SERVER_FALLBACK_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5", "claude-opus-5", "claude-fable-5-1")
+
+
+def _anthropic_category(error) -> str:
+    import anthropic
+    for cls, category in ((anthropic.AuthenticationError, "auth"), (anthropic.PermissionDeniedError, "auth"),
+                          (anthropic.APITimeoutError, "timeout"), (anthropic.APIConnectionError, "connection"),
+                          (anthropic.RateLimitError, "rate_limit"), (anthropic.InternalServerError, "provider_unavailable"),
+                          (anthropic.BadRequestError, "bad_request"), (anthropic.NotFoundError, "bad_request")):
+        if isinstance(error, cls):
+            return category
+    status = getattr(error, "status_code", None)
+    return "provider_unavailable" if status and status >= 500 else "bad_request" if status else "connection"
+
+
+def _attempt_hooks(attempts: list):
+    """HTTP client hooks that time every HTTP attempt the SDK makes, retries included (no bodies, no headers kept)."""
+    def on_request(request):
+        attempts.append({"retry": int(request.headers.get("x-stainless-retry-count", "0") or 0),
+                         "start_ns": time.perf_counter_ns(), "status": None, "ms": None})
+
+    def on_response(response):
+        if attempts:
+            attempts[-1].update(status=response.status_code, ms=round((time.perf_counter_ns() - attempts[-1]["start_ns"]) / 1e6, 3))
+    return {"request": [on_request], "response": [on_response]}
+
+
+def _call_anthropic(model: str, system_prompt: str, message: str, *, effort: str | None = None) -> LLMReply:
     """Claude Messages API with JSON-schema structured output.
 
     Current Claude models reject non-default temperature, so none is sent.
     fallbacks="default" lets the API re-run a safety-declined request on
-    Anthropic's recommended fallback model; metadata records which model served.
+    Anthropic's recommended fallback model; metadata records which model served
+    (served_model) next to the one requested, and flags a fallback.
+    Every HTTP attempt is timed through httpx hooks, so SDK retries are visible.
+    The attempt time is headers-received; the body read is inside provider_ms.
     See https://platform.claude.com/docs/en/build-with-claude/structured-outputs .
     """
-    from anthropic import Anthropic
+    import anthropic
 
-    with Anthropic(timeout=60.0, max_retries=2) as client:
-        response = client.beta.messages.create(
-            model=model, max_tokens=4096, system=system_prompt,
-            messages=[{"role": "user", "content": message}],
-            output_config={"format": {"type": "json_schema",
-                                      "schema": _anthropic_schema(JSON_SCHEMA)}},
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-        )
-    metadata = {"provider": "anthropic", "model": response.model, "response_id": response.id,
-                "temperature": None, "stop_reason": response.stop_reason,
-                "usage": response.usage.model_dump() if response.usage else None}
+    attempts: list[dict] = []
+    started = time.perf_counter_ns()
+    fallback = model in SERVER_FALLBACK_MODELS
+    base = {"provider": "anthropic", "requested_model": model, "temperature": None, "effort": effort or "model default",
+            "fallbacks_enabled": fallback, "timeout_s": ANTHROPIC_TIMEOUT_S, "max_retries": ANTHROPIC_MAX_RETRIES}
+    output_config = {"format": {"type": "json_schema", "schema": _anthropic_schema(JSON_SCHEMA)}}
+    if effort:
+        output_config["effort"] = effort
+    extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if fallback else {}
+    try:
+        with anthropic.DefaultHttpxClient(event_hooks=_attempt_hooks(attempts), timeout=ANTHROPIC_TIMEOUT_S) as http, \
+                anthropic.Anthropic(timeout=ANTHROPIC_TIMEOUT_S, max_retries=ANTHROPIC_MAX_RETRIES, http_client=http) as client:
+            response = client.beta.messages.create(
+                model=model, max_tokens=4096, system=system_prompt,
+                messages=[{"role": "user", "content": message}],
+                output_config=output_config, **extra,
+            )
+    except anthropic.AnthropicError as error:
+        category = _anthropic_category(error)
+        metadata = {**base, "provider_ms": round((time.perf_counter_ns() - started) / 1e6, 3),
+                    "attempts": [{k: v for k, v in a.items() if k != "start_ns"} for a in attempts],
+                    "error_category": category, "status_code": getattr(error, "status_code", None)}
+        tracing.note(llm=metadata)
+        raise ProviderError(ERROR_CATEGORIES[category][0], metadata=metadata, category=category) from error
+    usage = response.usage.model_dump() if response.usage else None
+    served = response.model
+    metadata = {**base, "model": served, "served_model": served, "fallback": not str(served).startswith(model),
+                "response_id": response.id, "stop_reason": response.stop_reason, "usage": usage,
+                "provider_ms": round((time.perf_counter_ns() - started) / 1e6, 3),
+                "attempts": [{k: v for k, v in a.items() if k != "start_ns"} for a in attempts]}
     text = next((b.text for b in response.content if b.type == "text"), None)
     if response.stop_reason != "end_turn" or not text:
-        raise IntakeError("LLM refused or returned an incomplete extraction",
-                          raw_response=text, metadata=metadata)
+        category = "refusal" if response.stop_reason == "refusal" else "incomplete"
+        raise IntakeError(ERROR_CATEGORIES[category][0], raw_response=text, metadata=metadata, category=category)
     return LLMReply(text, metadata)
 
 
@@ -240,25 +340,33 @@ def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
 
     See https://developers.openai.com/api/docs/guides/structured-outputs .
     """
+    import openai
     from openai import OpenAI
 
-    with OpenAI(timeout=30.0, max_retries=2) as client:
-        response = client.chat.completions.create(
+    try:
+        with OpenAI(timeout=30.0, max_retries=2) as client:
+            response = client.chat.completions.create(
             model=model, temperature=0, store=False,
-            messages=[{"role": "system", "content": system_prompt},
-                      {"role": "user", "content": message}],
-            response_format={"type": "json_schema", "json_schema": {
-                "name": "dispatch_intake", "strict": True, "schema": JSON_SCHEMA,
-            }},
-        )
+                messages=[{"role": "system", "content": system_prompt},
+                          {"role": "user", "content": message}],
+                response_format={"type": "json_schema", "json_schema": {
+                    "name": "dispatch_intake", "strict": True, "schema": JSON_SCHEMA,
+                }},
+            )
+    except openai.OpenAIError as error:
+        category = ("auth" if isinstance(error, openai.AuthenticationError) else "timeout" if isinstance(error, openai.APITimeoutError)
+                    else "connection" if isinstance(error, openai.APIConnectionError) else "rate_limit" if isinstance(error, openai.RateLimitError)
+                    else "provider_unavailable" if isinstance(error, openai.InternalServerError) else "bad_request")
+        raise ProviderError(ERROR_CATEGORIES[category][0], metadata={"provider": "openai", "requested_model": model},
+                            category=category) from error
     metadata = {"provider": "openai", "model": response.model, "response_id": response.id, "temperature": 0,
                 "usage": response.usage.model_dump() if response.usage else None}
     if not response.choices:
-        raise IntakeError("LLM returned no completion", metadata=metadata)
+        raise IntakeError("LLM returned no completion", metadata=metadata, category="incomplete")
     choice = response.choices[0]
     if choice.message.refusal or choice.finish_reason != "stop" or not choice.message.content:
-        raise IntakeError("LLM refused or returned an incomplete extraction",
-                          raw_response=choice.message.content, metadata=metadata)
+        category = "refusal" if choice.message.refusal else "incomplete"
+        raise IntakeError(ERROR_CATEGORIES[category][0], raw_response=choice.message.content, metadata=metadata, category=category)
     return LLMReply(choice.message.content, metadata)
 
 
@@ -318,14 +426,30 @@ def parse_request(message: str, today: date, orders_df, workshops) -> ParsedRequ
     if orders_df["order_id"].isna().any() or orders_df["order_id"].astype(str).str.casefold().duplicated().any():
         raise ValueError("orders_df must contain unique non-null order IDs")
 
-    reply = _call_llm(build_system_prompt(today, orders_df, workshops), message)
+    with tracing.span("llm.prepare"):
+        prompt = build_system_prompt(today, orders_df, workshops)
+    with tracing.span("llm.call") as call_span:
+        reply = (_EXTRACTION_SOURCE.get() or _call_llm)(prompt, message)
+        if call_span is not None:
+            call_span.attrs.update(source=reply.metadata.get("extraction_source", "live"))
+    tracing.note(llm={k: v for k, v in reply.metadata.items() if k not in ("recorded_file",)})
     raw = None
     try:
-        raw = json.loads(reply.content)
-        extraction = Extraction.model_validate(raw)
+        with tracing.span("llm.parse"):
+            if not isinstance(reply.content, str):
+                raise IntakeError("The model returned no text", raw_response=reply.content, metadata=reply.metadata, category="incomplete")
+            raw = json.loads(reply.content)
+        with tracing.span("llm.validate"):
+            extraction = Extraction.model_validate(raw)
     except (json.JSONDecodeError, ValidationError) as error:
         raise IntakeError("LLM extraction did not match the JSON schema", raw_response=reply.content,
-                          raw_json=raw, metadata=reply.metadata) from error
+                          raw_json=raw, metadata=reply.metadata, category="invalid_output") from error
+    with tracing.span("validation"):
+        return _post_checks(message, today, orders_df, workshops, extraction, raw, reply)
+
+
+def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -> ParsedRequest:
+    """Deterministic Python checks on a schema-valid extraction (see parse_request)."""
     fields = extraction.model_dump()
     # The model's behaviour, reason and missing_fields stay in raw_llm_json for
     # audit. They cannot bypass deterministic business rules or field checks.
