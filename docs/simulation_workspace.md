@@ -1,5 +1,9 @@
 # What Track 2 is building
 
+> Updated by [Product UI v2](product_ui_v2.md): this workspace is now the
+> Simulation Lab (Overview, Objective trade-offs, Disruption, Order audit, Course
+> evidence). Dispatch is the landing page. The experiment logic is unchanged.
+
 The project brief (Capstone_Project_Tracks_v4.pdf) asks for a
 quick-response subcontracting system with two demonstrable paths:
 

@@ -85,13 +85,14 @@ you do not need anyone's personal files to run it. `--offline` means reuse an
 existing matching cache without new API calls; it does **not** create mock replies.
 Do not set `TRACK2_INTAKE_REAL_LLM=1` for ordinary offline tests.
 
-The app opens on the Simulation dashboard for one-seed exploration. Its exports
-are diagnostics; the CLI comparison above supplies the required ten-seed means.
-Both use the same eight official metrics.
+The app opens on **Dispatch**; the other areas are Workshop Network, Simulation
+Lab and Audit Trail (see [Product UI v4](product_ui_v4.md)). The Lab's single-seed
+views are diagnostics; its Course evidence tab and the CLI comparison above supply
+the required ten-seed means. Both use the same eight official metrics.
 
 ## 4. How to use the app
 
-1. Select **Dispatch** in the sidebar. Keep **Today = 2026-04-01** for the supplied inbox scenario. Choose an objective;
+1. Start on **Dispatch**. Keep the **scenario date 01/04/2026** for the supplied inbox scenario. Choose an objective;
    its weights are shown alongside it.
 2. Select an inbox request or enter new text, then click **Dispatch**.
 3. Read the verdict and any warning before the recommendation. The four outcomes
