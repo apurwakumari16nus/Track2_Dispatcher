@@ -370,11 +370,42 @@ def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
     return LLMReply(choice.message.content, metadata)
 
 
+_MONTH_NUMBER = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+                 "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+_MONTH = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+          r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
+_EMBEDDED_DATE = re.compile(
+    r"(?P<iso>\b\d{4}-\d{2}-\d{2}\b)"
+    rf"|\b{_MONTH.replace('(', '(?P<m1>', 1)}\.?\s+(?P<d1>\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(?P<y1>\d{{4}})\b)?"
+    rf"|\b(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+{_MONTH.replace('(', '(?P<m2>', 1)}\b\.?(?:\s+(?P<y2>\d{{4}})\b)?",
+    re.IGNORECASE)
+
+
+def _embedded_date(text: str, today: date) -> date | None:
+    """The single explicit date inside a phrase such as 'back by Apr 21'.
+
+    Two different dates, or none, return None so the request is clarified.
+    """
+    found = set()
+    for m in _EMBEDDED_DATE.finditer(text):
+        try:
+            if m["iso"]:
+                found.add(date.fromisoformat(m["iso"]))
+            elif m["d1"]:
+                found.add(date(int(m["y1"] or today.year), _MONTH_NUMBER[m["m1"][:3].lower()], int(m["d1"])))
+            else:
+                found.add(date(int(m["y2"] or today.year), _MONTH_NUMBER[m["m2"][:3].lower()], int(m["d2"])))
+        except ValueError:
+            continue   # impossible calendar date, e.g. Feb 30
+    return found.pop() if len(found) == 1 else None
+
+
 def _calendar_date(value, today: date) -> date | None:
     """Parse explicit dates only; missing years use today's year, never roll forward.
 
     'today' is the supplied reference itself. Other relative/weekday expressions
     stay unresolved for a later date tool or clarification; no date arithmetic.
+    A copied phrase such as 'back by Apr 21' yields its one explicit date.
     """
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return None
@@ -394,7 +425,7 @@ def _calendar_date(value, today: date) -> date | None:
                 return datetime.strptime(candidate, fmt).date()
             except ValueError:
                 pass
-    return None
+    return _embedded_date(text, today)
 
 
 def _key(value: str) -> str:
