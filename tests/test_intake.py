@@ -164,6 +164,18 @@ def test_changed_invalid_or_relative_dates_do_not_reuse_old_csv_date(literal, un
     assert "due_date" in result.missing_fields
 
 
+@pytest.mark.parametrize("literal,expected", [
+    ("back by Apr 21", date(2026, 4, 21)), ("due Apr 13", date(2026, 4, 13)),
+    ("ship date Apr 17", date(2026, 4, 17)), ("Deadline: 5 April", date(2026, 4, 5)),
+    ("needs to ship April 15th", date(2026, 4, 15)), ("by 2026-04-07", date(2026, 4, 7)),
+    ("due Mar 29", date(2026, 3, 29)),
+    # Still unresolved: relative, no month, two different dates, impossible date, non-month word.
+    ("next Friday", None), ("by the 19th", None), ("moved from Apr 10 to Apr 15", None),
+    ("due Feb 30", None), ("ask Martin 5 times", None)])
+def test_explicit_date_inside_a_copied_phrase(literal, expected):
+    assert intake._calendar_date(literal, TODAY) == expected
+
+
 def test_missing_csv_date_clarifies(data, extract):
     orders, workshops = data
     orders.loc[orders.order_id == "ORD-099", "due_date"] = None
