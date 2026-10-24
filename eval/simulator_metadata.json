@@ -33,7 +33,7 @@
     "data/workshops.csv": "d7e1c97d3d338a2b5aef8e35f167e3582f22c4526e9c736c5b4c8125505ec59e",
     "harness/simulate.py": "b845804ad1229f593627b6ef1a6482258331178dbc4ec535274103fc3244593b",
     "src/tools.py": "4f1621b079e3dc43a41879300aa2142c057b3b09586b85cf8eab2250644fa423",
-    "src/objectives.py": "a0f018221e6b2c784b5520da0ad0b002ba2cd47ce4f3b884b2c2bbd37b111d3b",
+    "src/objectives.py": "a18f3033165daac69c23b826bd6f478c2d424bd9119740fa4606497af062926a",
     "src/allocator.py": "c543eb93c93467669c90e81c83946abdf65ccd23f8acfadc8f93350b6aa0ae49",
     "src/heuristic.py": "730c3cebb9c5279f904806a9bce1de398e709a3a630a352f05ee1f75f2a44469",
     "eval/run_simulator.py": "bdaa5d16248c1031d54fefe072444b0a0a2faa73a11ce35a207c96f9936f8e1c"

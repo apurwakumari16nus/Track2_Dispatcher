@@ -81,7 +81,8 @@ def test_score_terms_and_weighting_match_hand_calculation(workshops):
     })
     all_weights = ObjectiveConfig(1, 1, 1, 1, 1)
     assert score_candidate(cand, all_weights, state) == pytest.approx(2.205)
-    assert score_candidate(cand, PRESETS["hybrid_lateness_fairness"], state) == pytest.approx(0.4285)
+    # Hybrid preset 0.9 lateness + 0.1 fairness: 0.9 * 0.505 + 0.1 * 0.25.
+    assert score_candidate(cand, PRESETS["hybrid_lateness_fairness"], state) == pytest.approx(0.4795)
     assert (cand, workshops, state["pieces_by_workshop"], monitor.__dict__) == before
 
 
