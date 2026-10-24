@@ -1,68 +1,40 @@
-# Human label reconciliation
+# Label reconciliation
 
-Status: not started. Do not replace these placeholders with invented review
-results. Keep the two independent CSVs as the original evidence.
+Final agreed labels: `../labels.csv`. The two independent passes are kept unchanged
+in `reviewer_1.csv` and `reviewer_2.csv`. Labelling took place after the intake was built.
 
-Intake is already implemented while labels remain blank. Record the actual
-sequence; do not claim that labels were frozen before intake development.
+## Summary
 
-## Review metadata
-
-| Item | Human entry |
+| Item | Entry |
 |---|---|
-| Reviewer 1 name | |
-| Reviewer 1 independent pass completed | |
-| Reviewer 2 name | |
-| Reviewer 2 independent pass completed | |
-| Prior exposure to AI-generated discussion or system output, by reviewer | |
-| Source data version / commit | |
-| Intake version already present when labeling began | |
-| Shared queue assumption, if feasibility is assessed | |
-| Reconciliation date | |
-| Final labels commit ID (frozen before final evaluation) | |
-| Expected-behaviour agreement before discussion, out of 30 | |
-| Primary-issue agreement before discussion, out of 30 | |
-| Requests with any field disagreement before discussion | |
+| Reviewer 1 | Vanshika Dhamija, completed 23–24 Oct 2026 |
+| Reviewer 2 | Apurwa Kumari, completed 24 Oct 2026 |
+| AI use | **Reviewer 1:** behaviour labels are her own. The other columns were drafted by an AI assistant from the rubric and data, then reviewed by her. She had discussed R03, R09 and R18 with the assistant beforehand, and R18 was corrected (`refuse` → `decline`) after an AI-assisted check, before the comparison. **Reviewer 2:** notes produced with AI; Reviewer 2 is also a developer of the intake code. |
+| Data | Data v3 (commit 4215478); `dispatch_requests.txt` SHA-256 dd00a2db398e4acaea1becf82137b6d7526c746621c28af5534806105d50117a |
+| Intake version at labelling | `main` aa27848 |
+| Assumptions | Today = 2026-04-01; queues from `workshops.csv`; return date = today + round(queue + pieces ÷ capacity + lead days) |
+| Agreement before discussion | Behaviour 27/30; issue 29/30 |
+| Reconciled | 24 Oct 2026 |
+| Frozen at commit | [add after commit] |
 
-## Disagreement log
+## Disagreements and resolutions
 
-Copy this block for each actual disagreement. If there were no disagreements,
-say so only after both independent reviews and the comparison are complete.
+| Request | Reviewer 1 | Reviewer 2 | Agreed | Reason |
+|---|---|---|---|---|
+| R20, R28, R30 | `refuse` | `decline` | `refuse` | The request can't be accepted as asked, because no workshop meets the date. `decline` is kept for questions our data can't answer, and here the data does answer (it gives the earliest date). The response must state the earliest date and options* |
+| R08, R11, R14, R24 | constraint `none` | suggested workshop as constraint | `none` | A suggested workshop is not an instruction; it is noted in `notes` |
+| R01 | `multiple_matches` | `no_order_id` | `multiple_matches` | Customer + product match 2 orders* |
+| R19 | constraint "quickest - Boss" | `none` | "whoever is quickest - Boss" | The preference is stated in the message* |
+| R13 | quantity, category, due blank | filled from the order | blank | A price question needs no allocation fields |
+| R09, R12, R21, R23, R25, R27 | same constraint, different wording | | one plain wording | Same meaning |
 
-### Request: [request_id]
+\* Suggested by the AI assistant; agreed by both reviewers in discussion.
 
-- Fields that differed:
-- Reviewer 1's original label and reasoning:
-- Reviewer 2's original label and reasoning:
-- Evidence from the request and source data:
-- Agreed behaviour, primary issue, and factual fields:
-- Constraints and their source/person:
-- Secondary issues the response must still address:
-- Why the team chose this interpretation:
-- Reviewers confirming the resolution and date:
+**Process note:** a spreadsheet re-save removed the underscores from issue values and
+changed the date format in Reviewer 1's file. These were fixed before the comparison,
+with no content changes. The final notes in `labels.csv` were simplified by the AI assistant.
 
-## Paragraph for Evaluation.pdf
+## Changes after freezing
 
-Fill this in after the work is done; remove brackets and any claims that are not
-true. Include actual disagreement examples rather than a generic statement.
-
-> Intake had already been implemented at [version/commit] when labeling began
-> on [actual date]. [Reviewer 1] and [reviewer 2] independently labeled all 30
-> supplied requests using [source data version] and 1 April 2026
-> as the fixed current date. They used the same ordered rubric and [queue
-> assumptions, if applicable]. Their prior exposure to AI-generated discussion
-> or system output was [describe accurately]. Before reconciliation, they agreed
-> on expected behaviour for [n]/30 requests and primary issue for [m]/30 requests.
-> They disagreed on [actual requests/fields]: [explain the competing interpretations
-> and why the source evidence supported the resolution]. Both original label
-> files were preserved, and the agreed labels were frozen on [date/commit]
-> before final scoring, not before intake development. Labels were based on the
-> requests and source data, rather than adjusted to the system's predictions.
-> Development use and later corrections were [describe], and held-out evaluation
-> used [describe only what
-> was actually reserved and evaluated, or state that it remains pending].
-
-## Changes after the labels were frozen
-
-| Date | Request | Original label | Revised label | Source-based reason | Reviewers |
-|---|---|---|---|---|---|
+| Date | Request | Change | Reason |
+|---|---|---|---|
