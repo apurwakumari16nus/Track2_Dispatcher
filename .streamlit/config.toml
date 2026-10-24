@@ -1,10 +1,55 @@
+# Threadline by Sweater Co: pearl canvas, navy textile shell. Component styling: src/ui/theme.css.
+# Fonts are self-hosted (src/static/fonts, SIL Open Font License) so the app looks the
+# same online, offline and on every machine.
+[server]
+enableStaticServing = true
+
 [theme]
 base = "light"
-primaryColor = "#146c63"
-backgroundColor = "#f5f8f8"
-secondaryBackgroundColor = "#edf2f2"
-textColor = "#172d32"
-font = "sans serif"
+primaryColor = "#2A77E8"
+backgroundColor = "#F7F9FC"
+secondaryBackgroundColor = "#EEF3F9"
+textColor = "#102238"
+borderColor = "#DDE4EC"
+linkColor = "#1F63C9"
+font = "Mona Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+headingFont = "Mona Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+codeFont = "Geist Mono, 'SF Mono', ui-monospace, Menlo, Consolas, monospace"
+baseFontSize = 15
+baseRadius = "12px"
+buttonRadius = "12px"
+showWidgetBorder = true
+showSidebarBorder = false
+dataframeHeaderBackgroundColor = "#F7F9FC"
+dataframeBorderColor = "#E1E8EF"
+codeBackgroundColor = "#F7F9FC"
+greenColor = "#167F4C"
+orangeColor = "#8C5A06"
+redColor = "#B53A33"
+blueColor = "#2A77E8"
+chartCategoricalColors = ["#5F78F5", "#149E8B", "#E8692F", "#8B6CE0", "#2E8BC0"]
+
+[[theme.fontFaces]]
+family = "Mona Sans"
+url = "app/static/fonts/MonaSans-Variable.woff2"
+weight = "200 900"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Geist Mono"
+url = "app/static/fonts/GeistMono-Variable.woff2"
+weight = "100 900"
+style = "normal"
+
+[theme.sidebar]
+backgroundColor = "#0A1E3A"
+secondaryBackgroundColor = "#123A66"
+textColor = "#EAF1F8"
+borderColor = "#21426B"
+primaryColor = "#5ED8FF"
+
+[client]
+toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false

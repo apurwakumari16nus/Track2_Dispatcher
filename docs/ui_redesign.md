@@ -1,5 +1,9 @@
 # Dispatch workspace redesign
 
+> Superseded by [Product UI v2](product_ui_v2.md), which implements items 2, 3 and
+> 5 below (visual candidate comparison, labelled rehearsal mode with isolated
+> audit storage and reset, and prominent late/split/escalation options).
+
 Based on Track 2 in Capstone_Project_Tracks_v4.pdf, pages 4–7.
 
 The brief calls for a dispatcher who can compare eligibility, estimates and the

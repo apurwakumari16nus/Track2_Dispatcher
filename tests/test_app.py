@@ -15,6 +15,7 @@ from allocator import Allocator
 import intake
 from objectives import PRESETS
 import records
+import rehearsal
 from simulate import load_workshops
 import tools
 
@@ -32,6 +33,7 @@ def setup(monkeypatch, tmp_path):
         return intake.LLMReply(json.dumps(raw), {"model": "synthetic-fixture"})
     monkeypatch.setattr(intake, "_call_llm", fake)
     monkeypatch.setattr(records, "DEFAULT_PATH", tmp_path / "records/decisions.jsonl")
+    monkeypatch.setattr(rehearsal, "RECORD_DIR", tmp_path / "rehearsal_cache")
     orders, shops, messages = app.load_inputs()
     return orders, shops, {wid: w.queue0 for wid, w in shops.items()}, {m.split()[0]: m for m in messages}, calls
 
@@ -135,39 +137,46 @@ def test_streamlit_load_click_dispatch_confirm_and_log_reruns(setup):
     at.run()
     assert not at.exception
     assert len([b for b in at.button if b.key and b.key.startswith("inbox_R")]) == 30
-    assert at.date_input(key="desk_today").value == app.TODAY
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
     assert not records.DEFAULT_PATH.exists()
     at.button(key="inbox_R30").click().run()
-    assert at.text_area(key="desk_message").value == setup[3]["R30"]
-    next(b for b in at.button if b.label == "Dispatch").click().run()
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R30"]
+    at.button(key="desk_dispatch").click().run()
     assert not at.exception and not records.DEFAULT_PATH.exists()
     assert len(setup[4]) == 1
-    assert "ALLOCATE" in " ".join(m.value for m in at.markdown)
+    assert "Least-late option" in " ".join(m.value for m in at.markdown)
     assert not at.button(key="desk_confirm").disabled
     at.button(key="desk_confirm").click().run()
     assert not at.exception and len(records.load()) == 1
-    assert at.button(key="desk_confirm").disabled
+    keys = [b.key for b in at.button]
+    assert "desk_confirm" not in keys and "desk_view_audit" in keys  # Confirmed state replaces the action.
     at.run()
     assert len(records.load()) == 1 and len(setup[4]) == 1
-    at.radio(key="desk_page").set_value("Decision log").run()
+    at.radio(key="desk_page").set_value("Audit Trail").run()
     assert not at.exception
-    assert at.selectbox(key="desk_log_sender").options == ["All senders", "Mei"]
+    assert at.multiselect(key="_w_audit_sender").options == ["Mei"]
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception and len(records.load()) == 1
-    assert at.date_input(key="desk_today").value == app.TODAY
-    assert at.text_area(key="desk_message").value == setup[3]["R30"]
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R30"]
 
 
-@pytest.mark.parametrize("rid,verdict", [("R01", "NEEDS CLARIFICATION"), ("R02", "CANNOT ANSWER"), ("R08", "REFUSED")])
+@pytest.mark.parametrize("rid,verdict", [("R01", "I need one detail before I can continue."),
+                                         ("R02", "not available in the supplied data"),
+                                         ("R08", "cannot accept this batch")])
 def test_streamlit_behaviour_banners_and_no_automatic_writes(setup, rid, verdict):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
     at.button(key="inbox_" + rid).click().run()
-    next(b for b in at.button if b.label == "Dispatch").click().run()
+    at.button(key="desk_dispatch").click().run()
     assert not at.exception
     assert verdict in " ".join(m.value for m in at.markdown)
-    assert at.button(key="desk_confirm").disabled is (rid != "R08")
+    confirm = [b for b in at.button if b.key == "desk_confirm"]
+    if rid == "R08":
+        assert confirm and not confirm[0].disabled and confirm[0].label == "Accept alternative"
+    else:
+        assert not confirm  # Replies, not allocations: there is nothing to confirm.
     assert not records.DEFAULT_PATH.exists()
 
 
@@ -176,8 +185,8 @@ def test_streamlit_editing_request_invalidates_old_confirmation(setup):
     at.session_state["desk_page"] = "Dispatch"
     at.run()
     at.button(key="inbox_R30").click().run()
-    next(b for b in at.button if b.label == "Dispatch").click().run()
-    at.text_area(key="desk_message").set_value("A different request").run()
+    at.button(key="desk_dispatch").click().run()
+    at.text_area(key="_w_desk_message__edit").set_value("A different request").run()
     assert "desk_confirm" not in [b.key for b in at.button]
     assert "desk_preview" not in at.session_state
     assert not records.DEFAULT_PATH.exists()
@@ -187,38 +196,38 @@ def test_streamlit_date_and_objective_survive_log_navigation(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.date_input(key="desk_today").set_value(date(2026, 4, 3)).run()
-    at.selectbox(key="desk_preset").set_value("fairness").run()
-    at.radio(key="desk_page").set_value("Decision log").run()
+    at.date_input(key="_w_desk_today").set_value(date(2026, 4, 3)).run()
+    at.selectbox(key="_w_desk_preset").set_value("fairness").run()
+    at.radio(key="desk_page").set_value("Audit Trail").run()
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception
-    assert at.date_input(key="desk_today").value == date(2026, 4, 3)
-    assert at.selectbox(key="desk_preset").value == "fairness"
+    assert at.date_input(key="_w_desk_today").value == date(2026, 4, 3)
+    assert at.selectbox(key="_w_desk_preset").value == "fairness"
 
 
 def test_register_explores_eligibility_without_calling_model_or_saving(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.radio(key="desk_page").set_value("Workshop register").run()
+    at.radio(key="desk_page").set_value("Workshop Network").run()
     assert not at.exception
-    assert "suspended" in " ".join(m.value for m in at.markdown)
+    assert "Suspended" in " ".join(m.value for m in at.markdown)
     at.number_input[0].set_value(100).run()
     assert not at.exception
     assert not setup[4] and not records.DEFAULT_PATH.exists()
     at.radio(key="desk_page").set_value("Dispatch").run()
     assert not at.exception
-    assert at.date_input(key="desk_today").value == app.TODAY
+    assert at.date_input(key="_w_desk_today").value == app.TODAY
 
 
 def test_inbox_search_preserves_selection_and_does_not_dispatch(setup):
     at = AppTest.from_file(str(ROOT / "src/app.py"), default_timeout=20)
     at.session_state["desk_page"] = "Dispatch"
     at.run()
-    at.text_input(key="inbox_search").set_value("R09").run()
+    at.text_input(key="_w_inbox_search").set_value("R09").run()
     assert [b.key for b in at.button if b.key and b.key.startswith("inbox_R")] == ["inbox_R09"]
     at.button(key="inbox_R09").click().run()
-    assert at.text_area(key="desk_message").value == setup[3]["R09"]
-    at.text_input(key="inbox_search").set_value("no matching request").run()
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R09"]
+    at.text_input(key="_w_inbox_search").set_value("no matching request").run()
     assert not at.exception and not setup[4]
-    assert at.text_area(key="desk_message").value == setup[3]["R09"]
+    assert at.text_area(key="_w_desk_message__edit").value == setup[3]["R09"]

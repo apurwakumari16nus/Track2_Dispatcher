@@ -22,12 +22,15 @@ requests is a separate step. No Java, database, Node.js, or GPU is required.
 
 ## Setup and first run
 
-The app now opens on the **Simulation** dashboard. It automatically computes a
-complete single-seed diagnostic experiment with no API key. The course evaluation
-continues to use ten paired seeds through `eval/run_simulator.py`. Use **Run simulation** for a new
-seed, compare objectives and scenarios, inspect decisions, and export evidence.
-See [the project goal and demonstration guide](docs/simulation_workspace.md).
-The **Dispatch** page separately demonstrates live natural-language intake.
+The app opens on **Dispatch** and has four areas: **Dispatch**, **Workshop
+Network**, **Simulation Lab** and **Audit Trail**. See
+[Product UI v4](docs/product_ui_v4.md) for the design system and page structure,
+[demo readiness](docs/demo_readiness.md) for recording, and the
+[storyboard draft](docs/demo_storyboard_draft.md). The Simulation Lab needs no
+API key; its **Course evidence** tab reads the committed ten-seed results.
+Dispatch reads requests with the live model, or with a clearly labelled
+rehearsal source chosen in **System details** (recorded model replies, or the
+synthetic test fixtures). The sidebar's **Guided demo** steps through the demo requests.
 
 ### Mac — Terminal (or Linux)
 
@@ -86,11 +89,16 @@ uv run streamlit run src/app.py
 Open **http://localhost:8501** if the browser does not open automatically. Keep the
 terminal running; use **Ctrl+C** to stop it.
 
-For an inbox check, select **Dispatch** in the sidebar and keep **2026-04-01** and the **lateness** objective, select an inbox
-request, and click **Dispatch**. Review the verdict, recommendation, candidates,
-tool outputs, and faithfulness result. **Confirm allocation** writes one local
-entry to `records/decisions.jsonl`; Dispatch alone writes none. The Decision log
-page shows saved entries. Confirmation does not send a message to a workshop.
+For an inbox check, stay on **Dispatch** with **01/04/2026** and the **Minimise
+lateness** objective, select an inbox request (for example
+R09) and click **Evaluate request**. Review the recommendation and alternatives,
+then press **Why this decision?** (Why this won, Why not another, Score breakdown,
+Evidence trace). **Confirm** writes one local entry to `records/decisions.jsonl`; Dispatch
+alone writes none. Rehearsal sources write to `records/rehearsal_decisions.jsonl`
+instead. The **Audit Trail** shows saved entries. Confirmation does not send a
+message to a workshop. Without an API key, choose **Rehearsal: test fixtures** in the
+sidebar's System details to try every page; those extractions are test fixtures,
+not model output.
 
 Always run commands from the repository root. Keep `data/` beside `harness/`:
 the unchanged simulator reads its inputs from `harness/../data/`.
@@ -248,12 +256,16 @@ result. It loads them for the log page and reports malformed records instead of
 dropping them. Cross-platform file locks coordinate cooperating local readers
 and writers on Windows, Mac, and Linux.
 
-**[src/app.py](src/app.py)** implements the Streamlit dispatch desk and filterable
-decision log. It exposes the date and objective, the inbox, recommendation,
-candidates, exclusions, raw outputs, faithfulness, and workshop register.
-Dispatch creates a preview; confirmation validates that preview and saves it
-before updating session history and queues. Queue state belongs to the browser
-session and is not a live workshop feed.
+**[src/app.py](src/app.py)** is the Streamlit entry point: theme, sidebar,
+extraction-source choice and routing to the four areas in **[src/ui/](src/ui)**.
+**[src/desk.py](src/desk.py)** holds the session logic: Dispatch creates a
+preview, an independent replay verifies it, and confirmation validates and saves it
+before updating session history and queues. **[src/rehearsal.py](src/rehearsal.py)**
+supplies labelled extraction sources; `intake.extraction_source()` routes the raw
+reply without changing any post-check. `src/ui/explain.py` derives "why this won",
+"why not", score decomposition and the execution trace from the recorded decision
+without re-deciding it. Queue state belongs to the browser session and is not a live
+workshop feed.
 
 Supporting folders: `data/` holds inputs, `harness/` the supplied simulator,
 `eval/` the two evaluation runners and evidence, `tests/` the automated checks,
