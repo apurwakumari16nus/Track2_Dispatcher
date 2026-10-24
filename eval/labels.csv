@@ -1,31 +1,31 @@
 request_id,expected_behaviour,expected_order_id,expected_pieces,expected_category,expected_due,issue,constraint,notes
-R01,,,,,,,,
-R02,,,,,,,,
-R03,,,,,,,,
-R04,,,,,,,,
-R05,,,,,,,,
-R06,,,,,,,,
-R07,,,,,,,,
-R08,,,,,,,,
-R09,,,,,,,,
-R10,,,,,,,,
-R11,,,,,,,,
-R12,,,,,,,,
-R13,,,,,,,,
-R14,,,,,,,,
-R15,,,,,,,,
-R16,,,,,,,,
-R17,,,,,,,,
-R18,,,,,,,,
-R19,,,,,,,,
-R20,,,,,,,,
-R21,,,,,,,,
-R22,,,,,,,,
-R23,,,,,,,,
-R24,,,,,,,,
-R25,,,,,,,,
-R26,,,,,,,,
-R27,,,,,,,,
-R28,,,,,,,,
-R29,,,,,,,,
-R30,,,,,,,,
+R01,clarify,,,,,multiple_matches,none,"Two Harbor Knits scarf orders match (ORD-061, ORD-108). Quantity not given. Ask which order and how many."
+R02,decline,,,,,no_such_data,none,Asks about past allocations. We have no allocation history.
+R03,clarify,,,,,multiple_matches,none,TrendCart has 6 open orders. Ask which one.
+R04,allocate,ORD-041,600,ACCESSORIES,2026-04-21,none,none,Message matches the order. 3 workshops can make it on time.
+R05,clarify,ORD-066,1000,TOPS,,date_not_confirmed,none,New due date not confirmed yet. Don't use the old date; ask for the new one.
+R06,allocate,ORD-096,1000,ACCESSORIES,2026-04-17,none,none,Message matches the order. Ship date Apr 17 is the due date.
+R07,allocate,ORD-063,100,TOPS,2026-04-29,none,none,Message matches the order. No special requests.
+R08,refuse,ORD-073,400,TOPS,2026-04-20,ineligible_suggested_workshop,none,FreshStart takes at most 300 pieces; this order is 400. Refuse and offer another workshop.
+R09,allocate,ORD-045,150,TOPS,2026-04-09,none,"fastest turnaround, cost doesn't matter - Boss",Message matches the order. Boss wants the fastest option.
+R10,clarify,,,,,no_order_id,none,"New Loom & Leaf order, details to follow. No order or quantity yet. Ask for details."
+R11,refuse,ORD-008,600,TOPS,2026-04-09,ineligible_suggested_workshop,none,OldMill is suspended. Refuse and offer another workshop.
+R12,allocate,ORD-053,800,TOPS,2026-04-10,none,keep away from QuickStitch this week - Boss (relayed by Ravi),"Message matches the order. Don't use QuickStitch this week (Boss, via Ravi)."
+R13,decline,ORD-120,,,,no_such_data,none,Asks for a customer price. We have no price data.
+R14,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,ineligible_suggested_workshop,none,"QuickStitch can't make scarves. Also, no workshop can make Apr 4 (earliest Apr 17)."
+R15,clarify,,,,,multiple_matches,none,Loom & Leaf has 6 open orders. Ask which one.
+R16,allocate,ORD-024,300,TOPS,2026-04-15,none,none,"Message matches the order. 'Go out today' is the send date, not a constraint."
+R17,allocate,ORD-017,800,TOPS,2026-04-10,none,none,Message matches the order.
+R18,decline,,,,,order_not_found,none,ORD-999 is not in the order file.
+R19,clarify,,,,,no_order_id,whoever is quickest - Boss,No order named; 'last week's big reorder' could be several orders. Ask which one.
+R20,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,none,"No workshop can make Apr 4 (earliest Apr 17). Say so, give the earliest date and options."
+R21,allocate,ORD-081,1500,TOPS,2026-04-13,none,cheapest shop that can still make Apr 13 - Chen,Message matches the order. Cheapest workshop that still makes Apr 13; only 2 can.
+R22,allocate,ORD-040,1200,TOPS,2026-04-21,none,none,Message matches the order.
+R23,allocate,ORD-005,500,ACCESSORIES,2026-04-20,none,split across two shops if faster - Priya,Message matches the order. Splitting is allowed.
+R24,refuse,ORD-015,300,TOPS,2026-04-16,ineligible_suggested_workshop,none,Little Loom only makes accessories; a vest is a top. Refuse and offer another workshop.
+R25,allocate,ORD-109,500,TOPS,2026-04-13,none,keep it away from BudgetWorks - Mei,Message matches the order. Keep it away from BudgetWorks.
+R26,allocate,ORD-010,1000,TOPS,2026-04-25,none,none,Message matches the order.
+R27,allocate,ORD-095,800,TOPS,2026-04-26,none,lowest defect rate - Ravi,Message matches the order. Lowest defect rate wanted.
+R28,refuse,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none,Due Mar 29 has already passed (earliest return Apr 9). Say so and give options.
+R29,clarify,,,,,multiple_matches,none,"Six open vest orders, no customer named. Ask which one."
+R30,refuse,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none,"No workshop can make Apr 5 (earliest Apr 11). Say so, give the earliest date and options."
