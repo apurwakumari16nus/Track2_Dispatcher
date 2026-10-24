@@ -15,7 +15,7 @@ in `reviewer_1.csv` and `reviewer_2.csv`. Labelling took place after the intake 
 | Assumptions | Today = 2026-04-01; queues from `workshops.csv`; return date = today + round(queue + pieces ÷ capacity + lead days) |
 | Agreement before discussion | Behaviour 27/30; issue 29/30 |
 | Reconciled | 24 Oct 2026 |
-| Frozen at commit | [add after commit] |
+| Frozen at commit | 47c0212 (24 Oct 2026) |
 
 ## Disagreements and resolutions
 
