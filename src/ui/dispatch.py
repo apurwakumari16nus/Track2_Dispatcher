@@ -15,7 +15,7 @@ timing bar under the progress strip.
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime, timezone
 import json
 from pathlib import Path
 import re
@@ -53,7 +53,7 @@ RESULT_WORDS = {"passed": "Passed", "not_needed": "Not needed", "not_given": "No
                 "not_suggested": "None named", "mismatch_noted": "Differs; the message quantity is used", "no_mismatch": "Yes",
                 "missing": "Missing", "checked": "Yes", "failed": "Failed"}
 FILTERS = {"all": "All", "pending": "Pending", "reviewed": "Reviewed"}
-OUTCOME_TONES = {"Confirmed": "conf", "Needs reply": "warn", "Cannot answer": "muted", "Reviewed": "info"}
+OUTCOME_TONES = {"Confirmed": "conf", "Needs reply": "warn", "Cannot answer": "muted", "Reviewed": "info", "Escalated": "muted"}
 AVATAR_TONES = ["#123A66", "#1F4E86", "#2A77E8", "#0E6B8C", "#3B4F7A"]
 BRAND = "app/static/brand"
 WORKSHOP_PHOTOS = Path(__file__).resolve().parents[1] / "static" / "brand" / "workshops"
@@ -76,6 +76,30 @@ def select_message(message):
     invalidate()
 
 
+def answers_for(message: str | None = None) -> dict:
+    """The dispatcher's answers to clarifications on this message, {field: {"value", "at"}}."""
+    state = st.session_state
+    return state.setdefault("desk_answers", {}).get(state["desk_message"] if message is None else message, {})
+
+
+def give_answer(field: str, value):
+    """One tap: record the answer, read the request again now and bring the dispatcher to the new result."""
+    state = st.session_state
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    state.setdefault("desk_answers", {}).setdefault(state["desk_message"], {})[field] = {"value": value, "at": stamp}
+    invalidate()
+    request_evaluation()
+    state["desk_scroll_result"] = True
+
+
+def undo_answer(field: str):
+    state = st.session_state
+    state.setdefault("desk_answers", {}).get(state["desk_message"], {}).pop(field, None)
+    invalidate()
+    request_evaluation()
+    state["desk_scroll_result"] = True
+
+
 def append_reply(text_value=None):
     reply = (text_value or st.session_state.get("desk_reply", "")).strip()
     if reply:
@@ -83,6 +107,7 @@ def append_reply(text_value=None):
         st.session_state["desk_reply"] = ""
         invalidate()
         request_evaluation()   # The dispatcher answered: read the request again now, no second click.
+        st.session_state["desk_scroll_result"] = True
 
 
 def use_rehearsal():
@@ -119,11 +144,12 @@ def envelope(message: str) -> tuple[str, str, str, str]:
 
 
 def order_on_file(message: str, orders):
-    """Deterministic lookup of an order ID written in the message. No model involved."""
+    """Deterministic lookup of the order: one the dispatcher chose, else an ID written in the message. No model involved."""
+    chosen = (st.session_state.get("desk_answers", {}).get(message, {}).get("order_id") or {}).get("value")
     match = re.search(r"\bORD-\d+\b", message, re.I)
-    if not match:
+    if not (chosen or match):
         return None
-    rows = orders[orders["order_id"].str.upper() == match.group(0).upper()]
+    rows = orders[orders["order_id"].str.upper() == (chosen or match.group(0)).upper()]
     return rows.iloc[0] if len(rows) else None
 
 
@@ -204,6 +230,8 @@ def inbox(messages):
     outcomes = state.get("desk_outcomes", {})
     with st.container(key="inbox"):
         html(f'<div class="inbox-head"><div class="title">Inbox</div><div class="meta">{len(messages)} requests</div></div>')
+        st.button("Compose a new request", key="inbox_compose", icon=":material/edit_square:", width="stretch", on_click=select_message, args=("",),
+                  help="Write a request from scratch, outside the 30 supplied messages.")
         query = bind(st.text_input, "Search requests", key="inbox_search", fallback="", accept=text,
                      placeholder="Search name, order or text", label_visibility="collapsed", icon=":material/search:")
         rows = [(m, *envelope(m)) for m in messages if query.casefold() in m.casefold()]
@@ -236,7 +264,8 @@ def workspace(orders, workshops, today, config, queues):
     elif scenario:
         html(banner(f"Scenario {scenario['rid']}.", f" {scenario['hint']} This is a rehearsal case from the library, not a new request.", "info"))
     run = request_surface(message, orders)
-    current_signature = desk.signature(message, today, config, orders, workshops, queues, state["desk_revision"], state["desk_source"])
+    current_signature = desk.signature(message, today, config, orders, workshops, queues, state["desk_revision"], state["desk_source"],
+                                       answers_for(message))
     progress = st.empty()
     progress.markdown(process_strip(home_stages()), unsafe_allow_html=True)
     timing_slot = st.container()
@@ -259,6 +288,106 @@ def workspace(orders, workshops, today, config, queues):
                  '<li><i>2</i><div><b>Rank the workshops</b><span>Eligibility, queue, return date and cost for each of the eight.</span></div></li>'
                  '<li><i>3</i><div><b>Confirm it yourself</b><span>Nothing is assigned or sent until you confirm.</span></div></li></ol></div>'
                  f'<div class="he-art">{loom_art()}</div></div>')
+    if state.pop("desk_scroll_result", False) and (preview or state.get("desk_error")):
+        scroll_to_result()
+
+
+def scroll_to_result():
+    """After an answer, bring the dispatcher straight to the new outcome instead of leaving them at the reply box."""
+    import streamlit.components.v1 as components
+    targets = ", ".join(f"'.st-key-{k}'" for k in ("rec", "clarify", "decline", "desk_failure", "options", "desk_noeligible"))
+    components.html("<script>try{const d=window.parent.document;const m=window.parent.matchMedia('(prefers-reduced-motion: reduce)').matches;"
+                    f"for(const s of [{targets}]){{const el=d.querySelector(s);if(el){{el.scrollIntoView({{block:'start',behavior:m?'auto':'smooth'}});break;}}}}"
+                    "}catch(e){}</script>", height=0)
+
+
+def order_facts(on_file):
+    """The order as recorded in orders.csv, one labelled cell per field, with its source one click away."""
+    facts = [("Order", on_file["order_id"]), ("Customer", on_file["customer"]),
+             ("Batch", f'{int(on_file["pieces"]):,} {plural(str(on_file["product"]))}'),
+             ("Due", explain.long_date(str(on_file["due_date"]))), ("Stage", str(on_file["current_stage"]).capitalize())]
+    with st.container(key="req_facts_box"):
+        head, link = st.columns([3, 1.2], vertical_alignment="center")
+        with head:
+            html(f'<div class="rf-src">{icon("table")}<span>On file in <b>orders.csv</b></span></div>')
+        with link:
+            if st.button("Open orders.csv", key="desk_orders_src", type="tertiary", icon=":material/open_in_new:"):
+                orders_view(str(on_file["order_id"]))
+        html('<dl class="rf-grid">' + "".join(f'<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>' for k, v in facts) + "</dl>")
+
+
+FIELD_NAMES = {"order_id": "Order", "due_date": "Due date", "pieces": "Quantity", "packing_confirmed": "Packing stage",
+               "allocate": "Request type", "workshop_alias": "Workshop name"}
+
+
+def answer_value(field, value) -> str:
+    if field == "due_date":
+        return explain.long_date(str(value))
+    if field == "pieces":
+        return f"{int(value):,} pieces"
+    if field == "workshop_alias":
+        return "; ".join(f"{ref}: {'ignored' if wid == 'ignore' else wid}" for ref, wid in value.items())
+    return {True: "Send it out anyway", "allocate": "Allocate this order"}.get(value, str(value))
+
+
+def answer_trail(on_file):
+    """Every answer the dispatcher has given on this request: what was there before, what it is now, when, with undo."""
+    answers = answers_for()
+    if not answers:
+        return
+    with st.container(key="answer_trail"):
+        html(f'<div class="at-head">{icon("edit_note")}<b>Your answers</b><span>Applied by Python and kept in the audit record. '
+             'The original message is unchanged.</span></div>')
+        for field, item in answers.items():
+            before = ""
+            if field == "due_date" and on_file is not None:
+                before = f'<s>{esc(explain.long_date(str(on_file["due_date"])))}</s> on file, now '
+            elif field == "pieces" and on_file is not None:
+                before = f'<s>{int(on_file["pieces"]):,}</s> on file, now '
+            when = (item.get("at") or "")[11:16]
+            cols = st.columns([5, 1], vertical_alignment="center")
+            with cols[0]:
+                html(f'<div class="at-row"><small>{esc(FIELD_NAMES.get(field, field))}</small><span>{before}<b>{esc(answer_value(field, item["value"]))}</b>'
+                     f'</span><em>{esc(when + " UTC") if when else ""}</em></div>')
+            with cols[1]:
+                st.button("Undo", key=f"desk_undo_{field}", type="tertiary", on_click=undo_answer, args=(field,))
+
+
+@st.dialog("orders.csv", width="large")
+def orders_view(focus: str | None = None):
+    """The order book exactly as supplied, searchable. Session changes are shown beside it; the file is never edited."""
+    state = st.session_state
+    orders, _, _ = desk.load_inputs()
+    html('<div class="ov-sub">The order book supplied with the project (data/orders.csv). Read only: answers and confirmations '
+         'never edit it; they are recorded in the audit log and shown in the last column.</div>')
+    a, b = st.columns([2, 1.2], vertical_alignment="bottom")
+    with a:
+        query = st.text_input("Search", key="ov_q", placeholder="Order, customer or product", value=focus or "")
+    with b:
+        status = st.segmented_control("Status", ["IN_PROGRESS", "COMPLETE", "All"], key="ov_status", default="All",
+                                      format_func={"IN_PROGRESS": "In progress", "COMPLETE": "Complete", "All": "All"}.get)
+    changes = {}
+    for row in state.get("desk_saved", {}).values():
+        parsed = row.get("parsed_request", {})
+        for item in parsed.get("answers_applied", []):
+            if item["field"] in ("due_date", "pieces"):
+                label = (f'{FIELD_NAMES[item["field"]]} {item.get("previous") or "none"} to {item["value"]}, '
+                         f'confirmed with {parsed.get("request_id") or "a typed request"}')
+                changes.setdefault(parsed.get("order_id"), []).append(label)
+    view = orders.copy()
+    if status and status != "All":
+        view = view[view["status"] == status]
+    if query.strip():
+        q = query.strip().casefold()
+        view = view[view.apply(lambda r: q in " ".join(map(str, r.values)).casefold(), axis=1)]
+    view["session_changes"] = view["order_id"].map(lambda o: "; ".join(changes.get(o, [])))
+    st.dataframe(view, hide_index=True, width="stretch", height=420,
+                 column_config={"order_id": st.column_config.TextColumn("Order", pinned=True), "customer": "Customer", "product": "Product",
+                                "category": "Category", "pieces": st.column_config.NumberColumn("Pieces", format="%d"),
+                                "order_date": "Ordered", "due_date": "Due", "status": "Status", "current_stage": "Stage",
+                                "last_activity_date": "Last activity", "completed_date": "Completed", "days_late": "Days late",
+                                "session_changes": "Changed this session"})
+    html(f'<div class="meta">{len(view)} of {len(orders)} orders shown.</div>')
 
 
 def request_surface(message, orders) -> bool:
@@ -273,16 +402,16 @@ def request_surface(message, orders) -> bool:
                  f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div>{pill}</div>'
                  f'<div class="msg-text">{esc(body)}</div>')
             if on_file is not None:
-                facts = [("Order", on_file["order_id"]), ("Customer", on_file["customer"]),
-                         ("Batch", f'{int(on_file["pieces"]):,} {plural(str(on_file["product"]))}'),
-                         ("Due", explain.long_date(str(on_file["due_date"]))), ("Stage", str(on_file["current_stage"]).capitalize())]
-                html('<div class="req-facts">' + "".join(f'<span><small>{esc(k)}</small><b>{esc(v)}</b></span>' for k, v in facts)
-                     + '<em>From orders.csv</em></div>')
+                order_facts(on_file)
+            answer_trail(on_file)
         else:
             html('<div class="msg-head"><div class="avatar">+</div><div><b>New request</b><br>'
                  '<span>Type or paste the chat message</span></div></div>')
             bind(st.text_area, "Request", key="desk_message", fallback="", accept=text, height=96, label_visibility="collapsed",
                  on_change=invalidate, placeholder="For example: ORD-045, 150 vests for Cotton Club, due Apr 09. Fastest turnaround please.")
+            if rehearsal.SOURCES[st.session_state["desk_source"]].rehearsal:
+                html('<div class="meta">Rehearsal modes replay only the 30 supplied messages. A new request is read by the Live model '
+                     '(System details).</div>')
         run_col, edit_col, new_col = st.columns([1.15, 1.25, 1], vertical_alignment="center")
         with run_col:
             run = st.button("Evaluate request", key="desk_dispatch", type="primary", width="stretch",
@@ -293,7 +422,8 @@ def request_surface(message, orders) -> bool:
                     bind(st.text_area, "Request", key="desk_message", fallback="", accept=text, height=120, slot="edit",
                          label_visibility="collapsed", on_change=invalidate)
         with new_col:
-            st.button("New request", key="desk_new", width="stretch", icon=":material/add:", on_click=select_message, args=("",))
+            if message.strip():
+                st.button("New request", key="desk_new", width="stretch", icon=":material/add:", on_click=select_message, args=("",))
     return run
 
 
@@ -318,7 +448,7 @@ def evaluate(progress, orders, workshops, today, config, queues):
     try:
         with tracing.trace(**meta) as run, intake.extraction_source(call):
             preview = desk.make_preview(message, today, config, orders, workshops, queues,
-                                        state["desk_allocator"], state["desk_revision"], source)
+                                        state["desk_allocator"], state["desk_revision"], source, answers_for(message))
     except Exception as error:
         state["desk_error"] = describe_error(error)
         progress.markdown(process_strip(home_stages()), unsafe_allow_html=True)
@@ -336,7 +466,10 @@ def evaluate(progress, orders, workshops, today, config, queues):
     state["desk_preview"] = preview
     rid = envelope(message)[0]
     if rid:
-        state.setdefault("desk_outcomes", {})[rid] = STATUS_WORDS[preview.response.parsed_request.behaviour]
+        before = state.setdefault("desk_outcomes", {}).get(rid)
+        state["desk_outcomes"][rid] = STATUS_WORDS[preview.response.parsed_request.behaviour]
+        if before and before != state["desk_outcomes"][rid]:
+            st.rerun()   # The request card above was drawn with the old outcome; redraw it (the preview is kept, nothing re-runs).
 
 
 def describe_error(error) -> dict:
@@ -401,8 +534,7 @@ def result(preview, current_signature, workshops, orders, queues, progress):
         html(thread_link(f"Confirmed by you for {parsed.order_id or 'this request'}" if done else
                          f"Engine recommendation for {parsed.order_id or 'this request'}, waiting for you", confirmed=done))
         recommendation(preview, chosen, record, parsed, workshops, status)
-        if record.get("awkward_case") == "none_makes_date" or record.get("tool_outputs", {}).get("split"):
-            options_card(preview, record, parsed, workshops, queues)
+        options_card(preview, record, parsed, workshops, queues, status)
     elif parsed.behaviour == "clarify":
         clarify_card(parsed, record, workshops, orders)
     elif parsed.behaviour == "decline":
@@ -474,6 +606,10 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     state_cls = "rec-done" if confirmed else "rec-late" if awkward else ""
     headline = (f"Assigned to {name}" if confirmed else f"Least late: {name}" if awkward
                 else f"Assign to {name} instead" if parsed.behaviour == "refuse" else f"Assign to {name}")
+    split_done = ((state["desk_saved"].get(preview.token) or {}).get("decision_record") or {}).get("split_allocation") if confirmed else None
+    if split_done:
+        headline = "Split between " + " and ".join(p["name"] for p in split_done["parts"])
+    session_note = session_load_note(workshops)
     with st.container(key="rec"):
         main, card = st.columns([1.45, 1], gap="medium")
         with main:
@@ -481,7 +617,7 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
                  f'<div class="rec-head">{esc(headline)}</div>'
                  f'<p class="rec-reason">{esc(won["sentence"] if won else record["reason_chosen"])}</p>'
                  f'<ul class="rec-list">{points}</ul>'
-                 f'<div class="rec-obj">Objective: {esc(objective)}</div></div>')
+                 f'<div class="rec-obj">Objective: {esc(objective)}</div>{session_note}</div>')
         with card:
             html(f'<div class="ws-card">{photo}<div class="ws-top"><div><div class="ws-name">{esc(name)}</div>'
                  f'<div class="ws-sub">Workshop <span class="id">{esc(wid)}</span>, makes {esc(makes)}</div></div></div>'
@@ -508,6 +644,29 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
         html(f'<div class="done-note">{esc(note)}</div>')
     if state.get("desk_confirm_error"):
         html(banner("Audit record not saved", " " + state["desk_confirm_error"], "risk"))
+
+
+def session_load_note(workshops) -> str:
+    """Which queues already carry batches confirmed in this session, so the dispatcher sees why availability moved."""
+    state = st.session_state
+    load = {}
+    for row in state.get("desk_saved", {}).values():
+        record, parsed = row.get("decision_record", {}), row.get("parsed_request", {})
+        parts = (record.get("split_allocation") or {}).get("parts") or [{"workshop_id": record.get("chosen_workshop"), "pieces": parsed.get("pieces") or 0}]
+        for part in parts:
+            if part["workshop_id"]:
+                n, pieces = load.get(part["workshop_id"], (0, 0))
+                load[part["workshop_id"]] = (n + 1, pieces + int(part["pieces"] or 0))
+    if not load:
+        return ""
+    same_day = state.get("desk_queue_date") == desk.TODAY
+    items = []
+    for wid, (n, pieces) in load.items():
+        extra = state["desk_queues"].get(wid, 0) - workshops[wid].queue0 if same_day else None
+        items.append(f'{workshops[wid].name}: {n} batch{"es" if n > 1 else ""}, {pieces:,} pieces'
+                     + (f', +{extra:.1f} days of queue' if extra and extra > 0.05 else ""))
+    return (f'<div class="rec-load">{icon("stacked_bar_chart")}<span>Queues include what you confirmed this session. '
+            f'{esc("; ".join(items))}.</span></div>')
 
 
 def batch_line(parsed) -> str:
@@ -656,25 +815,117 @@ def fmt_ms(ms: float) -> str:
     return f"{ms / 1000:.2f} s" if ms >= 1000 else f"{ms:.0f} ms" if ms >= 10 else f"{ms:.1f} ms"
 
 
-def options_card(preview, record, parsed, workshops, queues):
+def split_for(preview, record, parsed, workshops, queues):
+    """The fastest legal two-workshop split for this batch, computed once per preview by the existing tool."""
     state = st.session_state
-    split = record.get("tool_outputs", {}).get("split") or state["desk_splits"].get(preview.token)
+    if preview.token not in state["desk_splits"]:
+        batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
+                 "due_date": parsed.due_date, "sent_date": preview.today}
+        try:
+            state["desk_splits"][preview.token] = tools.estimate_split(
+                batch, workshops, queues, preview.today, record["constraints_applied"]["exclude"], record["chosen_workshop"])
+        except ValueError as error:
+            state["desk_splits"][preview.token] = {"available": False, "reason": str(error)}
+    return state["desk_splits"][preview.token]
+
+
+def split_verdict(single, split, defect_single, defect_split) -> str:
+    """One sentence, every number from the two estimates. Nothing is recommended that the numbers do not show."""
+    days = single["total_days"] - split["total_days"]
+    cost = split["total_cost"] - single["total_cost"]
+    back = (f"back {explain.short_date(split['eta_date'])} instead of {explain.short_date(single['eta_date'])}"
+            if split["eta_date"] != single["eta_date"] else f"the same return date, {explain.short_date(split['eta_date'])}")
+    if days <= 0.05:
+        return (f"Splitting is not faster ({back}) and costs {abs(cost):,.0f} {'more' if cost > 0 else 'less'}. "
+                "The single workshop is the simpler choice.")
+    quality = ("a lower" if defect_split < defect_single - 1e-9 else "a higher" if defect_split > defect_single + 1e-9 else "the same")
+    late = ""
+    if single["days_to_spare"] < 0:
+        late = (" It meets the due date." if split["days_to_spare"] >= 0 else
+                f" Neither meets the due date; the split is {explain.days(split['days_to_spare'] - single['days_to_spare'])} less late.")
+    return (f"Splitting saves {days:.1f} days of production time ({back}), costs {abs(cost):,.0f} {'more' if cost > 0 else 'less'}, "
+            f"and has {quality} expected defect rate ({defect_split:.1%} against {defect_single:.1%}).{late} You choose.")
+
+
+def options_card(preview, record, parsed, workshops, queues, status):
+    """Single workshop or split, side by side with return, cost, quality and load; then the three choices."""
+    state = st.session_state
+    chosen = explain.chosen_row(record)
+    if chosen is None or not all(getattr(parsed, k) is not None for k in ("order_id", "category", "pieces", "due_date")):
+        return
+    split = split_for(preview, record, parsed, workshops, queues)
+    saved = state["desk_saved"].get(preview.token)
+    escalated = state.setdefault("desk_escalated", {}).get(preview.token)
     awkward = record.get("awkward_case") == "none_makes_date"
     with st.container(key="options"):
-        if awkward:
-            section("Your options", "The system will not decide this for you.")
-            html('<ul class="opt-list"><li><b>Accept the late return.</b> Use the button on the recommendation; the record marks the lateness as accepted.</li>'
-                 '<li><b>Preview a split.</b> The fastest legal two-workshop split. A preview only.</li>'
-                 '<li><b>Escalate.</b> Leave it unconfirmed and raise it with the planner or customer.</li></ul>')
-        if split is None and awkward:
-            if st.button("Preview a two-workshop split", key="desk_split", icon=":material/call_split:"):
-                batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
-                         "due_date": parsed.due_date, "sent_date": preview.today}
-                state["desk_splits"][preview.token] = tools.estimate_split(
-                    batch, workshops, queues, preview.today, record["constraints_applied"]["exclude"], record["chosen_workshop"])
-                st.rerun()
-        if split is not None:
-            split_view(split)
+        section("Single workshop or split?", "Both use the same queues and tools. A split runs in parallel; it finishes when the later part does.")
+        single_q = tools.overload_probe({"category": parsed.category, "pieces": parsed.pieces, "due_date": parsed.due_date,
+                                         "order_id": parsed.order_id}, chosen["workshop_id"], workshops, queues)["queue_after"]
+        rows = [[f'<b>{esc(chosen["name"])}</b><br><small>whole batch, {parsed.pieces:,} pieces</small>',
+                 esc(explain.short_date(chosen["eta_date"])), f'{chosen["days_to_spare"]:+d}', f'{chosen["total_cost"]:,.0f}',
+                 f'{chosen["expected_defect_rate"]:.1%}', f'{single_q:.1f} d']]
+        if split.get("available"):
+            defect = desk.split_defect_rate(split, workshops)
+            rows.append([f'<b>Split</b><br><small>{" + ".join(esc(p["name"]) + " " + format(p["pieces"], ",") for p in split["parts"])}</small>',
+                         esc(explain.short_date(split["eta_date"])), f'{split["days_to_spare"]:+d}', f'{split["total_cost"]:,.0f}',
+                         f'{defect:.1%}', " / ".join(f'{p["queue"]["queue_after"]:.1f} d' for p in split["parts"])])
+        html(table(["Option", "Back", "Days to spare", "Cost", "Expected defects", "Queue after, days"], rows, right=(2, 3, 4, 5)))
+        if split.get("available"):
+            html(f'<div class="opt-verdict">{esc(split_verdict(chosen, split, chosen["expected_defect_rate"], defect))}</div>')
+        else:
+            html(f'<div class="meta">No legal two-workshop split: {esc(split.get("reason", "no pair fits"))}.</div>')
+        if escalated:
+            html(banner(f"Escalated to the {escalated['to'].lower()}.", f" Recorded at {escalated['at']} UTC. Nothing was allocated or sent.", "info"))
+            return
+        if saved:
+            return
+        with st.container(key="opt_actions", horizontal=True, vertical_alignment="center", gap="small"):
+            if split.get("available"):
+                st.button("Confirm the split instead", key="desk_confirm_split", icon=":material/call_split:",
+                          disabled=not status.ready, on_click=confirm_split_choice, args=(preview, split))
+            with st.popover("Escalate", icon=":material/outgoing_mail:"):
+                to = st.radio("Raise it with", ["Planner", "Customer"], key="esc_to", horizontal=True)
+                due = explain.short_date(parsed.due_date)
+                draft = (f"{parsed.order_id}: no workshop can meet {due}. Earliest is {explain.short_date(chosen['eta_date'])} at {chosen['name']}."
+                         if awkward else f"{parsed.order_id}: please confirm before I send {parsed.pieces:,} pieces to {chosen['name']} "
+                         f"(back {explain.short_date(chosen['eta_date'])}).")
+                note = st.text_area("Note", value=draft, key=f"esc_note_{preview.token[:8]}", height=90)
+                st.button("Record escalation", key="desk_escalate", type="primary", on_click=escalate_choice, args=(preview, to, note))
+                html('<div class="meta">This records the escalation in the audit log. It does not send a message.</div>')
+
+
+def confirm_split_choice(preview, split):
+    state = st.session_state
+    path = desk.audit_path(preview.source, demo=guide.active())
+    append = (lambda response: desk.records.append(response, path)) if path else None
+    try:
+        _, queues, allocator = desk.confirm_split(preview, preview.signature, state["desk_saved"], split, desk.load_inputs()[1],
+                                                  state["desk_queues"], state["desk_allocator"], append=append, guided_demo=guide.active())
+    except (ValueError, OSError) as error:
+        state["desk_confirm_error"] = str(error)
+        return
+    if queues is not None:
+        state["desk_queues"], state["desk_allocator"] = queues, allocator
+        state["desk_queue_date"] = preview.today
+        state["desk_revision"] += 1
+    rid = envelope(preview.response.parsed_request.raw_text)[0]
+    if rid:
+        state.setdefault("desk_outcomes", {})[rid] = "Confirmed"
+
+
+def escalate_choice(preview, to, note):
+    state = st.session_state
+    path = desk.audit_path(preview.source, demo=guide.active())
+    append = (lambda response: desk.records.append(response, path)) if path else None
+    try:
+        row = desk.escalate(preview, to, note, append=append, guided_demo=guide.active())
+    except OSError as error:
+        state["desk_confirm_error"] = str(error)
+        return
+    state.setdefault("desk_escalated", {})[preview.token] = {"to": to, "at": (row.get("timestamp") or "")[11:16], "row": row}
+    rid = envelope(preview.response.parsed_request.raw_text)[0]
+    if rid:
+        state.setdefault("desk_outcomes", {})[rid] = "Escalated"
 
 
 def split_view(split):
@@ -725,19 +976,91 @@ def clarify_card(parsed, record, workshops, orders):
                                 html(f'<div class="cl-c">{value}</div>')
                         with cells[-1]:
                             st.button("Use this", key=f"desk_option_{option['order_id']}", width="stretch",
-                                      on_click=append_reply, args=(option["order_id"],))
-        reply_col, add_col = st.columns([3, 1], vertical_alignment="bottom")
-        with reply_col:
-            st.text_input(f"Or reply as {parsed.sender or 'the sender'}", key="desk_reply", placeholder="Type the missing detail")
-        with add_col:
-            st.button("Add and evaluate", key="desk_add_reply", on_click=append_reply, type="primary", width="stretch",
-                      disabled=not state.get("desk_reply", "").strip())
-        note = "Your answer is added to the request and the request is read again."
-        if source.rehearsal:
-            note += " Rehearsal covers the original inbox lines only, so an answered request needs the live model."
-        html(f'<div class="meta" style="margin-top:0.4rem">{esc(note)}</div>')
+                                      on_click=give_answer, args=("order_id", option["order_id"]))
+        quick_answers(parsed, orders, workshops)
+        with st.expander(f"Reply in your own words as {parsed.sender or 'the sender'}", key="clarify_free"):
+            reply_col, add_col = st.columns([3, 1], vertical_alignment="bottom")
+            with reply_col:
+                st.text_input("Reply", key="desk_reply", placeholder="Type the missing detail", label_visibility="collapsed")
+            with add_col:
+                st.button("Add and evaluate", key="desk_add_reply", on_click=append_reply, type="primary", width="stretch",
+                          disabled=not state.get("desk_reply", "").strip())
+            note = "A typed reply is added to the message and read again by the model."
+            if source.rehearsal:
+                note += " Rehearsal covers the original inbox lines only, so a typed reply needs the live model. The answers above work in every mode."
+            html(f'<div class="meta" style="margin-top:0.4rem">{esc(note)}</div>')
         if st.button("Why this decision?", key="desk_inspect", type="tertiary", icon=":material/insights:"):
             inspector(workshops)
+
+
+def alias_answer(ref: str, wid: str):
+    current = dict((answers_for().get("workshop_alias") or {}).get("value") or {})
+    current[ref] = wid
+    give_answer("workshop_alias", current)
+
+
+def quick_answers(parsed, orders, workshops):
+    """Ready answers for the question being asked: one tap applies it and re-evaluates. Every option comes from the data."""
+    state = st.session_state
+    today = state.get("desk_today", desk.TODAY)
+    checks = {c["rule"]: c["result"] for c in parsed.post_checks}
+    row = orders[orders["order_id"] == parsed.order_id].iloc[0] if parsed.order_id and (orders["order_id"] == parsed.order_id).any() else None
+    on_file_due = None if row is None or str(row["due_date"]) in ("", "nan") else date.fromisoformat(str(row["due_date"])[:10])
+    shown = False
+
+    if parsed.order_id and (parsed.date_not_confirmed or parsed.due_date is None):
+        shown = True
+        html('<div class="qa-h">Confirmed deadline</div>')
+        with st.container(key="qa_dates", horizontal=True, vertical_alignment="bottom", gap="small"):
+            if on_file_due:
+                label = (f"Keep {explain.long_date(on_file_due.isoformat())}, the date on file" if parsed.date_not_confirmed
+                         else f"Use {explain.long_date(on_file_due.isoformat())} from orders.csv")
+                st.button(label, key="qa_date_file", type="primary", on_click=give_answer, args=("due_date", on_file_due.isoformat()))
+            picked = st.date_input("Or pick another date", key="qa_date_pick", value=None, min_value=today, format="DD/MM/YYYY")
+            if picked:
+                st.button(f"Use {explain.short_date(picked.isoformat())}", key="qa_date_use", type="primary",
+                          on_click=give_answer, args=("due_date", picked.isoformat()))
+        typed = st.text_input("Or type it", key="qa_date_text", placeholder="For example: 20 Apr, or 2026-04-20")
+        if typed.strip():
+            read = intake._calendar_date(typed.strip(), today)
+            if read:
+                st.button(f"Use {explain.long_date(read.isoformat())}", key="qa_date_typed", type="primary",
+                          on_click=give_answer, args=("due_date", read.isoformat()), icon=":material/event_available:")
+            else:
+                html('<div class="meta">That is not a date I can read. Try "20 Apr" or "2026-04-20".</div>')
+
+    if parsed.order_id and parsed.pieces is None and row is not None:
+        shown = True
+        html('<div class="qa-h">Quantity to send</div>')
+        with st.container(key="qa_pieces", horizontal=True, vertical_alignment="bottom", gap="small"):
+            st.button(f"Use {int(row['pieces']):,} from orders.csv", key="qa_pieces_file", type="primary",
+                      on_click=give_answer, args=("pieces", int(row["pieces"])))
+            amount = st.number_input("Another quantity", key="qa_pieces_n", min_value=1, value=int(row["pieces"]), step=50)
+            st.button(f"Use {int(amount):,}", key="qa_pieces_use", on_click=give_answer, args=("pieces", int(amount)))
+
+    if checks.get("packing") == "needs_confirmation":
+        shown = True
+        html('<div class="qa-h">This order is already in packing</div>')
+        with st.container(key="qa_packing", horizontal=True, gap="small"):
+            st.button("Send it out anyway", key="qa_pack_yes", type="primary", on_click=give_answer, args=("packing_confirmed", True))
+        html('<div class="meta">If it should stay in house, leave it unallocated; nothing is recorded.</div>')
+
+    if checks.get("question_data") == "information_only" and parsed.order_id:
+        shown = True
+        html('<div class="qa-h">This reads as a question, not a request to send work out</div>')
+        with st.container(key="qa_allocate", horizontal=True, gap="small"):
+            st.button("Allocate this order", key="qa_alloc_yes", type="primary", on_click=give_answer, args=("allocate", "allocate"))
+
+    for ref in parsed.unresolved_workshops:
+        shown = True
+        html(f'<div class="qa-h">Which workshop is "{esc(ref)}"?</div>')
+        with st.container(key=f"qa_ws_{abs(hash(ref)) % 10_000}", horizontal=True, gap="small"):
+            for wid, w in workshops.items():
+                st.button(w.name, key=f"qa_ws_{abs(hash(ref)) % 10_000}_{wid}", on_click=alias_answer, args=(ref, wid))
+            st.button("Ignore this name", key=f"qa_ws_{abs(hash(ref)) % 10_000}_ignore", type="tertiary", on_click=alias_answer, args=(ref, "ignore"))
+    if shown:
+        html('<div class="meta" style="margin-top:0.2667rem">One tap applies the answer and evaluates the request again. '
+             'Python records it beside the original value; the message itself is not changed.</div>')
 
 
 def decline_card(parsed, orders, workshops):
