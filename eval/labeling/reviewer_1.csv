@@ -1,31 +1,31 @@
 request_id,expected_behaviour,expected_order_id,expected_pieces,expected_category,expected_due,issue,constraint,notes
-R01,,,,,,,,
-R02,,,,,,,,
-R03,,,,,,,,
-R04,,,,,,,,
-R05,,,,,,,,
-R06,,,,,,,,
-R07,,,,,,,,
-R08,,,,,,,,
-R09,,,,,,,,
-R10,,,,,,,,
-R11,,,,,,,,
-R12,,,,,,,,
-R13,,,,,,,,
-R14,,,,,,,,
-R15,,,,,,,,
-R16,,,,,,,,
-R17,,,,,,,,
-R18,,,,,,,,
-R19,,,,,,,,
-R20,,,,,,,,
-R21,,,,,,,,
-R22,,,,,,,,
-R23,,,,,,,,
-R24,,,,,,,,
-R25,,,,,,,,
-R26,,,,,,,,
-R27,,,,,,,,
-R28,,,,,,,,
-R29,,,,,,,,
-R30,,,,,,,,
+R01,clarify,,,,,multiple_matches,none," Harbor Knits has 2 in-progress scarf orders (ORD-061 800 pcs, ORD-108 2000 pcs); 'usual quantities' is not a number."
+R02,decline,,,,,no_such_data,none, Asks which workshop was used last October; orders.csv and workshops.csv hold no allocation history.
+R03,clarify,,,,,multiple_matches,none," TrendCart has 6 in-progress orders: ORD-005, 017, 020, 082, 096, 120."
+R04,allocate,ORD-041,600,ACCESSORIES,2026-04-21,none,none,"Reviewer's workshop pick: SteadyHands  Message and orders.csv agree (600 beanies, due Apr 21). 3 accessory workshops eligible, all on time."
+R05,clarify,ORD-066,1000,TOPS,,date_not_confirmed,none, Due date moved up but not confirmed. File shows 2026-04-26 but must not be substituted; ask for the confirmed date.
+R06,allocate,ORD-096,1000,ACCESSORIES,2026-04-17,none,none,Reviewer's workshop pick: SteadyHands  'Ship date Apr 17' equals the file due date; 1000 beanies matches the file.
+R07,allocate,ORD-063,100,TOPS,2026-04-29,none,none,"Reviewer's workshop pick: FreshStart  'No special requirements'; message and file agree (100 cardigans, Apr 29)."
+R08,refuse,ORD-073,400,TOPS,2026-04-20,ineligible_suggested_workshop,none, FreshStart's cap is 300 pieces; order is 400. Refuse with reason and offer an alternative. Due date from file (message gives none).
+R09,allocate,ORD-045,150,TOPS,2026-04-09,none,fastest turnaround; cost doesn't matter - Boss,"Reviewer's workshop pick: Nimble Needle  Message and file agree. 6 eligible workshops, 5 return on time."
+R10,clarify,,,,,no_order_id,none," Loom & Leaf has 6 in-progress orders; this is described as a new rush with details to follow, so no order or quantity is identified."
+R11,refuse,ORD-008,600,TOPS,2026-04-09,ineligible_suggested_workshop,none, OldMill is suspended. Offer an alternative. Pieces and due date from file.
+R12,allocate,ORD-053,800,TOPS,2026-04-10,none,exclude QuickStitch this week - Boss (relayed by Ravi),Reviewer's workshop pick: Nimble Needle  Message and file agree. Workshops other than QuickStitch can still return by Apr 10.
+R13,decline,ORD-120,,,,no_such_data,none, Asks what price was quoted to the customer; no price or quote data exists. ORD-120 itself exists.
+R14,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,ineligible_suggested_workshop,none," QuickStitch makes tops only; scarves are accessories. Secondary: no accessory workshop can make Apr 04 (earliest Apr 17 by hand calculation), so the alternative must disclose the date problem too. Pieces and due from file."
+R15,clarify,,,,,multiple_matches,none," Loom & Leaf has 6 in-progress orders. 'asap' (Boss, relayed by Mei) noted; no single order identified."
+R16,allocate,ORD-024,300,TOPS,2026-04-15,none,none,"Reviewer's workshop pick: FreshStart  Message and file agree. 'Confirmed the reorder' identifies the order; 'go out today' is the dispatch day, not a workshop constraint."
+R17,allocate,ORD-017,800,TOPS,2026-04-10,none,none,"Reviewer's workshop pick: Nimble Needle  Message and file agree (800 cardigans, due Apr 10). 'Factory is full' is context."
+R18,decline,,,,,order_not_found,none,"ORD-999 is not in orders.csv (rubric check 2: order not found -> decline). Revised from refuse after rechecking the rubric, before comparison with reviewer 2."
+R19,clarify,,,,,no_order_id,quickest workshop - Boss," No customer, product or order ID; 'big reorder from last week' could be several orders (e.g. ORD-040, ORD-010, ORD-017)."
+R20,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,none," Message and file agree. Hand calculation: 3 eligible accessory workshops, none returns by Apr 04 (earliest SteadyHands Apr 17). Response must disclose numbers, earliest date and options, not silently allocate. Behaviour refuse is a judgement call."
+R21,allocate,ORD-081,1500,TOPS,2026-04-13,none,cheapest shop that can still make Apr 13 - Chen,Reviewer's workshop pick: GiantWeave  Message and file agree. Only 2 eligible workshops return by Apr 13 (earliest QuickStitch Apr 11).
+R22,allocate,ORD-040,1200,TOPS,2026-04-21,none,none,Reviewer's workshop pick: GiantWeave  Message and file agree.
+R23,allocate,ORD-005,500,ACCESSORIES,2026-04-20,none,split across two shops if that gets it back faster - Priya,Reviewer's workshop pick: SteadyHands  Message and file agree. Splitting is allowed by the sender.
+R24,refuse,ORD-015,300,TOPS,2026-04-16,ineligible_suggested_workshop,none, Little Loom makes accessories only; a vest is TOPS. Offer an alternative. Pieces and due from file.
+R25,allocate,ORD-109,500,TOPS,2026-04-13,none,keep it away from BudgetWorks - Mei,Reviewer's workshop pick: Nimble Needle  Message and file agree.
+R26,allocate,ORD-010,1000,TOPS,2026-04-25,none,none,Reviewer's workshop pick: SteadyHands  Message and file agree.
+R27,allocate,ORD-095,800,TOPS,2026-04-26,none,lowest defect rate - Ravi (Bright Basics rejected a batch last month),Reviewer's workshop pick: SteadyHands  Message and file agree.
+R28,refuse,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none, Deadline Mar 29 is 3 days before today (2026-04-01); earliest possible return by hand calculation is Apr 09 (QuickStitch). Must acknowledge the date has passed; also asks 'who has room this week?'. Behaviour refuse is a judgement call.
+R29,clarify,,,,,multiple_matches,none," Six in-progress vest orders (ORD-015, 020, 024, 045, 109, 120); no customer or order ID given."
+R30,refuse,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none," Hand calculation: 5 eligible workshops, none returns by Apr 05 (earliest QuickStitch Apr 11). Response must disclose numbers, earliest date and options. Behaviour refuse is a judgement call."
