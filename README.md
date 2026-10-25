@@ -126,6 +126,18 @@ Markdown table and creates `eval/results.csv`,
 - `eval/charts/tradeoff_lateness_vs_cost.png`
 - `eval/charts/tradeoff_lateness_vs_fairness.png`
 
+**Objectives and their roles.** Primary: minimise lateness (% of batches late
+and mean days late). Secondary: fairness (share of all pieces at the busiest
+workshop), pursued through the hybrid preset, 0.9 lateness / 0.1 fairness, whose
+weight was chosen by the pre-declared rule in `eval/run_hybrid_sweep.py`.
+Robustness is a stress test: every policy is run normally and with the hidden
+closure, and the change is reported. Sprint 1 named robustness as the secondary
+objective; it was moved because the lateness policy already loses only 0.25 points
+under the closure and weighting robustness made lateness and robustness worse
+(`docs/objective_weighting_analysis.md`). The defect objective and the lateness and
+defect hybrid are reported only. All six presets run in every evaluation, so the
+change of roles changed no number.
+
 Metrics use the official v3 `Simulator.metrics()` arithmetic, including
 `late_days` (mean lateness over all batches) and `pct_defect_pieces` (pieces in
 defective batches). `results_per_seed.csv` keeps all 200 runs;

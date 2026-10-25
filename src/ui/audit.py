@@ -339,7 +339,7 @@ def record_panel(row, workshops):
                  ("Business date", record.get("timestamp", "")[:10])]
         html('<div class="dk-card" style="margin-top:0.4rem"><dl class="kv" style="grid-template-columns:12.6667rem 1fr;font-size:0.9667rem">'
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in items) + "</dl>"
-             '<p class="ev" style="margin:0.8rem 0 0">Confirmation records the decision locally. It does not contact the workshop.</p></div>')
+             '<p class="ev" style="margin:0.8rem 0 0">Confirming booked the batch into the workshop\'s queue and saved this record.</p></div>')
         if st.toggle("View tool trace", key="audit_raw_trace"):
             json_block(record.get("tool_outputs", {}).get("call_trace", []), height=300)
         if st.toggle("View raw record", key="audit_raw_record"):

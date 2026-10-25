@@ -381,3 +381,53 @@ def test_benchmark_scores_against_human_labels_only_when_all_30_exist():
     scored = run_models.human_accuracy(rows, labels)
     assert scored["behaviour_rate"] == 0.5 and scored["cases"] == 2 and len(scored["critical_errors"]) == 1
     assert "excluded_workshops" not in scored["fields"]
+
+
+def test_split_label_appears_only_when_the_single_workshop_is_late_or_tight():
+    single = lambda spare: {"days_to_spare": spare}
+    split = lambda spare, ok=True: {"available": ok, "days_to_spare": spare}
+    assert dispatch.split_worth_considering(single(11), split(13)) is None       # Comfortably on time: one workshop is enough.
+    assert "only 0 days" in dispatch.split_worth_considering(single(0), split(2))  # Tight: worth a look.
+    assert "6 days late" in dispatch.split_worth_considering(single(-6), split(1))
+    assert dispatch.split_worth_considering(single(-6), split(-4)) is None       # The split is late too: no claim.
+    assert dispatch.split_worth_considering(single(0), split(2, ok=False)) is None
+
+
+def test_a_confirmation_from_another_channel_reaches_the_desk_and_the_queues_page(app):
+    import inbox_store
+    before = dict(app.session_state["desk_queues"])
+    preview = run_preview()          # The R09 fixture, as the Telegram bot would evaluate it.
+    desk.confirm_preview(preview, preview.signature, {}, append=lambda r: desk.records.append(r, desk.REHEARSAL_LOG),
+                         channel="telegram", by="Mei")
+    app.run()                         # The next run of any page reloads the shared workload from the log.
+    assert app.session_state["desk_queues"]["W6"] > before["W6"]
+    page(app, "Workshop queues")
+    text = " ".join(m.value for m in app.markdown)
+    assert "Nimble Needle" in text and "via Telegram by Mei" in text and "1</b> confirmed decision" in text
+
+
+def test_a_typed_request_becomes_a_live_inbox_message_with_its_history(app):
+    import inbox_store
+    app.button(key="inbox_compose").click().run()
+    app.text_area(key="_w_desk_message").set_value("R09 [08:33] Boss: ORD-045 – 150 vests for Cotton Club, due Apr 09. It's urgent. Cost doesn't matter, just the fastest turnaround.").run()
+    thread_count = len(inbox_store.threads())
+    assert thread_count == 0          # A supplied inbox line is not duplicated into the live store.
+    app.button(key="inbox_compose").click().run()
+    app.text_area(key="_w_desk_message").set_value("ORD-045 again please, 150 vests").run()
+    app.button(key="desk_dispatch").click().run()
+    threads = inbox_store.threads()
+    assert len(threads) == 1 and threads[0]["channel"] == "desk" and threads[0]["events"][0]["event"] in {"Recommended", "Not processed", "Needs reply", "Cannot act"} or app.session_state["desk_error"]
+    assert "inbox_L1" in [b.key for b in app.button]   # It is listed in the inbox, ahead of the supplied requests.
+
+
+def test_background_runs_use_the_lighter_model_and_the_desk_keeps_the_configured_one(monkeypatch):
+    calls = []
+    monkeypatch.setattr(intake, "llm_settings", lambda: ("anthropic", "claude-sonnet-5-5"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
+    monkeypatch.setattr(intake, "_call_anthropic", lambda model, prompt, message, effort=None: calls.append((model, effort)) or "reply")
+    intake._call_llm("prompt", "message")
+    with intake.model_override(intake.BACKGROUND_MODEL, intake.BACKGROUND_EFFORT):
+        intake._call_llm("prompt", "message")
+    intake._call_llm("prompt", "message")
+    assert calls == [("claude-sonnet-5-5", None), ("claude-haiku-5-5", "low"), ("claude-sonnet-5-5", None)]
+    assert intake.model_label("claude-haiku-5-5") == "Claude Haiku 5.5"

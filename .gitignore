@@ -26,3 +26,6 @@ records/rehearsal_cache/
 
 # Local code-graph caches (graphify)
 graphify-out/
+
+# Demo video project (HyperFrames)
+demo_video/

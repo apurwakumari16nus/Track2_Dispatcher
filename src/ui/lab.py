@@ -46,7 +46,12 @@ DAY0 = date(2026, 1, 1)
 # slate for supplied baselines, deep slate for the strong simple rule, amber for shock.
 OURS, OTHER_OBJ, BASE, STRONG, SHOCK_C = "#2A77E8", "#9DBDF0", "#A9B4C2", "#5E6D82", "#E09A2C"
 OUTCOME_DARK = {"ok": "dk-ok", "muted": "dk-muted", "risk": "dk-risk", "warn": "dk-warn"}
-OBJECTIVES = ["lateness", "fairness", "robustness", "defect", "hybrid_lateness_fairness", "hybrid_lateness_defect"]
+OBJECTIVES = ["lateness", "fairness", "hybrid_lateness_fairness", "robustness", "defect", "hybrid_lateness_defect"]
+# The role each objective plays in the evaluation. Fairness replaced robustness as the secondary objective after
+# Sprint 1: the lateness policy is already robust (+0.25 points under a closure) and weighting robustness made both
+# lateness and robustness worse, so robustness is now a stress test run on every policy.
+ROLES = {"lateness": "Primary", "fairness": "Secondary", "hybrid_lateness_fairness": "Hybrid: primary + secondary",
+         "robustness": "Stress test", "defect": "Reported only", "hybrid_lateness_defect": "Reported only"}
 
 
 def fingerprint() -> str:
@@ -525,7 +530,7 @@ def objectives_matrix(data, focus, shock):
                 best = " best" if r["pos"][m] == 0 else ""
                 cells.append(f'<span class="r omx-v{best}" style="--g:{good:.3f}">{esc(fmt_.format(r["values"][m]))}</span>')
             with st.container(key=f"obj_{r['key']}"):
-                html(f'<div class="omx-row{" on" if r["key"] == focus else ""}"><span class="omx-n"><b>{esc(r["label"])}</b><small>{esc(weights)}</small></span>'
+                html(f'<div class="omx-row{" on" if r["key"] == focus else ""}"><span class="omx-n"><b>{esc(r["label"])}</b><small><em class="omx-role">{esc(ROLES[r["key"]])}</em> · {esc(weights)}</small></span>'
                      f'<span>{status_pill(r["verdict"], VERDICT_TONE.get(r["tone"], "muted"))}</span>{"".join(cells)}</div>')
                 st.button(f"Show {LABELS[r['key']]}", key=f"objbtn_{r['key']}", on_click=set_focus, args=(r["key"],))
     source_note("eval/ ten-seed results and the committed objective checks. Shading compares the six objectives with each other, not with the baselines.")

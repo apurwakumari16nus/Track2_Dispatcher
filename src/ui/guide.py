@@ -363,7 +363,7 @@ def summary():
          '<dl class="gd-sum">'
          f'<dt>AI interpretation</dt><dd>{esc(source)} read the message into fields. Nothing else.</dd>'
          f'<dt>Python decisions</dt><dd>Validation, eligibility, return dates, costs and the ranking chose {esc(record.get("chosen_workshop"))}.</dd>'
-         '<dt>Human approval</dt><dd>You confirmed it. Nothing was sent to the workshop.</dd>'
+         '<dt>Human approval</dt><dd>You confirmed it: booked into the workshop\'s queue and saved in the audit log.</dd>'
          '<dt>Recorded evidence</dt><dd>The audit record holds the request, candidates, evidence check and your confirmation, '
          'in the rehearsal log because this was a demo.</dd></dl>')
     with st.container(key="guide_end", horizontal=True):

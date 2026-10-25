@@ -43,6 +43,7 @@ def extraction(request_id):
 def bot(monkeypatch, tmp_path):
     monkeypatch.setattr(records, "DEFAULT_PATH", tmp_path / "live.jsonl")
     monkeypatch.setattr(desk, "REHEARSAL_LOG", tmp_path / "rehearsal.jsonl")
+    monkeypatch.setattr(telegram_bot.inbox_store, "PATH", tmp_path / "messages.jsonl")
     reply = {"payload": extraction("R09")}
     monkeypatch.setattr(intake, "_call_llm", lambda prompt, message: intake.LLMReply(json.dumps(reply["payload"]), {"model": "test"}))
     api = FakeAPI()
@@ -79,7 +80,7 @@ def test_a_request_gets_a_recommendation_and_one_tap_confirms_it_once(bot):
     instance, api = bot
     instance.handle(message("ORD-045, 150 vests for Cotton Club, due Apr 09, fastest please"))
     card = api.sent[-1]
-    assert "Recommended: Nimble Needle" in card["text"] and "Not confirmed" in card["text"]
+    assert "Recommended: Nimble Needle" in card["text"] and card["buttons"][0][0]["text"] == "Confirm Nimble Needle"
     assert not records.DEFAULT_PATH.exists()                           # A recommendation writes nothing.
     data = button(api, "c:")
     instance.handle(tap(api, data))
@@ -139,3 +140,13 @@ def test_escalation_and_split_are_recorded_and_only_the_split_moves_the_queue(bo
     queues, _, confirmed = desk.queues_from_log(instance.workshops)
     assert confirmed == 1 and {p["workshop_id"] for p in row["decision_record"]["split_allocation"]["parts"]} == {
         w for w in queues if queues[w] != instance.workshops[w].queue0}
+
+
+def test_chat_requests_and_their_outcomes_reach_the_shared_inbox(bot):
+    instance, api = bot
+    instance.handle(message("ORD-045, 150 vests for Cotton Club, due Apr 09"))
+    instance.handle(tap(api, button(api, "c:")))
+    thread = telegram_bot.inbox_store.threads()[0]
+    assert thread["channel"] == "telegram" and thread["sender"] == "Aditya" and thread["text"].startswith("ORD-045")
+    assert [e["event"] for e in thread["events"]] == ["Recommended", "Confirmed"] and thread["status"] == "Confirmed"
+    assert thread["events"][-1]["by"] == "Aditya"
