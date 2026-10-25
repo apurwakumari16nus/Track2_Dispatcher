@@ -1,31 +1,31 @@
 request_id,expected_behaviour,expected_order_id,expected_pieces,expected_category,expected_due,issue,constraint,notes
-R01,,,,,,,,
-R02,,,,,,,,
-R03,,,,,,,,
-R04,,,,,,,,
-R05,,,,,,,,
-R06,,,,,,,,
-R07,,,,,,,,
-R08,,,,,,,,
-R09,,,,,,,,
-R10,,,,,,,,
-R11,,,,,,,,
-R12,,,,,,,,
-R13,,,,,,,,
-R14,,,,,,,,
-R15,,,,,,,,
-R16,,,,,,,,
-R17,,,,,,,,
-R18,,,,,,,,
-R19,,,,,,,,
-R20,,,,,,,,
-R21,,,,,,,,
-R22,,,,,,,,
-R23,,,,,,,,
-R24,,,,,,,,
-R25,,,,,,,,
-R26,,,,,,,,
-R27,,,,,,,,
-R28,,,,,,,,
-R29,,,,,,,,
-R30,,,,,,,,
+R01,clarify,,,,,no_order_id,none,Harbor Knits scarves: quantity described only as usual; ask for exact batch/order ID and quantity; no historical usual quantity available.
+R02,decline,,,,,no_such_data,none,October 2025 workshop allocation history is not in the supplied files.
+R03,clarify,,,,,multiple_matches,none,TrendCart has multiple in-progress orders; ask for order ID or product.
+R04,allocate,ORD-041,600,ACCESSORIES,2026-04-21,none,none,"600 beanies; eligible accessory workshops W2 W4 W6. Estimates [('2026-04-08', 'Nimble Needle', 6.615, 720.0), ('2026-04-10', 'SteadyHands', 8.029, 780.0), ('2026-04-12', 'Little Loom', 10.071, 960.0)]"
+R05,clarify,ORD-066,1000,TOPS,,date_not_confirmed,none,Due date explicitly changed but new date unconfirmed; do not use historical 2026-04-26 as deadline.
+R06,allocate,ORD-096,1000,ACCESSORIES,2026-04-17,none,none,"1000 beanies; use accessory-capable active workshops; estimates [('2026-04-11', 'Nimble Needle', 9.692, 1200.0), ('2026-04-12', 'SteadyHands', 10.382, 1300.0), ('2026-04-17', 'Little Loom', 15.786, 1600.0)]"
+R07,allocate,ORD-063,100,TOPS,2026-04-29,none,none,"100 cardigans; no special constraints; estimates [('2026-04-04', 'FreshStart', 3.0, 100.0), ('2026-04-04', 'Nimble Needle', 2.769, 120.0), ('2026-04-07', 'QuickStitch', 5.333, 150.0), ('2026-04-07', 'SteadyHands', 5.088, 130.0), ('2026-04-09', 'GiantWeave', 7.25, 110.0), ('2026-04-10', 'BudgetWorks', 8.435, 80.0)]"
+R08,refuse,ORD-073,400,TOPS,2026-04-20,ineligible_suggested_workshop,Priya requests FreshStart,"FreshStart W8 max 300 pieces; requested 400 hoodies. Offer another eligible TOPS shop, e.g. QuickStitch; verify delivery estimate."
+R09,allocate,ORD-045,150,TOPS,2026-04-09,none,Boss: fastest turnaround regardless of cost,"150 vests; choose shortest estimated completion, not cheapest. [('2026-04-05', 'FreshStart', 3.5, 150.0), ('2026-04-05', 'Nimble Needle', 3.154, 180.0), ('2026-04-07', 'QuickStitch', 5.5, 225.0), ('2026-04-07', 'SteadyHands', 5.382, 195.0), ('2026-04-09', 'GiantWeave', 7.375, 165.0), ('2026-04-10', 'BudgetWorks', 8.652, 120.0)]"
+R10,clarify,,,,,no_order_id,none,"New Loom & Leaf rush lacks product, quantity, deadline and order ID; ask for details before reserving capacity."
+R11,refuse,ORD-008,600,TOPS,2026-04-09,ineligible_suggested_workshop,Chen suggests OldMill,"OldMill W7 is SUSPENDED despite zero queue; cannot dispatch. Alternative active TOPS workshop; [('2026-04-08', 'Nimble Needle', 6.615, 720.0), ('2026-04-08', 'QuickStitch', 7.0, 900.0), ('2026-04-10', 'GiantWeave', 8.5, 660.0), ('2026-04-10', 'SteadyHands', 8.029, 780.0), ('2026-04-12', 'BudgetWorks', 10.609, 480.0)]"
+R12,allocate,ORD-053,800,TOPS,2026-04-10,none,Boss (relayed by Ravi): exclude QuickStitch this week,"800 polo shirts; exclude W1; [('2026-04-10', 'GiantWeave', 9.0, 880.0), ('2026-04-10', 'Nimble Needle', 8.154, 960.0), ('2026-04-11', 'SteadyHands', 9.206, 1040.0), ('2026-04-13', 'BudgetWorks', 11.478, 640.0)]"
+R13,decline,ORD-120,1500,TOPS,2026-03-17,no_such_data,none,Customer selling/quoted price not provided; workshop cost_per_piece is not the quote to TrendCart.
+R14,refuse,ORD-103,2000,ACCESSORIES,2026-04-04,ineligible_suggested_workshop,Boss suggests QuickStitch,"QuickStitch W1 makes TOPS only, not scarves (ACCESSORIES); alternative eligible accessory shops W2 W4 W6; deadline is independently infeasible: [('2026-04-18', 'SteadyHands', 16.265, 2600.0), ('2026-04-19', 'Nimble Needle', 17.385, 2400.0), ('2026-05-02', 'Little Loom', 30.071, 3200.0)]"
+R15,clarify,,,,,multiple_matches,none,Multiple in-progress Loom & Leaf orders; ask which order(s) and deadlines.
+R16,allocate,ORD-024,300,TOPS,2026-04-15,none,none,"300 vests; dispatch today; [('2026-04-06', 'FreshStart', 5.0, 300.0), ('2026-04-06', 'Nimble Needle', 4.308, 360.0), ('2026-04-07', 'QuickStitch', 6.0, 450.0), ('2026-04-08', 'SteadyHands', 6.265, 390.0), ('2026-04-09', 'GiantWeave', 7.75, 330.0), ('2026-04-11', 'BudgetWorks', 9.304, 240.0)]"
+R17,allocate,ORD-017,800,TOPS,2026-04-10,none,none,"800 cardigans; [('2026-04-09', 'QuickStitch', 7.667, 1200.0), ('2026-04-10', 'GiantWeave', 9.0, 880.0), ('2026-04-10', 'Nimble Needle', 8.154, 960.0), ('2026-04-11', 'SteadyHands', 9.206, 1040.0), ('2026-04-13', 'BudgetWorks', 11.478, 640.0)]"
+R18,decline,,,,,order_not_found,none,ORD-999 absent from orders.csv; cannot establish status or movement; request correct ID.
+R19,clarify,,,,,no_order_id,none,Big reorder from last week not uniquely identifiable; ask for ID/customer/product before applying fastest rule.
+R20,decline,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,none,"Apr 04 infeasible. Earliest [('2026-04-18', 'SteadyHands', 16.265, 2600.0), ('2026-04-19', 'Nimble Needle', 17.385, 2400.0), ('2026-05-02', 'Little Loom', 30.071, 3200.0)]; report lateness, propose deadline extension or human-approved split/escalation; do not silently allocate."
+R21,allocate,ORD-081,1500,TOPS,2026-04-13,none,Chen: cheapest eligible workshop that can deliver by 2026-04-13,"Check date before price. [('2026-04-11', 'QuickStitch', 10.0, 2250.0), ('2026-04-12', 'GiantWeave', 10.75, 1650.0), ('2026-04-15', 'Nimble Needle', 13.538, 1800.0), ('2026-04-15', 'SteadyHands', 13.324, 1950.0), ('2026-04-16', 'BudgetWorks', 14.522, 1200.0)]"
+R22,allocate,ORD-040,1200,TOPS,2026-04-21,none,none,"1200 hoodies; [('2026-04-10', 'QuickStitch', 9.0, 1800.0), ('2026-04-11', 'GiantWeave', 10.0, 1320.0), ('2026-04-13', 'Nimble Needle', 11.231, 1440.0), ('2026-04-13', 'SteadyHands', 11.559, 1560.0), ('2026-04-15', 'BudgetWorks', 13.217, 960.0)]"
+R23,allocate,ORD-005,500,ACCESSORIES,2026-04-20,none,Priya: split across two workshops if faster,"500 scarves; compare single-shop completion [('2026-04-07', 'Nimble Needle', 5.846, 600.0), ('2026-04-09', 'SteadyHands', 7.441, 650.0), ('2026-04-10', 'Little Loom', 8.643, 800.0)] versus split; chat layer can propose/record split, simulator cannot split."
+R24,refuse,ORD-015,300,TOPS,2026-04-16,ineligible_suggested_workshop,Boss suggests Little Loom,"Little Loom W4 makes ACCESSORIES only; ORD-015 is TOPS vest. Suggest eligible TOPS shop; [('2026-04-06', 'FreshStart', 5.0, 300.0), ('2026-04-06', 'Nimble Needle', 4.308, 360.0), ('2026-04-07', 'QuickStitch', 6.0, 450.0), ('2026-04-08', 'SteadyHands', 6.265, 390.0), ('2026-04-09', 'GiantWeave', 7.75, 330.0), ('2026-04-11', 'BudgetWorks', 9.304, 240.0)]"
+R25,allocate,ORD-109,500,TOPS,2026-04-13,none,Mei: exclude BudgetWorks due to previous rough batch,"500 vests; exclude W3 and attribute constraint to Mei; [('2026-04-07', 'Nimble Needle', 5.846, 600.0), ('2026-04-08', 'QuickStitch', 6.667, 750.0), ('2026-04-09', 'SteadyHands', 7.441, 650.0), ('2026-04-10', 'GiantWeave', 8.25, 550.0)]"
+R26,allocate,ORD-010,1000,TOPS,2026-04-25,none,none,"1000 cardigans; [('2026-04-10', 'QuickStitch', 8.333, 1500.0), ('2026-04-11', 'GiantWeave', 9.5, 1100.0), ('2026-04-11', 'Nimble Needle', 9.692, 1200.0), ('2026-04-12', 'SteadyHands', 10.382, 1300.0), ('2026-04-14', 'BudgetWorks', 12.348, 800.0)]"
+R27,allocate,ORD-095,800,TOPS,2026-04-26,none,Ravi: prioritise lowest defect rate because Bright Basics rejected prior batch,"800 hoodies; eligible defect rates: SteadyHands 3%, Nimble Needle 5%, GiantWeave 6%, BudgetWorks 9%, QuickStitch 12%; FreshStart batch cap 300."
+R28,decline,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none,"Due 2026-03-29 is 3 days before today; acknowledge overdue and present revised dates/options. [('2026-04-10', 'QuickStitch', 8.333, 1500.0), ('2026-04-11', 'GiantWeave', 9.5, 1100.0), ('2026-04-11', 'Nimble Needle', 9.692, 1200.0), ('2026-04-12', 'SteadyHands', 10.382, 1300.0), ('2026-04-14', 'BudgetWorks', 12.348, 800.0)]"
+R29,clarify,,,,,multiple_matches,none,Several in-progress vest orders; no customer/order ID or quantity; ask which order.
+R30,decline,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none,"Apr 05 infeasible; earliest [('2026-04-11', 'QuickStitch', 10.0, 2250.0), ('2026-04-12', 'GiantWeave', 10.75, 1650.0), ('2026-04-15', 'Nimble Needle', 13.538, 1800.0), ('2026-04-15', 'SteadyHands', 13.324, 1950.0), ('2026-04-16', 'BudgetWorks', 14.522, 1200.0)]; report delay and options (extension, human escalation)."
