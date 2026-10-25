@@ -52,7 +52,7 @@ PRESETS = {
     "fairness": ObjectiveConfig(w_fairness=1.0, name="fairness"),
     "robustness": ObjectiveConfig(w_robustness=1.0, name="robustness"),
     "hybrid_lateness_fairness": ObjectiveConfig(
-        w_lateness=0.7, w_fairness=0.3, name="hybrid_lateness_fairness"
+        w_lateness=0.9, w_fairness=0.1, name="hybrid_lateness_fairness"
     ),
     "hybrid_lateness_defect": ObjectiveConfig(
         w_lateness=0.6, w_defect=0.4, name="hybrid_lateness_defect"

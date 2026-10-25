@@ -46,7 +46,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | mean_days | earliest_finish | 8.259823327 | defect | 164.364986 | 156.1051627 |
 | mean_days | earliest_finish | 8.259823327 | fairness | 19.46906038 | 11.20923705 |
 | mean_days | earliest_finish | 8.259823327 | robustness | 18.91288689 | 10.65306357 |
-| mean_days | earliest_finish | 8.259823327 | hybrid_lateness_fairness | 12.54855396 | 4.288730632 |
+| mean_days | earliest_finish | 8.259823327 | hybrid_lateness_fairness | 11.65213724 | 3.392313911 |
 | mean_days | earliest_finish | 8.259823327 | hybrid_lateness_defect | 20.42970211 | 12.16987879 |
 | p90_days | random_choice | 46.72637363 | defect | 285.8478992 | 239.1215255 |
 | p90_days | random_choice | 46.72637363 | fairness | 54.1 | 7.373626374 |
@@ -56,7 +56,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | p90_days | earliest_finish | 14.36968326 | defect | 285.8478992 | 271.4782159 |
 | p90_days | earliest_finish | 14.36968326 | fairness | 54.1 | 39.73031674 |
 | p90_days | earliest_finish | 14.36968326 | robustness | 53.97142857 | 39.60174531 |
-| p90_days | earliest_finish | 14.36968326 | hybrid_lateness_fairness | 25.94990304 | 11.58021978 |
+| p90_days | earliest_finish | 14.36968326 | hybrid_lateness_fairness | 24.72853911 | 10.35885585 |
 | p90_days | earliest_finish | 14.36968326 | hybrid_lateness_defect | 33.71955398 | 19.34987072 |
 | pct_late | random_choice | 34.16666667 | defect | 95.08333333 | 60.91666667 |
 | pct_late | greedy_biggest | 84.25 | defect | 95.08333333 | 10.83333333 |
@@ -64,7 +64,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | pct_late | earliest_finish | 1.666666667 | defect | 95.08333333 | 93.41666667 |
 | pct_late | earliest_finish | 1.666666667 | fairness | 24.41666667 | 22.75 |
 | pct_late | earliest_finish | 1.666666667 | robustness | 23 | 21.33333333 |
-| pct_late | earliest_finish | 1.666666667 | hybrid_lateness_fairness | 7 | 5.333333333 |
+| pct_late | earliest_finish | 1.666666667 | hybrid_lateness_fairness | 5.083333333 | 3.416666667 |
 | pct_late | earliest_finish | 1.666666667 | hybrid_lateness_defect | 18.5 | 16.83333333 |
 | late_days | random_choice | 6.1325 | defect | 139.8683333 | 133.7358333 |
 | late_days | random_choice | 6.1325 | fairness | 7.195 | 1.0625 |
@@ -74,41 +74,41 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | late_days | earliest_finish | 0.1783333333 | defect | 139.8683333 | 139.69 |
 | late_days | earliest_finish | 0.1783333333 | fairness | 7.195 | 7.016666667 |
 | late_days | earliest_finish | 0.1783333333 | robustness | 6.839166667 | 6.660833333 |
-| late_days | earliest_finish | 0.1783333333 | hybrid_lateness_fairness | 0.6091666667 | 0.4308333333 |
+| late_days | earliest_finish | 0.1783333333 | hybrid_lateness_fairness | 0.4333333333 | 0.255 |
 | late_days | earliest_finish | 0.1783333333 | hybrid_lateness_defect | 1.785 | 1.606666667 |
 | pct_defect | random_choice | 5.166666667 | lateness | 6.583333333 | 1.416666667 |
 | pct_defect | random_choice | 5.166666667 | fairness | 5.75 | 0.5833333333 |
 | pct_defect | random_choice | 5.166666667 | robustness | 5.583333333 | 0.4166666667 |
-| pct_defect | random_choice | 5.166666667 | hybrid_lateness_fairness | 5.833333333 | 0.6666666667 |
+| pct_defect | random_choice | 5.166666667 | hybrid_lateness_fairness | 5.5 | 0.3333333333 |
 | pct_defect | greedy_biggest | 5.166666667 | lateness | 6.583333333 | 1.416666667 |
 | pct_defect | greedy_biggest | 5.166666667 | fairness | 5.75 | 0.5833333333 |
 | pct_defect | greedy_biggest | 5.166666667 | robustness | 5.583333333 | 0.4166666667 |
-| pct_defect | greedy_biggest | 5.166666667 | hybrid_lateness_fairness | 5.833333333 | 0.6666666667 |
+| pct_defect | greedy_biggest | 5.166666667 | hybrid_lateness_fairness | 5.5 | 0.3333333333 |
 | pct_defect_pieces | random_choice | 5.598930481 | lateness | 7.181818182 | 1.582887701 |
 | pct_defect_pieces | random_choice | 5.598930481 | fairness | 6.50802139 | 0.9090909091 |
 | pct_defect_pieces | random_choice | 5.598930481 | robustness | 6.43315508 | 0.8342245989 |
-| pct_defect_pieces | random_choice | 5.598930481 | hybrid_lateness_fairness | 6.754010695 | 1.155080214 |
+| pct_defect_pieces | random_choice | 5.598930481 | hybrid_lateness_fairness | 6.219251337 | 0.6203208556 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | lateness | 7.181818182 | 1.903743316 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | fairness | 6.50802139 | 1.229946524 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | robustness | 6.43315508 | 1.155080214 |
-| pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_fairness | 6.754010695 | 1.475935829 |
+| pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_fairness | 6.219251337 | 0.9411764706 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_defect | 5.582887701 | 0.3048128342 |
 | total_cost | random_choice | 111780 | lateness | 115566.5 | 3786.5 |
 | total_cost | random_choice | 111780 | defect | 129920 | 18140 |
 | total_cost | random_choice | 111780 | fairness | 116028 | 4248 |
 | total_cost | random_choice | 111780 | robustness | 115741.5 | 3961.5 |
-| total_cost | random_choice | 111780 | hybrid_lateness_fairness | 113208 | 1428 |
+| total_cost | random_choice | 111780 | hybrid_lateness_fairness | 113172 | 1392 |
 | total_cost | greedy_biggest | 108430 | lateness | 115566.5 | 7136.5 |
 | total_cost | greedy_biggest | 108430 | defect | 129920 | 21490 |
 | total_cost | greedy_biggest | 108430 | fairness | 116028 | 7598 |
 | total_cost | greedy_biggest | 108430 | robustness | 115741.5 | 7311.5 |
-| total_cost | greedy_biggest | 108430 | hybrid_lateness_fairness | 113208 | 4778 |
+| total_cost | greedy_biggest | 108430 | hybrid_lateness_fairness | 113172 | 4742 |
 | total_cost | greedy_biggest | 108430 | hybrid_lateness_defect | 109319.5 | 889.5 |
 | total_cost | cheapest | 85960 | lateness | 115566.5 | 29606.5 |
 | total_cost | cheapest | 85960 | defect | 129920 | 43960 |
 | total_cost | cheapest | 85960 | fairness | 116028 | 30068 |
 | total_cost | cheapest | 85960 | robustness | 115741.5 | 29781.5 |
-| total_cost | cheapest | 85960 | hybrid_lateness_fairness | 113208 | 27248 |
+| total_cost | cheapest | 85960 | hybrid_lateness_fairness | 113172 | 27212 |
 | total_cost | cheapest | 85960 | hybrid_lateness_defect | 109319.5 | 23359.5 |
 | total_cost | earliest_finish | 115566.5 | defect | 129920 | 14353.5 |
 | total_cost | earliest_finish | 115566.5 | fairness | 116028 | 461.5 |
@@ -134,7 +134,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | mean_days | earliest_finish | 8.509129897 | defect | 166.9783193 | 158.4691894 |
 | mean_days | earliest_finish | 8.509129897 | fairness | 19.60062212 | 11.09149223 |
 | mean_days | earliest_finish | 8.509129897 | robustness | 18.14388182 | 9.634751926 |
-| mean_days | earliest_finish | 8.509129897 | hybrid_lateness_fairness | 12.86993333 | 4.360803433 |
+| mean_days | earliest_finish | 8.509129897 | hybrid_lateness_fairness | 12.35595361 | 3.846823713 |
 | mean_days | earliest_finish | 8.509129897 | hybrid_lateness_defect | 20.32913979 | 11.82000989 |
 | p90_days | random_choice | 49.03535595 | defect | 289.0823529 | 240.046997 |
 | p90_days | random_choice | 49.03535595 | fairness | 54.89159664 | 5.85624069 |
@@ -143,7 +143,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | p90_days | earliest_finish | 15.33823529 | defect | 289.0823529 | 273.7441176 |
 | p90_days | earliest_finish | 15.33823529 | fairness | 54.89159664 | 39.55336134 |
 | p90_days | earliest_finish | 15.33823529 | robustness | 47.26370394 | 31.92546865 |
-| p90_days | earliest_finish | 15.33823529 | hybrid_lateness_fairness | 27.54552851 | 12.20729322 |
+| p90_days | earliest_finish | 15.33823529 | hybrid_lateness_fairness | 26.18626374 | 10.84802844 |
 | p90_days | earliest_finish | 15.33823529 | hybrid_lateness_defect | 33.85833872 | 18.52010343 |
 | pct_late | random_choice | 38.16666667 | defect | 95.08333333 | 56.91666667 |
 | pct_late | greedy_biggest | 84.91666667 | defect | 95.08333333 | 10.16666667 |
@@ -151,7 +151,7 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | pct_late | earliest_finish | 1.916666667 | defect | 95.08333333 | 93.16666667 |
 | pct_late | earliest_finish | 1.916666667 | fairness | 26.08333333 | 24.16666667 |
 | pct_late | earliest_finish | 1.916666667 | robustness | 22.75 | 20.83333333 |
-| pct_late | earliest_finish | 1.916666667 | hybrid_lateness_fairness | 10 | 8.083333333 |
+| pct_late | earliest_finish | 1.916666667 | hybrid_lateness_fairness | 8.5 | 6.583333333 |
 | pct_late | earliest_finish | 1.916666667 | hybrid_lateness_defect | 20.91666667 | 19 |
 | late_days | random_choice | 7.165833333 | defect | 142.4816667 | 135.3158333 |
 | late_days | greedy_biggest | 28.04666667 | defect | 142.4816667 | 114.435 |
@@ -159,42 +159,42 @@ Each row is one strict pairwise win. All four comparison policies are checked ag
 | late_days | earliest_finish | 0.1908333333 | defect | 142.4816667 | 142.2908333 |
 | late_days | earliest_finish | 0.1908333333 | fairness | 7.148333333 | 6.9575 |
 | late_days | earliest_finish | 0.1908333333 | robustness | 5.9975 | 5.806666667 |
-| late_days | earliest_finish | 0.1908333333 | hybrid_lateness_fairness | 0.7358333333 | 0.545 |
+| late_days | earliest_finish | 0.1908333333 | hybrid_lateness_fairness | 0.6258333333 | 0.435 |
 | late_days | earliest_finish | 0.1908333333 | hybrid_lateness_defect | 1.908333333 | 1.7175 |
 | pct_defect | random_choice | 5.166666667 | lateness | 6.583333333 | 1.416666667 |
 | pct_defect | random_choice | 5.166666667 | fairness | 5.833333333 | 0.6666666667 |
 | pct_defect | random_choice | 5.166666667 | robustness | 5.5 | 0.3333333333 |
-| pct_defect | random_choice | 5.166666667 | hybrid_lateness_fairness | 5.916666667 | 0.75 |
+| pct_defect | random_choice | 5.166666667 | hybrid_lateness_fairness | 5.833333333 | 0.6666666667 |
 | pct_defect | greedy_biggest | 5.166666667 | lateness | 6.583333333 | 1.416666667 |
 | pct_defect | greedy_biggest | 5.166666667 | fairness | 5.833333333 | 0.6666666667 |
 | pct_defect | greedy_biggest | 5.166666667 | robustness | 5.5 | 0.3333333333 |
-| pct_defect | greedy_biggest | 5.166666667 | hybrid_lateness_fairness | 5.916666667 | 0.75 |
+| pct_defect | greedy_biggest | 5.166666667 | hybrid_lateness_fairness | 5.833333333 | 0.6666666667 |
 | pct_defect_pieces | random_choice | 5.598930481 | lateness | 7.117647059 | 1.518716578 |
 | pct_defect_pieces | random_choice | 5.598930481 | fairness | 6.721925134 | 1.122994652 |
 | pct_defect_pieces | random_choice | 5.598930481 | robustness | 6.090909091 | 0.4919786096 |
-| pct_defect_pieces | random_choice | 5.598930481 | hybrid_lateness_fairness | 6.604278075 | 1.005347594 |
+| pct_defect_pieces | random_choice | 5.598930481 | hybrid_lateness_fairness | 6.561497326 | 0.9625668449 |
 | pct_defect_pieces | random_choice | 5.598930481 | hybrid_lateness_defect | 5.786096257 | 0.1871657754 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | lateness | 7.117647059 | 1.839572193 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | fairness | 6.721925134 | 1.443850267 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | robustness | 6.090909091 | 0.8128342246 |
-| pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_fairness | 6.604278075 | 1.326203209 |
+| pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_fairness | 6.561497326 | 1.28342246 |
 | pct_defect_pieces | greedy_biggest | 5.278074866 | hybrid_lateness_defect | 5.786096257 | 0.5080213904 |
 | total_cost | random_choice | 111780 | lateness | 115459.5 | 3679.5 |
 | total_cost | random_choice | 111780 | defect | 129920 | 18140 |
 | total_cost | random_choice | 111780 | fairness | 115537 | 3757 |
 | total_cost | random_choice | 111780 | robustness | 115097.5 | 3317.5 |
-| total_cost | random_choice | 111780 | hybrid_lateness_fairness | 113012 | 1232 |
+| total_cost | random_choice | 111780 | hybrid_lateness_fairness | 113185 | 1405 |
 | total_cost | greedy_biggest | 108430 | lateness | 115459.5 | 7029.5 |
 | total_cost | greedy_biggest | 108430 | defect | 129920 | 21490 |
 | total_cost | greedy_biggest | 108430 | fairness | 115537 | 7107 |
 | total_cost | greedy_biggest | 108430 | robustness | 115097.5 | 6667.5 |
-| total_cost | greedy_biggest | 108430 | hybrid_lateness_fairness | 113012 | 4582 |
+| total_cost | greedy_biggest | 108430 | hybrid_lateness_fairness | 113185 | 4755 |
 | total_cost | greedy_biggest | 108430 | hybrid_lateness_defect | 108975 | 545 |
 | total_cost | cheapest | 85960 | lateness | 115459.5 | 29499.5 |
 | total_cost | cheapest | 85960 | defect | 129920 | 43960 |
 | total_cost | cheapest | 85960 | fairness | 115537 | 29577 |
 | total_cost | cheapest | 85960 | robustness | 115097.5 | 29137.5 |
-| total_cost | cheapest | 85960 | hybrid_lateness_fairness | 113012 | 27052 |
+| total_cost | cheapest | 85960 | hybrid_lateness_fairness | 113185 | 27225 |
 | total_cost | cheapest | 85960 | hybrid_lateness_defect | 108975 | 23015 |
 | total_cost | earliest_finish | 115459.5 | defect | 129920 | 14460.5 |
 | total_cost | earliest_finish | 115459.5 | fairness | 115537 | 77.5 |
@@ -271,7 +271,7 @@ Shock minus normal over matching seeds. Positive means worse; percentage changes
 | allocator | defect | 0 | 2.613333333 |
 | allocator | fairness | 1.666666667 | -0.04666666667 |
 | allocator | robustness | -0.25 | -0.8416666667 |
-| allocator | hybrid_lateness_fairness | 3 | 0.1266666667 |
+| allocator | hybrid_lateness_fairness | 3.416666667 | 0.1925 |
 | allocator | hybrid_lateness_defect | 2.416666667 | 0.1233333333 |
 
 ### Course objective criteria and guardrails
@@ -321,7 +321,7 @@ The official harness immediately adds future closure delay to an affected queue.
 | defect | 0 | 1 | 0 | 0 | 0 | defect |
 | fairness | 0 | 0 | 1 | 0 | 0 | fairness |
 | robustness | 0 | 0 | 0 | 1 | 0 | robustness |
-| hybrid_lateness_fairness | 0.7 | 0 | 0.3 | 0 | 0 | hybrid_lateness_fairness |
+| hybrid_lateness_fairness | 0.9 | 0 | 0.1 | 0 | 0 | hybrid_lateness_fairness |
 | hybrid_lateness_defect | 0.6 | 0.4 | 0 | 0 | 0 | hybrid_lateness_defect |
 
 ### Input and implementation fingerprints (SHA-256)
@@ -330,6 +330,6 @@ The official harness immediately adds future closure delay to an affected queue.
 - `data/workshops.csv`: `d7e1c97d3d338a2b5aef8e35f167e3582f22c4526e9c736c5b4c8125505ec59e`
 - `harness/simulate.py`: `b845804ad1229f593627b6ef1a6482258331178dbc4ec535274103fc3244593b`
 - `src/tools.py`: `4f1621b079e3dc43a41879300aa2142c057b3b09586b85cf8eab2250644fa423`
-- `src/objectives.py`: `a0f018221e6b2c784b5520da0ad0b002ba2cd47ce4f3b884b2c2bbd37b111d3b`
+- `src/objectives.py`: `a18f3033165daac69c23b826bd6f478c2d424bd9119740fa4606497af062926a`
 - `src/allocator.py`: `c543eb93c93467669c90e81c83946abdf65ccd23f8acfadc8f93350b6aa0ae49`
 - `src/heuristic.py`: `730c3cebb9c5279f904806a9bce1de398e709a3a630a352f05ee1f75f2a44469`

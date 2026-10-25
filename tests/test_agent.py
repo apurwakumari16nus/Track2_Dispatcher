@@ -107,7 +107,8 @@ def test_preference_overrides_and_exclusions(preference, objective, data, parsed
     result = session.handle("request", TODAY, *data)
     assert result.decision_record["objective_name"] == objective
     assert result.decision_record["chosen_workshop"] not in {"W1", "W2", "W7"}
-    assert result.decision_record["constraints_applied"]["must_make_date"] is (preference == "cheapest")
+    # Cheapest and lowest defect must both still make the date (quality without lateness).
+    assert result.decision_record["constraints_applied"]["must_make_date"] is (preference in ("cheapest", "lowest_defect"))
     assert session.allocator.config == PRESETS["fairness"]
     assert sum(session.allocator.pieces_by_workshop.values()) == 100
 
@@ -174,3 +175,11 @@ def test_constraint_authorship_survives_response(data, parsed):
     parsed(sender="Ravi", excluded_workshops=["W1"], constraints=statements)
     result = agent.handle("request", TODAY, *data, PRESETS["lateness"])
     assert result.decision_record["constraints_applied"]["statements"] == statements
+
+
+def test_date_conflict_is_shown_and_backed_by_evidence(data, parsed):
+    parsed(due_date=date(2026, 6, 1), date_conflict={"message_due": "2026-06-01", "file_due": "2026-04-05"})
+    result = agent.Agent(PRESETS["lateness"]).handle("request", TODAY, *data)
+    assert "DATE CHECK" in result.explanation_text and "2026-04-05" in result.explanation_text
+    assert result.decision_record["tool_outputs"]["date_check"]["file_due"] == "2026-04-05"
+    assert result.faithfulness["passed"]
