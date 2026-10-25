@@ -299,6 +299,32 @@ SESSION_DEFAULTS = {"desk_message": "", "desk_preset": "lateness", "desk_page": 
                     "presentation_mode": False}
 
 
+def confirmed_count(path=None) -> int:
+    return sum(1 for row in records.load(path)
+               if row.get("decision_record", {}).get("constraints_applied", {}).get("confirmation", {}).get("confirmed"))
+
+
+def mark_log_seen(state) -> None:
+    """After this session writes a confirmation it already applied to its own queues, so no reload is needed."""
+    state["desk_log_seen"] = (state.get("desk_source"), confirmed_count(audit_path(state.get("desk_source", "live"))))
+
+
+def sync_session(state, workshops) -> bool:
+    """Bring the session's queues in line with every confirmed decision in the audit log for the current mode.
+
+    Another channel (the Telegram bot, another browser) may have confirmed work since this session last looked;
+    the log is the one shared record, so the desk reloads from it. Returns True when the workload changed."""
+    source = state.get("desk_source", "live")
+    path = audit_path(source)
+    seen = (source, confirmed_count(path))
+    if state.get("desk_log_seen") == seen:
+        return False
+    queues, allocator, _ = queues_from_log(workshops, path)
+    state.update(desk_queues=queues, desk_allocator=allocator, desk_queue_date=TODAY, desk_log_seen=seen)
+    state["desk_revision"] = state.get("desk_revision", 0) + 1
+    return True
+
+
 def init_session(state, workshops) -> None:
     if "desk_allocator" not in state:
         state.update(desk_allocator=Allocator(PRESETS["lateness"]), desk_queues={wid: w.queue0 for wid, w in workshops.items()},

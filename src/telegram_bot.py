@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "harness")]
 
 import desk  # noqa: E402
+import inbox_store  # noqa: E402
 import intake  # noqa: E402
 from objectives import PRESETS  # noqa: E402
 import rehearsal  # noqa: E402
@@ -93,6 +94,7 @@ class Pending:
     answers: dict = field(default_factory=dict)
     split: dict | None = None
     done: str | None = None
+    thread: str | None = None      # The message's ID in the shared inbox (inbox_store), so the desk shows its history.
 
 
 def plural(product: str) -> str:
@@ -149,11 +151,12 @@ class DispatchBot:
             self.answer_from_text(answered, text, msg)
             return
         sender = (msg.get("from") or {}).get("first_name") or "Someone"
-        self.evaluate(chat_id, f"{sender}: {text}", reply_to=msg["message_id"])
+        thread = inbox_store.add_message("telegram", sender, text)
+        self.evaluate(chat_id, f"{sender}: {text}", reply_to=msg["message_id"], thread=thread)
 
     # Evaluation ----------------------------------------------------------------
 
-    def evaluate(self, chat_id, message, *, reply_to=None, answers=None, key=None):
+    def evaluate(self, chat_id, message, *, reply_to=None, answers=None, key=None, thread=None):
         queues, allocator, _ = desk.queues_from_log(self.workshops, self.log_path)
         try:
             self.api.typing(chat_id)
@@ -175,18 +178,31 @@ class DispatchBot:
                 pass
         if error is not None:
             title, action, _ = intake.ERROR_CATEGORIES.get(getattr(error, "category", None), ("Request not processed", "Try again.", True))
+            inbox_store.add_event(thread or (self.pending.get(key).thread if key in self.pending else None), "Not processed", title)
             self.api.send(chat_id, f"<b>{e(title)}</b>\n{e(action)}\nNothing was allocated.", reply_to=reply_to)
             return None
         key = key or uuid4().hex[:8]
-        item = self.pending.get(key) or Pending(preview, message, chat_id, reply_to=reply_to)
+        item = self.pending.get(key) or Pending(preview, message, chat_id, reply_to=reply_to, thread=thread)
         item.preview, item.answers = preview, dict(answers or {})
         self.pending[key] = item
+        self.note(item)
         text, buttons = self.card(key, item)
         if item.message_id:
             self.api.edit(chat_id, item.message_id, text, buttons=buttons)
         else:
             item.message_id = self.api.send(chat_id, text, reply_to=reply_to, buttons=buttons)["message_id"]
         return key
+
+    def note(self, item: Pending) -> None:
+        """Mirror the outcome into the shared inbox, so the desk shows what the bot recommended."""
+        parsed, record = item.preview.response.parsed_request, item.preview.response.decision_record
+        chosen = explain.chosen_row(record)
+        if parsed.behaviour == "clarify":
+            inbox_store.add_event(item.thread, "Needs reply", explain.clarify_prompt(parsed.to_dict(), record.get("tool_outputs", {}).get("order_options", []))["question"])
+        elif parsed.behaviour == "decline" or chosen is None:
+            inbox_store.add_event(item.thread, "Cannot act", parsed.reason)
+        else:
+            inbox_store.add_event(item.thread, "Recommended", f"{chosen['name']}, back {explain.short_date(chosen['eta_date'])}, cost {chosen['total_cost']:,.0f}")
 
     def card(self, key, item: Pending):
         response = item.preview.response
@@ -211,17 +227,14 @@ class DispatchBot:
                  f"Back {e(explain.short_date(chosen['eta_date']))} · " + (f"{explain.days(-spare)} late" if spare < 0 else f"{explain.days(spare)} to spare")
                  + f" · cost {chosen['total_cost']:,.0f} · defect risk {chosen['expected_defect_rate']:.0%}",
                  f"Why: {e(won['sentence'] if won else record['reason_chosen'])}"]
-        if (response.faithfulness or {}).get("passed"):
-            lines.append("Every number checked against the tools.")
         changes = [f"{c['field'].replace('_', ' ')} {c.get('previous') or 'not stated'} → {c['value']}" for c in parsed.answers_applied]
         if changes:
             lines.append("Your answers: " + e("; ".join(changes)))
-        lines.append("<i>Not confirmed. Nothing is allocated until you tap.</i>")
         label = "Accept late return" if awkward else f"Confirm {chosen['name']}"
         buttons = [[{"text": label, "callback_data": f"c:{key}"}],
                    [{"text": "Single or split?", "callback_data": f"s:{key}"}, {"text": "Escalate", "callback_data": f"e:{key}"}]]
         if item.preview.block_reason:
-            lines[-1] = f"<i>Cannot confirm yet: {e(item.preview.block_reason)}</i>"
+            lines.append(f"<i>Cannot confirm yet: {e(item.preview.block_reason)}</i>")
             buttons = [[{"text": "Escalate", "callback_data": f"e:{key}"}]]
         return "\n".join(lines), buttons
 
@@ -277,6 +290,7 @@ class DispatchBot:
 
     def give(self, key, item, field_name, value):
         answers = {**item.answers, field_name: {"value": value, "at": self.clock().isoformat(timespec="seconds")}}
+        inbox_store.add_event(item.thread, "Answered", f"{field_name.replace('_', ' ')}: {value}")
         self.evaluate(item.chat_id, item.message, answers=answers, key=key)
 
     def answer_from_text(self, key, text, msg):
@@ -317,10 +331,10 @@ class DispatchBot:
             return
         item.done = "confirmed"
         chosen = explain.chosen_row(item.preview.response.decision_record)
+        inbox_store.add_event(item.thread, "Confirmed", chosen["name"], by=who)
         text, _ = self.card(key, item)
-        body = text.rsplit("\n", 1)[0].replace("<b>Recommended: ", "<b>Confirmed: ", 1)
-        self.api.edit(item.chat_id, item.message_id, body + f"\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Audit record saved. "
-                      f"Nothing was sent to {e(chosen['name'])}.")
+        body = text.replace("<b>Recommended: ", "<b>Confirmed: ", 1)
+        self.api.edit(item.chat_id, item.message_id, body + f"\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Booked into {e(chosen['name'])}'s queue and saved in the audit log.")
         self.api.answer(callback_id, "Confirmed")
 
     def show_split(self, key, item, callback_id):
@@ -366,8 +380,9 @@ class DispatchBot:
             return
         item.done = "confirmed"
         parts = " and ".join(f"{p['name']} ({p['pieces']:,})" for p in item.split["parts"])
+        inbox_store.add_event(item.thread, "Split confirmed", parts, by=who)
         self.api.edit(item.chat_id, item.message_id, f"<b>Split confirmed: {e(parts)}</b>\nBack {e(explain.short_date(item.split['eta_date']))}, "
-                      f"combined cost {item.split['total_cost']:,.0f}.\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Audit record saved.")
+                      f"combined cost {item.split['total_cost']:,.0f}.\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Booked into both queues and saved in the audit log.")
         self.api.answer(callback_id, "Split confirmed")
 
     def escalate(self, key, item, who, callback_id):
@@ -378,6 +393,7 @@ class DispatchBot:
             self.api.answer(callback_id, f"Not saved: {error}"[:190])
             return
         item.done = "escalated"
+        inbox_store.add_event(item.thread, "Escalated", "to the planner", by=who)
         self.api.edit(item.chat_id, item.message_id, f"<b>Escalated to the planner</b> ({e(parsed.order_id or 'request')})\n"
                       f"Raised by {e(who)} at {self.stamp()}. Nothing was allocated. Recorded in the audit log.")
         self.api.answer(callback_id, "Escalated")

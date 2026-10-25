@@ -11,6 +11,7 @@ and late returns are never confirmed in bulk: they need a person, request by req
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from copy import deepcopy
 
 import pandas as pd
@@ -54,8 +55,10 @@ def run(messages, orders, workshops):
     for i, line in enumerate(messages):
         rid = line.split()[0]
         bar.progress(i / len(messages), text=f"Evaluating {rid} ({i + 1} of {len(messages)})")
+        # A background run: nobody waits on it, so the live model is the lighter one (intake.BACKGROUND_MODEL).
+        lighter = intake.model_override(intake.BACKGROUND_MODEL, intake.BACKGROUND_EFFORT) if source == "live" else nullcontext()
         try:
-            with intake.extraction_source(rehearsal.make_source(source, record_live=False)):
+            with lighter, intake.extraction_source(rehearsal.make_source(source, record_live=False)):
                 preview = desk.make_preview(line, today, config, orders, workshops, queues, allocator,
                                             state["desk_revision"] + i, source)
         except Exception as error:   # One unreadable request never stops the batch; it is listed with its reason.
@@ -68,7 +71,8 @@ def run(messages, orders, workshops):
                "workshop": chosen["name"] if chosen else None, "workshop_id": chosen["workshop_id"] if chosen else None,
                "back": chosen["eta_date"] if chosen else None, "spare": chosen["days_to_spare"] if chosen else None,
                "cost": chosen["total_cost"] if chosen else None,
-               "evidence": bool((preview.response.faithfulness or {}).get("passed")), "detail": parsed.reason}
+               "evidence": bool((preview.response.faithfulness or {}).get("passed")), "detail": parsed.reason,
+               "model": (parsed.llm_metadata or {}).get("served_model") or (parsed.llm_metadata or {}).get("model")}
         if kind == "ready" and preview.accepted_queues is not None:
             queues, allocator = dict(preview.accepted_queues), deepcopy(preview.accepted_allocator)
             row["queue_after"] = queues[row["workshop_id"]]
@@ -103,6 +107,7 @@ def confirm_all():
         state["desk_queues"], state["desk_allocator"] = batch["final_queues"], batch["final_allocator"]
         state["desk_queue_date"] = batch["today"]
     state["desk_revision"] += max(written, 1)
+    desk.mark_log_seen(state)
     batch["confirmed"] = written
     batch["log"] = desk.audit_log_name(batch["source"])
 
@@ -116,8 +121,10 @@ def render(messages, orders, workshops):
          'Each allocation that is ready is carried forward, so later requests see the queues earlier ones leave. '
          'Nothing is saved until you confirm.</div>')
     if state["desk_source"] == "live":
-        html(banner("Live model.", f" This makes {len(messages)} model calls, about USD 0.31 and two to three minutes. "
-                    "Rehearsal modes make none.", "warn"))
+        html(banner(f"Read by {intake.model_label(intake.BACKGROUND_MODEL)}, low effort.",
+                    f" A background run uses the lighter model: same accuracy on our 30 labelled requests at about 7% of the cost "
+                    f"(eval/model_comparison.md). {len(messages)} model calls, about USD 0.02 and two minutes. "
+                    "The desk and the group chat keep the configured model.", "info"))
     if st.button(f"Run all {len(messages)} requests", key="batch_run_btn", type="primary", icon=":material/play_arrow:"):
         state.pop("batch_error", None)
         run(messages, orders, workshops)
@@ -126,8 +133,10 @@ def render(messages, orders, workshops):
         return
     rows = batch["rows"]
     counts = {k: sum(r["outcome"] == k for r in rows) for k in OUTCOMES}
+    models = sorted({r["model"] for r in rows if r.get("model")})
+    read_by = (", read by " + " and ".join(intake.model_label(m) if "synthetic" not in m else "test fixtures" for m in models)) if models else ""
     html('<div class="an-card au-sum" style="margin-top:0.8rem"><div class="an-title">Result</div>'
-         f'<div class="an-sub">{len(rows)} requests, {esc(rehearsal.SOURCES[batch["source"]].label)}, scenario date '
+         f'<div class="an-sub">{len(rows)} requests, {esc(rehearsal.SOURCES[batch["source"]].label)}{esc(read_by)}, scenario date '
          f'{esc(explain.long_date(batch["today"].isoformat()))}.</div><div class="au-stats" style="grid-template-columns:repeat(5,minmax(0,1fr))">'
          + "".join(f'<div><b>{counts[k]}</b><small>{esc(OUTCOMES[k][0])}</small></div>' for k in ("ready", "alternative", "late", "clarify", "decline")
                    ) + "</div></div>")

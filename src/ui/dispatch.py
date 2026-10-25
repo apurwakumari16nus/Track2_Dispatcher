@@ -23,6 +23,7 @@ import re
 import streamlit as st
 
 import desk
+import inbox_store
 import intake
 from objectives import PRESETS
 import rehearsal
@@ -69,6 +70,54 @@ HOME_STEPS = [("understand", "Understand", "Read the request"),
 def invalidate():
     for key in ("desk_preview", "desk_error", "desk_whynot", "desk_confirm_error", "desk_exec"):
         st.session_state.pop(key, None)
+
+
+CHANNEL_LABELS = {"telegram": "Telegram", "desk": "Desk"}
+EVENT_TONES = {"Received": "info", "Recommended": "info", "Needs reply": "warn", "Answered": "info", "Cannot act": "muted",
+               "Not processed": "risk", "Confirmed": "conf", "Split confirmed": "conf", "Escalated": "muted"}
+
+
+def thread_of(message: str) -> dict | None:
+    """The live chat or desk message this text came from, with its history; None for the 30 supplied requests."""
+    tid = st.session_state.get("desk_threads", {}).get(message)
+    return next((t for t in inbox_store.threads() if t["id"] == tid), None) if tid else None
+
+
+def select_live(thread_id: str):
+    thread = next(t for t in inbox_store.threads() if t["id"] == thread_id)
+    text_value = inbox_store.engine_text(thread)
+    st.session_state.setdefault("desk_threads", {})[text_value] = thread_id
+    select_message(text_value)
+
+
+def ensure_thread(message: str) -> str | None:
+    """A typed request is recorded in the shared inbox as soon as it is evaluated, whether or not it can be read."""
+    threads = st.session_state.setdefault("desk_threads", {})
+    if message not in threads and message.strip() and not envelope(message)[0]:   # The 30 supplied requests have their own inbox.
+        threads[message] = inbox_store.add_message("desk", "Dispatcher", message.strip())
+    return threads.get(message)
+
+
+def note_outcome(message: str, preview) -> None:
+    """Mirror a desk evaluation into the shared inbox."""
+    threads = st.session_state.setdefault("desk_threads", {})
+    if not ensure_thread(message):
+        return
+    parsed, record = preview.response.parsed_request, preview.response.decision_record
+    chosen = explain.chosen_row(record)
+    if parsed.behaviour == "clarify":
+        inbox_store.add_event(threads[message], "Needs reply", explain.clarify_prompt(
+            parsed.to_dict(), record.get("tool_outputs", {}).get("order_options", []))["question"])
+    elif parsed.behaviour == "decline" or chosen is None:
+        inbox_store.add_event(threads[message], "Cannot act", parsed.reason)
+    else:
+        inbox_store.add_event(threads[message], "Recommended",
+                              f"{chosen['name']}, back {explain.short_date(chosen['eta_date'])}, cost {chosen['total_cost']:,.0f}")
+
+
+def note_event(preview, event: str, detail: str = ""):
+    tid = st.session_state.get("desk_threads", {}).get(preview.response.parsed_request.raw_text)
+    inbox_store.add_event(tid, event, detail, by="Dispatcher (desk)")
 
 
 def select_message(message):
@@ -239,7 +288,25 @@ def inbox(messages):
         pick = bind(st.segmented_control, "Filter requests", list(FILTERS), key="inbox_filter", fallback="all", required=True,
                     format_func=lambda k: f"{FILTERS[k]}  {counts[k]}", label_visibility="collapsed")
         shown = [r for r in rows if pick == "all" or (pick == "pending") == (r[1] not in outcomes)]
+        live = [t for t in inbox_store.threads() if query.casefold() in (t["sender"] + " " + t["text"]).casefold()]
+        live = [t for t in live if pick == "all" or (pick == "pending") == (t["status"] in ("Received", "Needs reply", "Recommended"))]
         with st.container(height=640, key="inbox_list", border=False):
+            if live:
+                html(f'<div class="inb-sec">From the group chat and the desk <b>{len(live)}</b></div>')
+            for t in live:
+                text_value = inbox_store.engine_text(t)
+                tone = AVATAR_TONES[sum(map(ord, t["sender"])) % len(AVATAR_TONES)]
+                when = t["at"][11:16]
+                pill = status_pill(t["status"], EVENT_TONES.get(t["status"], "info"))
+                with st.container(key=f"inb_{t['id']}"):
+                    html(f'<div class="inb{" sel" if state["desk_message"] == text_value else ""}">'
+                         f'<div class="inb-av" style="background:{tone}">{esc(t["sender"][:1])}</div><div class="inb-main">'
+                         f'<div class="inb-top"><b>{esc(t["sender"])}</b><span><em class="inb-ch {esc(t["channel"])}">{esc(CHANNEL_LABELS.get(t["channel"], t["channel"]))}</em> {esc(when)}</span></div>'
+                         f'<div class="inb-body">{esc(t["text"])}</div>{pill}</div></div>')
+                    st.button(f"Open message {t['id']} from {t['sender']}", key=f"inbox_{t['id']}", width="stretch",
+                              on_click=select_live, args=(t["id"],))
+            if live:
+                html(f'<div class="inb-sec">Supplied inbox <b>{len(shown)}</b></div>')
             for message, rid, time, sender, body in shown:
                 word = outcomes.get(rid)
                 pill = status_pill(word, OUTCOME_TONES.get(word, "info")) if word else ""
@@ -299,6 +366,15 @@ def scroll_to_result():
     components.html("<script>try{const d=window.parent.document;const m=window.parent.matchMedia('(prefers-reduced-motion: reduce)').matches;"
                     f"for(const s of [{targets}]){{const el=d.querySelector(s);if(el){{el.scrollIntoView({{block:'start',behavior:m?'auto':'smooth'}});break;}}}}"
                     "}catch(e){}</script>", height=0)
+
+
+def thread_history(thread):
+    """What happened to this message, in order, on any channel."""
+    if not thread["events"]:
+        return
+    items = "".join(f'<li><em>{esc(e["at"][11:16])}</em><b>{esc(e["event"])}</b><span>{esc(e.get("detail") or "")}'
+                    + (f' · {esc(e["by"])}' if e.get("by") else "") + "</span></li>" for e in thread["events"])
+    html(f'<div class="th-hist"><div class="th-h">History</div><ol>{items}</ol></div>')
 
 
 def order_facts(on_file):
@@ -395,8 +471,18 @@ def request_surface(message, orders) -> bool:
     rid, time, sender, body = envelope(message)
     on_file = order_on_file(message, orders)
     outcome = st.session_state.get("desk_outcomes", {}).get(rid)
+    thread = thread_of(message)
     with st.container(key="request"):
-        if rid:
+        if thread:
+            pill = status_pill(thread["status"], EVENT_TONES.get(thread["status"], "info"))
+            html(f'<div class="msg-head req-sel"><div class="avatar">{esc(thread["sender"][:1])}</div><div><b>{esc(thread["sender"])}</b><br>'
+                 f'<span>{esc(thread["at"][11:16])} UTC, via {esc(CHANNEL_LABELS.get(thread["channel"], thread["channel"]))}, message '
+                 f'<span class="id">{esc(thread["id"])}</span></span></div>{pill}</div><div class="msg-text">{esc(thread["text"])}</div>')
+            if on_file is not None:
+                order_facts(on_file)
+            answer_trail(on_file)
+            thread_history(thread)
+        elif rid:
             pill = status_pill(outcome, OUTCOME_TONES.get(outcome, "info")) if outcome else ""
             html(f'<div class="msg-head req-sel"><div class="avatar">{esc(sender[:1])}</div><div><b>{esc(sender)}</b><br>'
                  f'<span>{esc(time)}, request <span class="id">{esc(rid)}</span></span></div>{pill}</div>'
@@ -453,6 +539,8 @@ def evaluate(progress, orders, workshops, today, config, queues):
         state["desk_error"] = describe_error(error)
         progress.markdown(process_strip(home_stages()), unsafe_allow_html=True)
         preview = None
+        if ensure_thread(message):
+            inbox_store.add_event(ensure_thread(message), "Not processed", state["desk_error"]["title"])
     finally:
         if run is not None:
             row = run.to_dict()
@@ -464,6 +552,7 @@ def evaluate(progress, orders, workshops, today, config, queues):
     if preview is None:
         return
     state["desk_preview"] = preview
+    note_outcome(message, preview)
     rid = envelope(message)[0]
     if rid:
         before = state.setdefault("desk_outcomes", {}).get(rid)
@@ -635,12 +724,11 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
             st.button("See it on the network", key="desk_trace", type="tertiary", icon=":material/hub:",
                       on_click=trace_on_network, args=(parsed,))
         if confirmed:
-            note = f"Recorded in the {'rehearsal' if preview.source != 'live' or guide.active() else 'live'} audit log. No message was sent to {name}."
+            note = f"Booked into {name}'s queue and saved in the {'rehearsal' if preview.source != 'live' or guide.active() else 'live'} audit log."
         elif not status.ready:
             note = status.reason
         else:
-            note = ("Confirming writes one audit record and updates this session's queue for "
-                    f"{name}. Nothing is sent to the workshop.")
+            note = f"Confirming books this batch into {name}'s queue and saves it in the audit log."
         html(f'<div class="done-note">{esc(note)}</div>')
     if state.get("desk_confirm_error"):
         html(banner("Audit record not saved", " " + state["desk_confirm_error"], "risk"))
@@ -695,6 +783,8 @@ def confirm(preview):
     state["desk_queue_date"] = preview.today
     state["desk_revision"] += 1
     state.pop("desk_confirm_error", None)
+    desk.mark_log_seen(state)
+    note_event(preview, "Confirmed", (explain.chosen_row(preview.response.decision_record) or {}).get("name", ""))
     rid = envelope(preview.response.parsed_request.raw_text)[0]
     if rid:
         state.setdefault("desk_outcomes", {})[rid] = "Confirmed"
@@ -801,7 +891,10 @@ def timing(trace, workshops):
     llm = trace.get("meta", {}).get("llm") or {}
     live = trace["meta"].get("source") == "live"
     calls = f'{len(llm.get("attempts") or [1])} model call{"s" if len(llm.get("attempts") or [1]) > 1 else ""} · ' if live and llm else ""
-    who = {"live": "live model", "cached": "recorded reply, no API call", "fixture": "test fixture, no API call"}.get(trace["meta"].get("source"), "")
+    served = llm.get("served_model") or llm.get("recorded_model") or llm.get("model")
+    name = intake.model_label(served) if served and "synthetic" not in str(served) else "the model"
+    who = {"live": f"read by {name}", "cached": f"recorded reply from {name}, no API call",
+           "fixture": "test fixture, no API call"}.get(trace["meta"].get("source"), "")
     status = "failed after" if trace.get("status") == "error" else "completed in"
     with st.container(key="desk_timing"):
         html(f'<div class="tg"><div class="tg-head"><b>Evaluation {status} {fmt_ms(total)}</b>'
@@ -827,6 +920,22 @@ def split_for(preview, record, parsed, workshops, queues):
         except ValueError as error:
             state["desk_splits"][preview.token] = {"available": False, "reason": str(error)}
     return state["desk_splits"][preview.token]
+
+
+TIGHT_DAYS = 1   # A single workshop with this many days to spare or fewer counts as tight.
+
+
+def split_worth_considering(single, split) -> str | None:
+    """Flag the split only when it changes the outcome that matters: the single workshop is late or tight,
+    and the split meets the due date. An earlier return on a batch that is already comfortably on time
+    is not worth two shipments, two inspections and two dye lots, so no label is shown then."""
+    if not split.get("available") or split["days_to_spare"] < 0 or single["days_to_spare"] > TIGHT_DAYS:
+        return None
+    if single["days_to_spare"] < 0:
+        return (f"The single workshop is {explain.days(-single['days_to_spare'])} late; the split meets the due date "
+                f"with {explain.days(split['days_to_spare'])} to spare.")
+    return (f"The single workshop has only {explain.days(single['days_to_spare'])} to spare; the split leaves "
+            f"{explain.days(split['days_to_spare'])}.")
 
 
 def split_verdict(single, split, defect_single, defect_split) -> str:
@@ -858,7 +967,11 @@ def options_card(preview, record, parsed, workshops, queues, status):
     escalated = state.setdefault("desk_escalated", {}).get(preview.token)
     awkward = record.get("awkward_case") == "none_makes_date"
     with st.container(key="options"):
-        section("Single workshop or split?", "Both use the same queues and tools. A split runs in parallel; it finishes when the later part does.")
+        worth = split_worth_considering(chosen, split)
+        section("Single workshop or split?", "A split uses at most two workshops, runs in parallel and finishes when the later part does. "
+                "Both options use the same queues and tools.")
+        if worth:
+            html(f'<div class="split-worth">{icon("call_split")}<b>Split worth considering</b><span>{esc(worth)}</span></div>')
         single_q = tools.overload_probe({"category": parsed.category, "pieces": parsed.pieces, "due_date": parsed.due_date,
                                          "order_id": parsed.order_id}, chosen["workshop_id"], workshops, queues)["queue_after"]
         rows = [[f'<b>{esc(chosen["name"])}</b><br><small>whole batch, {parsed.pieces:,} pieces</small>',
@@ -908,6 +1021,8 @@ def confirm_split_choice(preview, split):
         state["desk_queues"], state["desk_allocator"] = queues, allocator
         state["desk_queue_date"] = preview.today
         state["desk_revision"] += 1
+        desk.mark_log_seen(state)
+        note_event(preview, "Split confirmed", " and ".join(p["name"] for p in split["parts"]))
     rid = envelope(preview.response.parsed_request.raw_text)[0]
     if rid:
         state.setdefault("desk_outcomes", {})[rid] = "Confirmed"
@@ -923,6 +1038,7 @@ def escalate_choice(preview, to, note):
         state["desk_confirm_error"] = str(error)
         return
     state.setdefault("desk_escalated", {})[preview.token] = {"to": to, "at": (row.get("timestamp") or "")[11:16], "row": row}
+    note_event(preview, "Escalated", f"to the {to.lower()}")
     rid = envelope(preview.response.parsed_request.raw_text)[0]
     if rid:
         state.setdefault("desk_outcomes", {})[rid] = "Escalated"

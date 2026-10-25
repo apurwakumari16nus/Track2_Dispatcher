@@ -16,3 +16,10 @@ def _private_trace_log(monkeypatch, tmp_path):
     """Tests never append to the real records/traces.jsonl."""
     import tracing
     monkeypatch.setattr(tracing, "TRACE_LOG", tmp_path / "traces.jsonl")
+
+
+@pytest.fixture(autouse=True)
+def _private_message_store(monkeypatch, tmp_path):
+    """Tests never append to the real records/messages.jsonl."""
+    import inbox_store
+    monkeypatch.setattr(inbox_store, "PATH", tmp_path / "messages.jsonl")

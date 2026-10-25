@@ -224,6 +224,32 @@ def _anthropic_schema(node):
 
 _EXTRACTION_SOURCE: ContextVar = ContextVar("intake_extraction_source", default=None)
 _ANSWERS: ContextVar = ContextVar("intake_dispatcher_answers", default=None)
+_MODEL_OVERRIDE: ContextVar = ContextVar("intake_model_override", default=None)
+# Background work (the whole-inbox run) uses the lighter model. On the 30 labelled requests Haiku 5.5 at low
+# effort matched Sonnet 5.5 on every behaviour and decision at about 7% of the cost, but answered about
+# 1.1 s slower (eval/model_comparison.md). Nobody waits on a background run, so the saving wins there;
+# the desk and the chat, where a person waits, keep the configured model.
+BACKGROUND_MODEL, BACKGROUND_EFFORT = "claude-haiku-5-5", "low"
+
+
+@contextmanager
+def model_override(model: str, effort: str | None = None):
+    """Read requests in this context with another Anthropic model (and effort) than the configured one."""
+    token = _MODEL_OVERRIDE.set((model, effort))
+    try:
+        yield
+    finally:
+        _MODEL_OVERRIDE.reset(token)
+
+
+def model_label(model_id: str | None) -> str:
+    """claude-sonnet-5-5 -> Claude Sonnet 5.5."""
+    if not model_id:
+        return "no model"
+    parts = str(model_id).replace("claude-", "").split("-")
+    words = [p for p in parts if not p.isdigit()]
+    numbers = [p for p in parts if p.isdigit()]
+    return "Claude " + " ".join(w.capitalize() for w in words) + (" " + ".".join(numbers) if numbers else "")
 ANSWER_FIELDS = ("order_id", "due_date", "pieces", "packing_confirmed", "allocate", "workshop_alias")
 
 
@@ -269,6 +295,9 @@ def _call_llm(system_prompt: str, message: str) -> LLMReply:
     key_var, model_var = PROVIDERS[provider]
     if not model or not os.environ.get(key_var):
         raise IntakeError(f"Set {key_var} and {model_var} for live intake", category="unconfigured")
+    override = _MODEL_OVERRIDE.get()
+    if provider == "anthropic" and override:
+        return _call_anthropic(override[0], system_prompt, message, effort=override[1])
     if provider == "anthropic":
         return _call_anthropic(model, system_prompt, message)
     return _call_openai(model, system_prompt, message)

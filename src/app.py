@@ -20,15 +20,17 @@ for path in (ROOT / "src", ROOT / "harness"):
 import streamlit as st
 import streamlit.components.v1 as components
 
+import desk
 import intake
 import rehearsal
 from desk import (TODAY, ConfirmState, Preview, confirm_preview, confirm_state, filtered_records,  # noqa: F401
                   init_session, load_inputs, make_preview, projected_queues, reset_session, signature)
-from ui import audit, dispatch, explain, guide, lab, network
+from ui import audit, dispatch, explain, guide, lab, network, queues
 from ui.components import banner, esc, html, icon, inject_css, mode_ribbon
 
-PAGES = ["Dispatch", "Workshop Network", "Simulation Lab", "Audit Trail"]
-ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Simulation Lab": ":material/science:",
+PAGES = ["Dispatch", "Workshop Network", "Workshop queues", "Simulation Lab", "Audit Trail"]
+ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Workshop queues": ":material/view_timeline:",
+         "Simulation Lab": ":material/science:",
          "Audit Trail": ":material/verified_user:"}
 # Page values that must survive navigation are kept under their own session keys,
 # never under widget keys (see ui/state.py), so no restore step is needed here.
@@ -56,7 +58,7 @@ def system_details(state, orders, workshops, messages):
         st.toggle("Presentation mode", key="presentation_mode",
                   help="Larger type for projectors and screen recording; hides developer detail and Streamlit chrome. Calculations do not change.")
         st.button("Reset demo session", key="demo_reset", width="stretch", on_click=reset_session, args=(state, workshops),
-                  help="Restores the 1 April queues, clears decisions in this session and empties the rehearsal log. "
+                  help="Clears this session and empties the rehearsal log; queues return to the 1 April snapshot plus any decisions in the live log. "
                        "The live audit log is never touched.")
 
 
@@ -73,7 +75,7 @@ def status_card(state, workshops) -> str:
     queue = state["desk_queue_date"]
     rows = [("Request reading", reading, tone), ("Workshops", f"{active} of {len(workshops)} active", "ok"),
             ("Allocation", "Python", "ok"), ("Queues as of", f"{queue.day} {queue:%b}", "ok"),
-            ("Confirmed", str(len(state["desk_saved"])), "ok")]
+            ("Confirmed", str(desk.confirmed_count(desk.audit_path(source))), "ok")]   # Every channel, from the shared log.
     marks = {"ok": "check_circle", "warn": "error", "off": "cancel"}
     lines = "".join(f'<div class="sc-row {t}">{icon(marks[t])}<span>{esc(k)}</span><b>{esc(v)}</b></div>' for k, v, t in rows)
     return f'<div class="side-card"><div class="sc-head"><i class="{dot}"></i>{esc(head)}</div>{lines}</div>'
@@ -121,10 +123,14 @@ def main():
     inject_css(presentation=state.get("presentation_mode", False))
     sidebar(state, orders, workshops, messages)
     page = state["desk_page"]
+    if not guide.active():   # The guided demo runs on its own fresh queues.
+        desk.sync_session(state, workshops)
     state["_app_run"] = True   # Cleared below; a fragment-only rerun sees False.
     mode_banner(state)
     if page == "Workshop Network":
         network.render(workshops)
+    elif page == "Workshop queues":
+        queues.render(workshops)
     elif page == "Simulation Lab":
         lab.render(workshops)
     elif page == "Audit Trail":
