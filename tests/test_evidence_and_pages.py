@@ -93,10 +93,10 @@ def test_impossible_deadline_offers_real_split_preview(rehearsal_app):
     at.button(key="desk_dispatch").click().run()
     assert "No eligible workshop can meet 5 Apr." in " ".join(m.value for m in at.markdown)
     assert at.button(key="desk_confirm").label == "Accept late return"
-    at.button(key="desk_split").click().run()
-    assert not at.exception
-    split = next(iter(at.session_state["desk_splits"].values()))
+    split = next(iter(at.session_state["desk_splits"].values()))   # Computed with the recommendation, shown beside it.
     assert split["available"] and sum(p["pieces"] for p in split["parts"]) == 1500
+    assert "Single workshop or split?" in " ".join(m.value for m in at.markdown)
+    assert not at.button(key="desk_confirm_split").disabled
 
 
 def test_every_page_renders_and_network_answers_the_register_question(rehearsal_app):

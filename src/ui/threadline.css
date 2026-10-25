@@ -919,6 +919,46 @@ body:has([data-testid="stSidebar"][aria-expanded="false"]) .st-key-guide_left { 
 .pline { flex: 1 1 0 !important; min-width: 0.4rem !important; }
 @container (max-width: 52rem) { .pstep { padding: 0.4rem 0.3333rem !important; gap: 0.4rem !important; } .ptxt small { display: none; } }
 
+/* Order facts: one labelled cell per field, source named and one click away */
+.st-key-req_facts_box { margin-top: 0.8rem; padding: 0.6667rem 0.9333rem 0.8rem; border-radius: 0.9333rem; background: var(--pearl-1);
+  box-shadow: 0 0 0 1px var(--border); gap: 0.2667rem !important; }
+.rf-src { display: flex; align-items: center; gap: 0.4rem; font-size: var(--fs-meta); color: var(--ink-2); }
+.rf-src .msym { font-size: 1.0667rem; color: var(--cobalt-ink); } .rf-src b { color: var(--ink); font-family: var(--font-mono, ui-monospace, monospace); font-weight: 650; }
+.st-key-desk_orders_src { display: flex; justify-content: flex-end; }
+.st-key-desk_orders_src button { min-height: 1.8667rem; padding: 0; } .st-key-desk_orders_src button p { color: var(--cobalt-ink) !important; font-weight: 650; }
+.rf-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.4rem 0.8rem; margin: 0.2667rem 0 0; }
+.rf-grid > div { padding-left: 0.6rem; border-left: 2px solid var(--pearl-3); min-width: 0; }
+.rf-grid dt { font-size: var(--fs-micro); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); font-weight: 650; }
+.rf-grid dd { margin: 0.1333rem 0 0; font-size: var(--fs-body); color: var(--ink); font-weight: 650; line-height: 1.3; }
+@media (max-width: 1365px) { .rf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Answers the dispatcher gave: before, now, when, undo */
+.st-key-answer_trail { margin-top: 0.6667rem; padding: 0.6667rem 0.9333rem; border-radius: 0.9333rem; background: var(--st-sel-tint);
+  box-shadow: 0 0 0 1px rgba(50,120,233,.25); gap: 0.1333rem !important; }
+.at-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6667rem; font-size: var(--fs-small); }
+.at-head .msym { color: var(--cobalt); font-size: 1.1333rem; } .at-head b { color: var(--ink); } .at-head span { color: var(--ink-3); font-size: var(--fs-meta); }
+.at-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2667rem 0.8rem; font-size: var(--fs-small); color: var(--ink-2); }
+.at-row small { min-width: 6.6667rem; color: var(--ink-3); font-weight: 650; font-size: var(--fs-meta); }
+.at-row s { color: var(--ink-4); } .at-row b { color: var(--st-sel-ink); } .at-row em { color: var(--ink-4); font-style: normal; font-size: var(--fs-meta); }
+[class*="st-key-desk_undo_"] button { min-height: 1.8667rem; padding: 0; }
+
+/* Ready answers under a clarification */
+.qa-h { margin: 0.9333rem 0 0.4rem; font-size: var(--fs-small); font-weight: 650; color: var(--ink); }
+:is(.st-key-qa_dates, .st-key-qa_pieces, .st-key-qa_packing, .st-key-qa_allocate, [class*="st-key-qa_ws_"]) { flex-wrap: wrap; gap: 0.5333rem !important; }
+:is(.st-key-qa_dates, .st-key-qa_pieces, .st-key-qa_packing, .st-key-qa_allocate, [class*="st-key-qa_ws_"]) > div { width: auto !important; }
+.st-key-qa_dates [data-testid="stDateInput"], .st-key-qa_pieces [data-testid="stNumberInput"] { min-width: 11rem; }
+.st-key-clarify_free { margin-top: 0.8rem; }
+
+/* Single or split, and the queue load note */
+.opt-verdict { margin-top: 0.6667rem; padding: 0.6rem 0.8rem; border-radius: 0.8rem; background: var(--pearl-1); box-shadow: inset 0.2rem 0 0 var(--cobalt);
+  font-size: var(--fs-small); color: var(--ink-2); line-height: 1.5; }
+.st-key-opt_actions { margin-top: 0.8rem; gap: 0.6667rem !important; flex-wrap: wrap; }
+.st-key-opt_actions > div { width: auto !important; }
+.rec-load { display: flex; gap: 0.4rem; align-items: flex-start; margin-top: 0.5333rem; font-size: var(--fs-meta); color: #B4C3D4; }
+.rec-load .msym { font-size: 1rem; color: #9CCBFF; margin-top: 0.0667rem; }
+.ov-sub { font-size: var(--fs-small); color: var(--ink-3); margin-bottom: 0.4rem; }
+.st-key-inbox_compose button { min-height: 2.2667rem; }
+
 /* Clarification: amber, never red. Options are rows under one header, so every column lines up. */
 .st-key-clarify { --edge: var(--edge-warn); --edge-w: 1.5px;
   background: radial-gradient(120% 50% at 0% 0%, rgba(215,144,30,.12), rgba(215,144,30,0) 60%), var(--pearl-fill) !important; }
