@@ -176,6 +176,20 @@ def test_explicit_date_inside_a_copied_phrase(literal, expected):
     assert intake._calendar_date(literal, TODAY) == expected
 
 
+def test_send_date_is_not_used_as_the_deadline(data, extract):
+    extract(order_id="ORD-099", due_date_text=None, dispatch_date_text="today")
+    result = intake.parse_request("ORD-099 needs to go out today", TODAY, *data)
+    assert result.due_date == date(2026, 4, 5) and result.dispatch_date_text == "today"
+    assert result.date_conflict is None and result.behaviour == "allocate"
+
+
+def test_message_deadline_that_differs_from_the_file_is_flagged(data, extract):
+    extract(order_id="ORD-099", due_date_text="Apr 20")
+    result = intake.parse_request("ORD-099 due Apr 20", TODAY, *data)
+    assert result.due_date == date(2026, 4, 20) and result.behaviour == "allocate"
+    assert result.date_conflict == {"message_due": "2026-04-20", "file_due": "2026-04-05"}
+
+
 def test_missing_csv_date_clarifies(data, extract):
     orders, workshops = data
     orders.loc[orders.order_id == "ORD-099", "due_date"] = None
