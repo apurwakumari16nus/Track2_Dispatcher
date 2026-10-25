@@ -21,7 +21,8 @@
     "constraints": [],
     "missing_fields": [],
     "behaviour": "allocate",
-    "reason": "Synthetic extraction fixture only; not a human evaluation label."
+    "reason": "Synthetic extraction fixture only; not a human evaluation label.",
+    "dispatch_date_text": null
   },
   "requests": {
     "R01": {

@@ -55,6 +55,7 @@ class Extraction(BaseModel):
     category: Category | None
     pieces: int | None = Field(ge=1)
     due_date_text: str | None
+    dispatch_date_text: str | None
     date_not_confirmed: bool
     suggested_workshop: str | None
     excluded_workshops: list[str]
@@ -140,6 +141,8 @@ class ParsedRequest:
     notes: list[str] = field(default_factory=list)
     # Additional evidence needed to avoid losing constraints or hiding overrides.
     due_date_text: str | None = None
+    dispatch_date_text: str | None = None
+    date_conflict: dict[str, Any] | None = None
     date_not_confirmed: bool = False
     question_topic: str = "allocation"
     must_make_date: bool = False
@@ -173,12 +176,19 @@ def build_system_prompt(today: date, orders_df, workshops) -> str:
         "order details from memory. Match explicit customer/product references to catalog "
         "names when unambiguous (including plural forms), otherwise preserve the reference. "
         "Copy the deadline phrase literally into due_date_text; never turn relative words "
-        "into dates. Distinguish sending today from a deadline today. Set date_not_confirmed "
+        "into dates. due_date_text is only the deadline for having the goods back. Put when the "
+        "batch should be sent out (e.g. 'out today', 'this week') in dispatch_date_text, never "
+        "in due_date_text; if no deadline is stated, leave due_date_text null. Set date_not_confirmed "
         "when a changed deadline is explicitly awaiting confirmation. Copy suggested and "
         "excluded workshop references; Python resolves names/IDs. Distinguish a request "
         "phrased as a question ('who can take this batch?') from an information-only question. "
         "question_topic identifies the information sought, not the data's availability. "
         "Extract preference, permission to split, and whether meeting the date is required. "
+        "Set preference when the sender signals it for this order: speed words (urgent, asap, rush, "
+        "quick, fast, faster, fastest) mean fastest; quality words (quality, careful, few defects, a "
+        "previous rejection) mean lowest_defect; cheapest or lowest cost means cheapest. A remark that "
+        "only explains why a workshop is excluded is an exclusion, not a preference. Pressure alone "
+        "(customer chasing, already late) is not a preference. "
         "Preserve each constraint's wording and who imposed it; relayed_by is the speaker "
         "when relaying someone else's constraint. behaviour and reason are your tentative "
         "interpretation, not the final business decision. Do not include extra keys.\n"
@@ -569,6 +579,11 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
                 literal=None if literal is None or pd.isna(literal) else str(literal))
         else:
             log("due_date", "resolved", source=source, due_date=result.due_date.isoformat())
+            file_due = _calendar_date(row["due_date"], today) if source == "message" and row is not None else None
+            if file_due is not None and file_due != result.due_date:
+                result.date_conflict = {"message_due": result.due_date.isoformat(), "file_due": file_due.isoformat()}
+                result.notes.append(f"Message deadline {result.due_date.isoformat()} differs from orders.csv {file_due.isoformat()}")
+                log("due_date_conflict", "flagged", **result.date_conflict)
     result.already_late = result.due_date is not None and result.due_date <= today
     if result.already_late:
         result.notes.append(f"Deadline {result.due_date.isoformat()} is on or before today {today.isoformat()}; agent must mention this")

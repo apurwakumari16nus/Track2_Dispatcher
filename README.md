@@ -290,6 +290,14 @@ complete example. The six built-in UI/evaluation presets currently live in
 load a file with `load_config("config/objective.example.yaml")` and pass the
 result to `Allocator(config)`.
 
+**Team objectives.** Primary: **lateness** (`% late`, `late days`). Other
+objective: **fairness** (`max share`, with the guardrail "% late no worse than
+random"). Hybrid: **0.9 lateness + 0.1 fairness** (`PRESETS["hybrid_lateness_fairness"]`),
+chosen by `eval/run_hybrid_sweep.py` on seeds 6105–6114 with a selection rule fixed
+before the run, then reported on the course seeds 5105–5114. Every setting is also
+evaluated in the workshop-closure (`--shock`) test; the robustness preset stays
+available and its results are kept as additional evidence.
+
 **Faithfulness is a separate check.** A plausible explanation can invent a date
 or price even when the chosen workshop is sensible. Numeric evidence matching
 makes that failure visible and blocks an unfaithful audit entry. Decision
