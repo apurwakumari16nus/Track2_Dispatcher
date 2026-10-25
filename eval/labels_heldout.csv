@@ -1,0 +1,17 @@
+request_id,expected_behaviour,expected_order_id,expected_pieces,expected_category,expected_due,issue,constraint,notes
+R31,allocate,ORD-036,1000,ACCESSORIES,2026-04-26,none,none,Matches the order (customer name has a typo). 3 workshops can make Apr 26.
+R32,allocate,ORD-062,2000,ACCESSORIES,2026-04-08,none_makes_date,none,"No workshop can make Apr 8 (earliest Apr 17). Say so, give the earliest date and options. 'Urgent' noted, not a constraint."
+R33,allocate,ORD-035,300,ACCESSORIES,2026-04-29,none,none,Matches the order. 3 workshops can make Apr 29.
+R34,decline,ORD-069,,,,no_such_data,none,"Asks if it was delivered. File shows it completed Mar 30 but has no delivery record. Say what we know, not that it was delivered."
+R35,allocate,ORD-108,2000,ACCESSORIES,2026-04-03,none_makes_date,none,"No workshop can make Apr 3 (earliest Apr 17). Say so, give the earliest date and options."
+R36,allocate,ORD-082,600,ACCESSORIES,2026-05-01,none,ensure quality (lowest defect rate) - Mei,Matches the order (typo in product). 'Ensure quality' read as lowest defect rate.
+R37,clarify,,,,,multiple_matches,none,"Cotton Club has 4 open orders (ORD-002, 010, 045, 055). Ask which one."
+R38,refuse,ORD-095,800,TOPS,2026-04-26,ineligible_suggested_workshop,none,Little Loom only makes accessories; a hoodie is a top. Refuse and offer another workshop.
+R40,allocate,ORD-073,400,TOPS,2026-04-20,none,none,Matches the order (typo in 'by'). 5 workshops can make Apr 20.
+R41,allocate,ORD-015,300,TOPS,2026-04-16,none,keep away from QuickStitch - Mei,Matches the order. 5 workshops can make Apr 16 without QuickStitch.
+R42,clarify,ORD-040,1200,TOPS,,date_not_confirmed,none,Due date still to be confirmed. Don't use the file date; ask for the new one.
+R43,refuse,ORD-053,800,TOPS,2026-04-10,ineligible_suggested_workshop,none,OldMill is suspended. Refuse and offer another workshop.
+R44,allocate,ORD-083,1000,TOPS,2026-03-23,due_date_passed,none,"Due Mar 23 has already passed (earliest return Apr 9). No date in the message, so the file date is used. Say so and give options."
+R45,allocate,ORD-010,1000,TOPS,2026-04-25,none,cheapest that still arrives on time - Priya,Date from file. 5 workshops can make Apr 25; the cheapest of them is BudgetWorks.
+R46,refuse,ORD-066,1000,TOPS,2026-04-26,ineligible_suggested_workshop,none,FreshStart takes at most 300 pieces; this order is 1000. Refuse and offer another workshop. Due date from file.
+R47,decline,ORD-029,,,,no_such_data,none,Asks who worked on it. We have no worker data.
