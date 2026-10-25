@@ -1,0 +1,9 @@
+workshop,name,Random (baseline),Lateness (primary),Fairness (other),Hybrid 90/10
+W1,QuickStitch,10.9,25.6,15.6,17.3
+W2,SteadyHands,20.7,17.4,17.5,19.7
+W3,BudgetWorks,22.6,11.9,15.1,16.8
+W4,Little Loom,12.1,4.6,15.6,8.4
+W5,GiantWeave,12.8,25.5,15.3,17.3
+W6,Nimble Needle,19.4,13.4,15.7,15.4
+W7,OldMill,0.0,0.0,0.0,0.0
+W8,FreshStart,1.5,1.8,5.1,5.1

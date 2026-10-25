@@ -1,0 +1,17 @@
+request_id,expected_behaviour,actual_behaviour,behaviour_correct,decision_correct,faithfulness_passed,constraint_honoured,already_late_flagged_when_needed,notes
+R31,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R32,allocate,allocate,True,True,True,False,True,Heuristic-best under reference constraints: W2; actual: W2.
+R33,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R34,decline,clarify,False,False,True,True,True,
+R35,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W2; actual: W2.
+R36,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W4; actual: W4.
+R37,clarify,clarify,True,True,True,True,,"Reference clarification candidates: ORD-002, ORD-010, ORD-045, ORD-055 Late flag unscored: reference deadline unresolved."
+R38,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R40,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R41,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R42,clarify,clarify,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R43,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R44,allocate,allocate,True,False,True,False,True,Reference fact mismatch: due_date Heuristic-best under reference constraints: W1; actual: W1.
+R45,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W3; actual: W3.
+R46,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R47,decline,decline,True,True,True,True,True,

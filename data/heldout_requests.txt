@@ -1,0 +1,19 @@
+# Held-out requests, written by the team (not AI) before the held-out evaluation.
+# Same chat-line format as dispatch_requests.txt. Today is 2026-04-01.
+
+R31 [10:30] Priya: ORD-036, 1000 scarves for Urbann Thread, due Apr 26.
+R32 [10:35] Mei: ORD-062, 2000 scarves , back by Apr 8. Urgent.
+R33 [10:40] Chen: Allocate ORD-035, 300 beanie for Loom & Leaf , back by 29 Apr
+R34 [10:45] Boss: is ORD-069 delivered to client?
+R35 [10:53] Priya: Need 2000 scarves for Harbor Knits (ORD-108), back by Apr 3.
+R36 [11:07] Mei: ORD-082, 600 Beinie for TrendCart, due May 1. Ensure quality.
+R37 [11:20] Priya: Need to send Cotton Club order today.
+R38 [11:25] Boss: Can we send ORD-095 to Little Loom? They offer good quality
+R40 [11:36] Priya: ORD-073, 400 hoodies  required bu 20 Apr
+R41 [11:40] Mei: ORD-015, 300 vests, due 16 Apr. Keep away from QuickStitch.
+R42 [11:42] Boss: ORD-040, assign something, due date to be confirmed.
+R43 [11:51] Chen: ORD-053, 800 polo shirts for UrbanThread due 10 Apr. Can we allocate to OldMill?
+R44 [11:55] Ravi: Maple & Co are chasing ORD-083, it's already late. Can we get the hoodies out today?
+R45 [12:02] Priya: Budget is tight on ORD-010, 1000 cardigans for Cotton Club. Pick whoever costs least as long as it arrives on time.
+R46 [12:08] Chen: Can FreshStart take ORD-066? They've got no queue right now.
+R47 [12:15] Mei: Can you tell me who handled the knitting on ORD-029? Quality team is asking.

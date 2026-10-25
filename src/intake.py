@@ -55,6 +55,7 @@ class Extraction(BaseModel):
     category: Category | None
     pieces: int | None = Field(ge=1)
     due_date_text: str | None
+    dispatch_date_text: str | None
     date_not_confirmed: bool
     suggested_workshop: str | None
     excluded_workshops: list[str]
@@ -140,6 +141,8 @@ class ParsedRequest:
     notes: list[str] = field(default_factory=list)
     # Additional evidence needed to avoid losing constraints or hiding overrides.
     due_date_text: str | None = None
+    dispatch_date_text: str | None = None
+    date_conflict: dict[str, Any] | None = None
     date_not_confirmed: bool = False
     question_topic: str = "allocation"
     must_make_date: bool = False
@@ -175,12 +178,19 @@ def build_system_prompt(today: date, orders_df, workshops) -> str:
         "order details from memory. Match explicit customer/product references to catalog "
         "names when unambiguous (including plural forms), otherwise preserve the reference. "
         "Copy the deadline phrase literally into due_date_text; never turn relative words "
-        "into dates. Distinguish sending today from a deadline today. Set date_not_confirmed "
+        "into dates. due_date_text is only the deadline for having the goods back. Put when the "
+        "batch should be sent out (e.g. 'out today', 'this week') in dispatch_date_text, never "
+        "in due_date_text; if no deadline is stated, leave due_date_text null. Set date_not_confirmed "
         "when a changed deadline is explicitly awaiting confirmation. Copy suggested and "
         "excluded workshop references; Python resolves names/IDs. Distinguish a request "
         "phrased as a question ('who can take this batch?') from an information-only question. "
         "question_topic identifies the information sought, not the data's availability. "
         "Extract preference, permission to split, and whether meeting the date is required. "
+        "Set preference when the sender signals it for this order: speed words (urgent, asap, rush, "
+        "quick, fast, faster, fastest) mean fastest; quality words (quality, careful, few defects, a "
+        "previous rejection) mean lowest_defect; cheapest or lowest cost means cheapest. A remark that "
+        "only explains why a workshop is excluded is an exclusion, not a preference. Pressure alone "
+        "(customer chasing, already late) is not a preference. "
         "Preserve each constraint's wording and who imposed it; relayed_by is the speaker "
         "when relaying someone else's constraint. behaviour and reason are your tentative "
         "interpretation, not the final business decision. Do not include extra keys.\n"
@@ -389,11 +399,42 @@ def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
     return LLMReply(choice.message.content, metadata)
 
 
+_MONTH_NUMBER = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+                 "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+_MONTH = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+          r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
+_EMBEDDED_DATE = re.compile(
+    r"(?P<iso>\b\d{4}-\d{2}-\d{2}\b)"
+    rf"|\b{_MONTH.replace('(', '(?P<m1>', 1)}\.?\s+(?P<d1>\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(?P<y1>\d{{4}})\b)?"
+    rf"|\b(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+{_MONTH.replace('(', '(?P<m2>', 1)}\b\.?(?:\s+(?P<y2>\d{{4}})\b)?",
+    re.IGNORECASE)
+
+
+def _embedded_date(text: str, today: date) -> date | None:
+    """The single explicit date inside a phrase such as 'back by Apr 21'.
+
+    Two different dates, or none, return None so the request is clarified.
+    """
+    found = set()
+    for m in _EMBEDDED_DATE.finditer(text):
+        try:
+            if m["iso"]:
+                found.add(date.fromisoformat(m["iso"]))
+            elif m["d1"]:
+                found.add(date(int(m["y1"] or today.year), _MONTH_NUMBER[m["m1"][:3].lower()], int(m["d1"])))
+            else:
+                found.add(date(int(m["y2"] or today.year), _MONTH_NUMBER[m["m2"][:3].lower()], int(m["d2"])))
+        except ValueError:
+            continue   # impossible calendar date, e.g. Feb 30
+    return found.pop() if len(found) == 1 else None
+
+
 def _calendar_date(value, today: date) -> date | None:
     """Parse explicit dates only; missing years use today's year, never roll forward.
 
     'today' is the supplied reference itself. Other relative/weekday expressions
     stay unresolved for a later date tool or clarification; no date arithmetic.
+    A copied phrase such as 'back by Apr 21' yields its one explicit date.
     """
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return None
@@ -413,7 +454,7 @@ def _calendar_date(value, today: date) -> date | None:
                 return datetime.strptime(candidate, fmt).date()
             except ValueError:
                 pass
-    return None
+    return _embedded_date(text, today)
 
 
 def _key(value: str) -> str:
@@ -592,6 +633,11 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
                 literal=None if literal is None or pd.isna(literal) else str(literal))
         else:
             log("due_date", "resolved", source=source, due_date=result.due_date.isoformat())
+            file_due = _calendar_date(row["due_date"], today) if source == "message" and row is not None else None
+            if file_due is not None and file_due != result.due_date:
+                result.date_conflict = {"message_due": result.due_date.isoformat(), "file_due": file_due.isoformat()}
+                result.notes.append(f"Message deadline {result.due_date.isoformat()} differs from orders.csv {file_due.isoformat()}")
+                log("due_date_conflict", "flagged", **result.date_conflict)
     result.already_late = result.due_date is not None and result.due_date <= today
     if result.already_late:
         result.notes.append(f"Deadline {result.due_date.isoformat()} is on or before today {today.isoformat()}; agent must mention this")
