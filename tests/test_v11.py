@@ -308,12 +308,65 @@ def test_choosing_a_clarification_option_evaluates_again_without_a_second_click(
     app.button(key="desk_dispatch").click().run()
     options = [b.key for b in app.button if b.key and b.key.startswith("desk_option_")]
     assert options and len(tracing.load()) == 1
+    original = app.session_state["desk_message"]
     app.button(key=options[0]).click().run()
     order = options[0].removeprefix("desk_option_")
-    assert app.session_state["desk_message"].endswith(f"Reply from dispatcher: {order}")
-    assert len(tracing.load()) == 2   # The edited request was read again in the same click.
-    # Rehearsal fixtures cover only the original inbox lines, so the honest outcome here is a named rehearsal miss.
-    assert app.session_state["desk_error"]["kind"] == "rehearsal_miss"
+    assert app.session_state["desk_message"] == original          # The message is never rewritten.
+    assert len(tracing.load()) == 2                                # Read again in the same click.
+    parsed = app.session_state["desk_preview"].response.parsed_request
+    assert parsed.order_id == order and parsed.answers_applied[0]["field"] == "order_id"
+    assert parsed.answers_applied[0]["by"] == "dispatcher" and parsed.answers_applied[0]["at"]
+
+
+def test_confirmed_deadline_answer_is_applied_by_python_and_kept_in_the_record(app):
+    app.button(key="inbox_R05").click().run()
+    app.button(key="desk_dispatch").click().run()
+    assert app.session_state["desk_preview"].response.parsed_request.behaviour == "clarify"
+    assert "qa_date_file" in [b.key for b in app.button]           # The date on file is offered as a one-tap answer.
+    app.date_input(key="qa_date_pick").set_value(__import__("datetime").date(2026, 4, 20)).run()
+    app.button(key="qa_date_use").click().run()
+    preview = app.session_state["desk_preview"]
+    parsed = preview.response.parsed_request
+    assert parsed.behaviour == "allocate" and parsed.due_date.isoformat() == "2026-04-20"
+    change = parsed.answers_applied[0]
+    assert (change["field"], change["previous"], change["value"], change["previous_source"]) == ("due_date", "2026-04-26", "2026-04-20", "orders.csv")
+    app.button(key="desk_confirm").click().run()
+    saved = records.load(desk.REHEARSAL_LOG)[0]
+    assert saved["decision_record"]["constraints_applied"]["confirmation"]["changes"][0]["value"] == "2026-04-20"
+
+
+def test_split_and_escalation_are_explicit_choices_with_their_own_records(app):
+    app.button(key="inbox_R30").click().run()
+    app.button(key="desk_dispatch").click().run()
+    queues = dict(app.session_state["desk_queues"])
+    app.button(key="desk_confirm_split").click().run()
+    saved = records.load(desk.REHEARSAL_LOG)
+    assert not app.exception and len(saved) == 1
+    split = saved[0]["decision_record"]["split_allocation"]
+    assert sum(p["pieces"] for p in split["parts"]) == 1500 and saved[0]["decision_record"]["constraints_applied"]["confirmation"]["split"]
+    changed = {w for w in queues if app.session_state["desk_queues"][w] != queues[w]}
+    assert changed == {p["workshop_id"] for p in split["parts"]}   # Each part loads only its own workshop.
+    app.button(key="inbox_R28").click().run()
+    app.button(key="desk_dispatch").click().run()
+    before = dict(app.session_state["desk_queues"])
+    app.button(key="desk_escalate").click().run()
+    rows = records.load(desk.REHEARSAL_LOG)
+    assert len(rows) == 2 and rows[1]["decision_record"]["constraints_applied"]["confirmation"]["escalated"]
+    assert app.session_state["desk_queues"] == before              # Escalating allocates nothing.
+
+
+def test_inbox_batch_run_previews_everything_and_confirms_only_on_request(app):
+    page(app, "Audit Trail")
+    app.segmented_control(key="_w_audit_view").set_value("batch").run()
+    app.button(key="batch_run_btn").click().run()
+    batch = app.session_state["batch_run"]
+    assert len(batch["rows"]) == 30 and not desk.REHEARSAL_LOG.exists()   # A preview only.
+    ready = [r for r in batch["rows"] if r["outcome"] == "ready"]
+    assert ready and all(r["evidence"] for r in ready)
+    app.button(key="batch_confirm").click().run()
+    saved = records.load(desk.REHEARSAL_LOG)
+    assert len(saved) == len(ready) and all(r["decision_record"]["constraints_applied"]["confirmation"]["batch_review"] for r in saved)
+    assert not records.DEFAULT_PATH.exists()
 
 
 def test_benchmark_scores_against_human_labels_only_when_all_30_exist():

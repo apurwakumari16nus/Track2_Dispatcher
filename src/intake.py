@@ -153,6 +153,8 @@ class ParsedRequest:
     raw_llm_response: str = ""
     llm_metadata: dict[str, Any] = field(default_factory=dict)
     post_checks: list[dict[str, Any]] = field(default_factory=list)
+    # Answers the dispatcher gave to a clarification, applied by Python: field, previous value, new value, when.
+    answers_applied: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         record = asdict(self)
@@ -231,6 +233,23 @@ def _anthropic_schema(node):
 
 
 _EXTRACTION_SOURCE: ContextVar = ContextVar("intake_extraction_source", default=None)
+_ANSWERS: ContextVar = ContextVar("intake_dispatcher_answers", default=None)
+ANSWER_FIELDS = ("order_id", "due_date", "pieces", "packing_confirmed", "allocate", "workshop_alias")
+
+
+@contextmanager
+def dispatcher_answers(answers: dict | None):
+    """Answers to a clarification, as {field: {"value": ..., "at": iso time}}.
+
+    They never reach the model. The message stays as received; Python applies each
+    answer as a confirmed fact in place of the extraction, and records the value it
+    replaced, so the audit record shows what changed and who changed it.
+    """
+    token = _ANSWERS.set(dict(answers or {}))
+    try:
+        yield
+    finally:
+        _ANSWERS.reset(token)
 
 
 @contextmanager
@@ -510,7 +529,26 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
                                    "before": before, "after": {"behaviour": result.behaviour, "reason": result.reason},
                                    "evidence": evidence})
 
+    answers = {k: v for k, v in (_ANSWERS.get() or {}).items() if k in ANSWER_FIELDS and v is not None}
+
+    def applied(name, previous, value, source):
+        when = answers[name].get("at") if isinstance(answers.get(name), dict) else None
+        result.answers_applied.append({"field": name, "previous": previous, "value": value,
+                                       "previous_source": source, "by": "dispatcher", "at": when})
+
+    def answer(name):
+        item = answers.get(name)
+        return item.get("value") if isinstance(item, dict) else item
+
     aliases = {_key(v): w.workshop_id for w in workshops.values() for v in (w.workshop_id, w.name)}
+    for ref, wid in (answer("workshop_alias") or {}).items():   # The dispatcher said which workshop a name meant, or to ignore it.
+        if wid in workshops:
+            aliases[_key(ref)] = wid
+        elif wid == "ignore":
+            if result.suggested_workshop and _key(result.suggested_workshop) == _key(ref):
+                result.suggested_workshop = None
+            result.excluded_workshops = [v for v in result.excluded_workshops if _key(v) != _key(ref)]
+        applied("workshop_alias", ref, wid, "message")
     references = ([result.suggested_workshop] if result.suggested_workshop else []) + result.excluded_workshops
     result.unresolved_workshops = [v for v in dict.fromkeys(references) if _key(v) not in aliases]
     if result.suggested_workshop:
@@ -518,6 +556,9 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
     result.excluded_workshops = list(dict.fromkeys(aliases[_key(v)] for v in result.excluded_workshops if _key(v) in aliases))
 
     row = None
+    if answer("order_id"):
+        applied("order_id", result.order_id, answer("order_id"), "message" if result.order_id else "not stated")
+        result.order_id = answer("order_id")
     if result.order_id:
         matches = orders_df[orders_df["order_id"].astype(str).str.casefold() == _key(result.order_id)]
         if matches.empty:
@@ -545,6 +586,9 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
                 candidate_order_ids=result.candidate_order_ids)
 
     unavailable = {"allocation_history", "customer_quote", "worker_names"}
+    if answer("allocate") and result.is_question_only and result.question_topic not in unavailable:
+        applied("allocate", "information only", "allocate", "message")
+        result.is_question_only = False
     if result.is_question_only and result.question_topic in unavailable:
         log("question_data", "unavailable", behaviour="decline", reason=f"no such data: {result.question_topic}")
     elif result.is_question_only:
@@ -565,8 +609,18 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
             result.pieces = int(row["pieces"])
             filled["pieces"] = result.pieces
         log("order_fields", "filled_from_csv", **filled)
+    if answer("pieces"):
+        applied("pieces", result.pieces, int(answer("pieces")), "message" if result.raw_llm_json.get("pieces") else "orders.csv")
+        result.pieces = int(answer("pieces"))
 
-    if result.date_not_confirmed:
+    if answer("due_date"):
+        confirmed = answer("due_date")
+        confirmed = confirmed if isinstance(confirmed, date) else date.fromisoformat(str(confirmed))
+        on_file = None if row is None or pd.isna(row["due_date"]) else str(row["due_date"])[:10]
+        applied("due_date", on_file, confirmed.isoformat(), "orders.csv" if on_file else "not stated")
+        result.date_not_confirmed, result.due_date = False, confirmed
+        log("due_date", "confirmed_by_dispatcher", source="dispatcher answer", due_date=confirmed.isoformat(), previous=on_file)
+    elif result.date_not_confirmed:
         log("due_date", "unconfirmed", behaviour="clarify", reason="changed due date is not confirmed")
     else:
         source = "message" if result.due_date_text else "orders.csv"
@@ -589,7 +643,10 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         result.notes.append(f"Deadline {result.due_date.isoformat()} is on or before today {today.isoformat()}; agent must mention this")
     log("already_late", "flagged" if result.already_late else "not_flagged", already_late=result.already_late)
 
-    if row is not None and row["current_stage"] == "PACKING":
+    if row is not None and row["current_stage"] == "PACKING" and answer("packing_confirmed"):
+        applied("packing_confirmed", "in packing, not confirmed", "send out anyway", "orders.csv")
+        log("packing", "confirmed_by_dispatcher")
+    elif row is not None and row["current_stage"] == "PACKING":
         log("packing", "needs_confirmation", behaviour="clarify", reason="order is already in packing")
     else:
         log("packing", "not_in_packing" if row is not None else "no_resolved_order")

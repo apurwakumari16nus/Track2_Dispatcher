@@ -23,3 +23,6 @@ eval/cache/
 
 # App-recorded model replies for rehearsal replay (contain chat text).
 records/rehearsal_cache/
+
+# Local code-graph caches (graphify)
+graphify-out/
