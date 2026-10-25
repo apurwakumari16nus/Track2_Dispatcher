@@ -21,6 +21,7 @@ import pandas as pd
 from agent import Agent, AgentResponse
 from allocator import Allocator
 import faithfulness
+import intake
 from objectives import ObjectiveConfig, PRESETS, score_candidate, score_terms
 import records
 from simulate import load_workshops
@@ -60,26 +61,29 @@ def projected_queues(queues, anchor, today):
     return {wid: max(0.0, value - elapsed) for wid, value in queues.items()}
 
 
-def signature(message, today, config, orders, workshops, queues, revision, source="live"):
+def signature(message, today, config, orders, workshops, queues, revision, source="live", answers=None):
     profiles = {wid: {**asdict(w), "makes": sorted(w.makes)} for wid, w in workshops.items()}
     data = [message, today.isoformat(), asdict(config), orders.to_csv(index=False), profiles, queues, revision, source]
+    if answers:   # Only present when the dispatcher answered a clarification, so earlier signatures are unchanged.
+        data.append({k: (v.get("value") if isinstance(v, dict) else v) for k, v in answers.items()})
     return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def make_preview(message, today, config, orders, workshops, queues, allocator, revision=0, source="live"):
+def make_preview(message, today, config, orders, workshops, queues, allocator, revision=0, source="live", answers=None):
     """Prepare all reviewable evidence and prospective state, without persistence.
 
     The caller chooses where the raw extraction comes from (intake.extraction_source);
     source only labels the preview and is part of its signature.
     """
     with tracing.span("prepare"):
-        current_signature = signature(message, today, config, orders, workshops, queues, revision, source)
+        current_signature = signature(message, today, config, orders, workshops, queues, revision, source, answers)
         worker = Agent(config)
         worker.allocator = deepcopy(allocator)
         worker.allocator.config = config
     accepted, next_queues = None, dict(queues)
     with tools.trace_calls() as calls:
-        response = worker.handle(message, today, orders, workshops, queues)
+        with intake.dispatcher_answers(answers):
+            response = worker.handle(message, today, orders, workshops, queues)
         agent_calls = len(calls)
         with tracing.span("verification"):
             parsed, record = response.parsed_request, response.decision_record
@@ -158,7 +162,7 @@ def confirm_state(preview, current_signature, saved) -> ConfirmState:
     return ConfirmState("ready")
 
 
-def confirm_preview(preview, current_signature, saved, *, append=None, guided_demo=False):
+def confirm_preview(preview, current_signature, saved, *, append=None, guided_demo=False, batch_review=False, channel="desk", by=None):
     """Validate first; append once; caller adopts new state only after success.
 
     guided_demo marks a confirmation made inside the guided demo; it is stored in
@@ -178,10 +182,98 @@ def confirm_preview(preview, current_signature, saved, *, append=None, guided_de
         "extraction_source": preview.source,
         "trace_id": preview.trace_id,
         "guided_demo": bool(guided_demo),
+        "batch_review": bool(batch_review),
+        "changes": deepcopy(response.parsed_request.answers_applied),
+        "channel": channel, "confirmed_by": by,
     }
     row = (append or records.append)(response)
     saved[preview.token] = row
     return row
+
+
+def split_defect_rate(split, workshops) -> float:
+    """Expected defect rate of a split: each workshop's rate weighted by its pieces."""
+    total = sum(p["pieces"] for p in split["parts"])
+    return sum(workshops[p["workshop_id"]].defect_rate * p["pieces"] for p in split["parts"]) / total
+
+
+def confirm_split(preview, current_signature, saved, split, workshops, queues, allocator, *, append=None, guided_demo=False,
+                  channel="desk", by=None):
+    """The dispatcher chose the two-workshop split instead of the single workshop.
+
+    Same rules as confirm_preview (validated first, written once). Returns
+    (row, next_queues, next_allocator): each part adds its own pieces to its own
+    workshop's queue, using the split estimate's queue_after from the same tools."""
+    status = confirm_state(preview, current_signature, saved)
+    if status.state == "confirmed":
+        return saved[preview.token], None, None
+    if not status.ready:
+        raise ValueError(status.reason)
+    if not split.get("available"):
+        raise ValueError("No legal two-workshop split is available for this batch.")
+    response = deepcopy(preview.response)
+    response.allocation_committed = True
+    # Names only: the part sizes, dates and costs live in split_allocation, so the logged text adds no unchecked numbers.
+    names = " and ".join(p["name"] for p in split["parts"])
+    response.explanation_text = (f"CONFIRMED SPLIT. The dispatcher chose a two-workshop split between {names}; "
+                                 "the parts are in split_allocation.\n\n"
+                                 "Original single-workshop preview:\n" + response.explanation_text)
+    parts = [{k: p.get(k) for k in ("workshop_id", "name", "pieces", "eta_date", "total_days", "days_to_spare", "total_cost")}
+             for p in split["parts"]]
+    response.decision_record["split_allocation"] = {"parts": parts, "eta_date": split["eta_date"], "total_cost": split["total_cost"],
+                                                    "days_to_spare": split["days_to_spare"],
+                                                    "expected_defect_rate": split_defect_rate(split, workshops),
+                                                    "instead_of": response.decision_record.get("chosen_workshop")}
+    response.decision_record["constraints_applied"]["confirmation"] = {
+        "confirmed": True, "preview_token": preview.token, "split": True,
+        "accepted_lateness": split["days_to_spare"] < 0, "accepted_alternative": False,
+        "extraction_source": preview.source, "trace_id": preview.trace_id, "guided_demo": bool(guided_demo),
+        "batch_review": False, "changes": deepcopy(response.parsed_request.answers_applied), "channel": channel, "confirmed_by": by,
+    }
+    row = (append or records.append)(response)
+    saved[preview.token] = row
+    next_queues = dict(queues)
+    next_allocator = deepcopy(allocator)
+    for part in split["parts"]:
+        next_queues[part["workshop_id"]] = part["queue"]["queue_after"]
+        next_allocator.pieces_by_workshop[part["workshop_id"]] = next_allocator.pieces_by_workshop.get(part["workshop_id"], 0) + part["pieces"]
+    return row, next_queues, next_allocator
+
+
+def escalate(preview, to: str, note: str, *, append=None, guided_demo=False, channel="desk", by=None) -> dict:
+    """Record that the dispatcher raised this request with a planner or the customer instead of deciding.
+    Nothing is allocated, no queue changes and nothing is sent; the record says who it went to and why."""
+    response = deepcopy(preview.response)
+    response.allocation_committed = False
+    response.decision_record["constraints_applied"]["confirmation"] = {
+        "confirmed": False, "escalated": True, "escalated_to": to, "note": note.strip(), "preview_token": preview.token,
+        "extraction_source": preview.source, "trace_id": preview.trace_id, "guided_demo": bool(guided_demo),
+        "changes": deepcopy(response.parsed_request.answers_applied), "channel": channel, "escalated_by": by,
+    }
+    return (append or records.append)(response)
+
+
+def queues_from_log(workshops, path=None) -> tuple[dict, Allocator, int]:
+    """Queues and allocator history after every confirmed decision in one audit log, replayed in order on the
+    1 April snapshot with the same queue tool the engine uses. This is how a second channel (the Telegram bot)
+    and the desk see one shared workload. Escalations allocate nothing and are skipped."""
+    queues = {wid: w.queue0 for wid, w in workshops.items()}
+    allocator = Allocator(PRESETS["lateness"])
+    confirmed = 0
+    for row in records.load(path):
+        record, parsed = row.get("decision_record", {}), row.get("parsed_request", {})
+        confirmation = record.get("constraints_applied", {}).get("confirmation", {})
+        if not confirmation.get("confirmed"):
+            continue
+        parts = (record.get("split_allocation") or {}).get("parts") or (
+            [{"workshop_id": record.get("chosen_workshop"), "pieces": parsed.get("pieces")}] if record.get("chosen_workshop") else [])
+        for part in parts:
+            if part["workshop_id"] in workshops and part.get("pieces"):
+                batch = {"pieces": int(part["pieces"]), "category": parsed.get("category")}
+                queues[part["workshop_id"]] = tools.overload_probe(batch, part["workshop_id"], workshops, queues)["queue_after"]
+                allocator.pieces_by_workshop[part["workshop_id"]] = allocator.pieces_by_workshop.get(part["workshop_id"], 0) + int(part["pieces"])
+        confirmed += 1
+    return queues, allocator, confirmed
 
 
 def audit_path(source: str, demo: bool = False) -> Path | None:

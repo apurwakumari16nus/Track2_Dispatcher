@@ -16,20 +16,29 @@ import streamlit as st
 
 import desk
 import records
-from ui import explain, performance
+from ui import batch, explain, performance
 from ui.components import banner, chart, esc, html, icon, json_block, status_pill
 from ui.state import bind, one_of, subset_of, text
 
 LOGS = {"live": "Live log", "rehearsal": "Rehearsal log"}
-VIEWS = {"decisions": "Decision audit", "performance": "Performance diagnostics"}
-KINDS = ["Allocation", "Alternative accepted", "Late return accepted"]
-KIND_TONE = {"Allocation": "conf", "Alternative accepted": "info", "Late return accepted": "warn"}
+VIEWS = {"decisions": "Decision audit", "batch": "Run the whole inbox", "performance": "Performance diagnostics"}
+KINDS = ["Allocation", "Split allocation", "Alternative accepted", "Late return accepted", "Escalated"]
+KIND_TONE = {"Allocation": "conf", "Split allocation": "conf", "Alternative accepted": "info", "Late return accepted": "warn",
+             "Escalated": "muted"}
 COLUMNS = [1.3, .95, .95, 1.25, 1.2, 1.2, .95, .75]
 SHOWN = 60
 
 
+def confirmation_of(row: dict) -> dict:
+    return row.get("decision_record", {}).get("constraints_applied", {}).get("confirmation", {})
+
+
 def kind(row: dict) -> str:
     confirmation = row.get("decision_record", {}).get("constraints_applied", {}).get("confirmation", {})
+    if confirmation.get("escalated"):
+        return "Escalated"
+    if confirmation.get("split"):
+        return "Split allocation"
     if confirmation.get("accepted_lateness"):
         return "Late return accepted"
     if confirmation.get("accepted_alternative"):
@@ -50,6 +59,15 @@ def when(row: dict) -> str:
     except ValueError:
         return "Unknown"
     return f"{moment.day} {moment:%b}, {moment:%H:%M}"
+
+
+def shown_workshop(row, workshops) -> str:
+    split = row.get("decision_record", {}).get("split_allocation")
+    if split:
+        return " + ".join(p["name"] for p in split["parts"])
+    if confirmation_of(row).get("escalated"):
+        return "Escalated"
+    return workshop_name(row.get("decision_record", {}).get("chosen_workshop"), workshops)
 
 
 def workshop_name(wid, workshops) -> str:
@@ -96,6 +114,10 @@ def render(workshops):
             # A missing or stale selection falls back to the log that matches the current reading mode.
             default = "rehearsal" if state.get("desk_source", "live") != "live" else "live"
             log = bind(st.segmented_control, "Log", list(LOGS), key="audit_log", fallback=default, format_func=LOGS.get, required=True)
+    if view == "batch":
+        orders, _, messages = desk.load_inputs()
+        batch.render(messages, orders, workshops)
+        return
     if view == "performance":
         html('<div class="home-sub" style="margin:0.2rem 0 0.8rem">Diagnostics only. Timing never changes a recommendation, and nothing here is a decision record.</div>')
         performance.render()
@@ -172,9 +194,9 @@ def summary_row(rows, log, workshops):
     """Activity summary and a decision history chart, both counted from the records on file."""
     verified = sum(bool((r.get("faithfulness") or {}).get("passed")) for r in rows)
     late = sum(kind(r) == "Late return accepted" for r in rows)
-    used = len({r.get("decision_record", {}).get("chosen_workshop") for r in rows} - {None})
-    stats = [(len(rows), "Confirmed decisions"), (f"{verified} of {len(rows)}", "Evidence verified"),
-             (late, "Late returns accepted"), (used, "Workshops used")]
+    escalated = sum(kind(r) == "Escalated" for r in rows)
+    stats = [(len(rows) - escalated, "Confirmed decisions"), (f"{verified} of {len(rows)}", "Evidence verified"),
+             (late, "Late returns accepted"), (escalated, "Escalated")]
     left, right = st.columns([1, 1.5], gap="medium")
     with left:
         html('<div class="an-card au-sum"><div class="an-title">Activity</div><div class="an-sub">'
@@ -187,7 +209,7 @@ def summary_row(rows, log, workshops):
             chart(frame, {"mark": {"type": "bar", "cornerRadiusEnd": 4, "width": {"band": .55}},
                           "encoding": {"x": {"field": "day", "type": "ordinal", "title": None, "axis": {"labelAngle": 0}},
                                        "y": {"aggregate": "count", "type": "quantitative", "title": "Decisions", "axis": {"tickMinStep": 1}},
-                                       "color": {"field": "type", "title": None, "scale": {"domain": KINDS, "range": ["#2A77E8", "#7FB0F2", "#E09A2C"]}},
+                                       "color": {"field": "type", "title": None, "scale": {"domain": KINDS, "range": ["#2A77E8", "#20BFA9", "#7FB0F2", "#E09A2C", "#8597AC"]}},
                                        "tooltip": [{"field": "day", "title": "Day"}, {"field": "type", "title": "Type"}, {"aggregate": "count", "title": "Decisions"}]}},
                   height=176)
         html('<div class="an-src">Source: the audit log file. Nothing here is simulated.</div>')
@@ -201,7 +223,9 @@ def timeline(found, workshops, log="live"):
         rh = " rh" if log == "rehearsal" else ""
         items.append(f'<li class="{KIND_TONE[kind(row)]}{rh}"><span class="tl-d"></span><div><div class="tl-h"><b>{esc(workshop_name(record.get("chosen_workshop"), workshops))}</b>'
                      f'<em>{esc(when(row))}</em></div><p><span class="id">{esc(record.get("order_id") or "None")}</span> for {esc(row.get("sender") or "unknown")}. '
-                     f'{esc(kind(row))}, confirmed by the dispatcher{"<em> in rehearsal</em>" if rh else ""}. Evidence {"verified" if passed else "failed"}.</p></div></li>')
+                     + (f'Escalated to the {esc(confirmation_of(row).get("escalated_to", "planner").lower())}, nothing allocated'
+                        if kind(row) == "Escalated" else f'{esc(kind(row))}, confirmed by the dispatcher')
+                     + f'{"<em> in rehearsal</em>" if rh else ""}. Evidence {"verified" if passed else "failed"}.</p></div></li>')
     note = "Rehearsal confirmations, kept apart from live decisions." if log == "rehearsal" else "Each entry is a human-confirmed allocation."
     html(f'<div class="an-card"><div class="an-title">Decision timeline</div><div class="an-sub">Newest first. {note}</div>'
          f'<ol class="au-tl">{"".join(items)}</ol></div>')
@@ -218,7 +242,7 @@ def ledger(found, workshops):
             passed = (row.get("faithfulness") or {}).get("passed")
             cells = [f'<div class="lg-cell m">{esc(when(row))}</div>', f'<div class="lg-cell"><b class="id">{esc(record.get("order_id") or "None")}</b></div>',
                      f'<div class="lg-cell">{esc(row.get("sender") or "Unknown")}</div>',
-                     f'<div class="lg-cell"><b>{esc(workshop_name(record.get("chosen_workshop"), workshops))}</b></div>',
+                     f'<div class="lg-cell"><b>{esc(shown_workshop(row, workshops))}</b></div>',
                      f'<div class="lg-cell m">{esc(explain.objective_label(record.get("objective_name", "")))}</div>',
                      status_pill(kind(row), KIND_TONE[kind(row)]),
                      status_pill("Verified", "ok") if passed else status_pill("Failed", "risk")]
@@ -246,10 +270,10 @@ def record_panel(row, workshops):
     back = (f'Back {explain.long_date(chosen["eta_date"])}, {chosen["days_to_spare"]:+d} days to spare, cost {chosen["total_cost"]:,.0f}.'
             if chosen else "")
     html(f'<div class="inspector"><div class="eyebrow">Record {esc(record.get("order_id"))}, logged {esc(when(row))} UTC</div>'
-         f'<div class="ins-title">{esc(workshop_name(wid, workshops))}</div><div class="ins-sub">{esc(back)}</div>'
+         f'<div class="ins-title">{esc(shown_workshop(row, workshops))}</div><div class="ins-sub">{esc(back)}</div>'
          f'<div style="display:flex;gap:0.5333rem;margin-top:0.8rem">{status_pill(kind(row), "dark-muted")}'
          f'{status_pill("Evidence verified" if passed else "Evidence failed", "dark" if passed else "dark-risk")}'
-         f'{status_pill("Confirmed by dispatcher" if confirmation.get("confirmed") else "Not confirmed", "dark-conf" if confirmation.get("confirmed") else "dark-muted")}</div></div>')
+         f'{status_pill("Confirmed by dispatcher" if confirmation.get("confirmed") else ("Escalated" if confirmation.get("escalated") else "Not confirmed"), "dark-conf" if confirmation.get("confirmed") else "dark-muted")}</div></div>')
     summary_tab, candidates_tab, evidence_tab = st.tabs(["Decision", "Candidates", "Evidence"])
     with summary_tab:
         fields = [("Order", parsed.get("order_id")), ("Customer", parsed.get("customer")), ("Product", parsed.get("product")),
@@ -271,6 +295,28 @@ def record_panel(row, workshops):
              + "".join(f"<dt>{esc(k)}</dt><dd>{esc(v)}</dd>" for k, v in fields if v is not None) + "</dl></div>"
              f'<div class="dk-card"><div class="eyebrow" style="color:var(--cyan)">Constraints</div><ul class="dk-list">'
              + ("".join(f"<li>{esc(t)}</li>" for t in lines) or "<li>None stated</li>") + "</ul></div></div>")
+        changes = confirmation.get("changes") or parsed.get("answers_applied") or []
+        split = record.get("split_allocation")
+        extra = ""
+        if changes:
+            items = "".join(f'<li><b>{esc(c["field"].replace("_", " ").capitalize())}</b>: '
+                            f'{esc(c.get("previous") or "not stated")} ({esc(c.get("previous_source") or "")}) changed to '
+                            f'<b>{esc(c["value"])}</b> by the dispatcher{(" at " + esc(c["at"][11:16]) + " UTC") if c.get("at") else ""}</li>'
+                            for c in changes)
+            extra += f'<div class="dk-card" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Changed by the dispatcher</div><ul class="dk-list">{items}</ul></div>'
+        if split:
+            items = "".join(f'<li>{esc(p["name"])}: {p["pieces"]:,} pieces, back {esc(explain.short_date(p["eta_date"]))}, cost {p["total_cost"]:,.0f}</li>'
+                            for p in split["parts"])
+            extra += (f'<div class="dk-card" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Split chosen instead of '
+                      f'{esc(workshop_name(split.get("instead_of"), workshops))}</div><ul class="dk-list">{items}</ul>'
+                      f'<div class="ev">Back {esc(explain.short_date(split["eta_date"]))}, combined cost {split["total_cost"]:,.0f}, '
+                      f'expected defect rate {split["expected_defect_rate"]:.1%}.</div></div>')
+        if confirmation.get("escalated"):
+            extra += (f'<div class="dk-card" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Escalated to the '
+                      f'{esc(confirmation.get("escalated_to", "").lower())}</div><p style="margin:0.4rem 0 0">{esc(confirmation.get("note") or "No note")}</p>'
+                      '<div class="ev">Nothing was allocated and nothing was sent.</div></div>')
+        if extra:
+            html(extra)
     with candidates_tab:
         body = []
         for c in explain.selection_order(record):

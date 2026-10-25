@@ -6,7 +6,7 @@ Status on 23 October 2026, branch `product-ui-v2`. Nothing in this pass was comm
 
 | Check | Command or method | Result |
 |---|---|---|
-| Unit and app tests | `uv run pytest -q` | 322 passed, 1 skipped (the skip is the human-label accuracy test: 0 of 30 labels) |
+| Unit and app tests | `uv run pytest -q` | 325 passed, 1 skipped (the skip is the human-label accuracy test: 0 of 30 labels) |
 | Course evidence fingerprint | included in the suite (`test_course_evidence_matches_code`) | Passes: allocator, objectives, heuristic, tools and simulator unchanged |
 | Official ten-seed results | `uv run python eval/run_simulator.py --output-dir <scratch>`, then byte comparison | `results.csv`, `results_per_seed.csv`, `objective_checks.csv`, `shock_changes.csv`, `shock_changes_per_seed.csv` reproduce **byte for byte** |
 | Recording path (R09 to Lab) | Playwright, presentation mode, recorded replies, 1920 × 1080 and 1440 × 900 | Completes at both sizes; one rehearsal audit record per confirmation; no console errors |
