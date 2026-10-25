@@ -4,9 +4,35 @@
   "currency": "USD per million tokens, Claude API first-party rates, standard (global) inference",
   "note": "Estimates from recorded token usage. They are not bills and have not been reconciled with billing records.",
   "models": {
-    "claude-sonnet-5-5": {"input": 2.00, "cache_write_5m": 2.50, "cache_write_1h": 4.00, "cache_read": 0.10, "output": 10.00},
-    "claude-haiku-5-5": {"input": 0.10, "cache_write_5m": 0.125, "cache_write_1h": 0.20, "cache_read": 0.01, "output": 0.50,
-                         "long_prompt_threshold_tokens": 100000,
-                         "long_prompt": {"input": 0.50, "cache_write_5m": 0.625, "cache_write_1h": 1.00, "cache_read": 0.05, "output": 2.50}}
+    "claude-sonnet-5-5": {
+      "input": 2.0,
+      "cache_write_5m": 2.5,
+      "cache_write_1h": 4.0,
+      "cache_read": 0.1,
+      "output": 10.0
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "cache_write_5m": 0.125,
+      "cache_write_1h": 0.2,
+      "cache_read": 0.01,
+      "output": 0.5,
+      "long_prompt_threshold_tokens": 100000,
+      "long_prompt": {
+        "input": 0.5,
+        "cache_write_5m": 0.625,
+        "cache_write_1h": 1.0,
+        "cache_read": 0.05,
+        "output": 2.5
+      }
+    },
+    "claude-opus-5-5": {
+      "input": 4.0,
+      "cache_write_5m": 5.0,
+      "cache_write_1h": 8.0,
+      "cache_read": 0.2,
+      "output": 20.0,
+      "note": "added 2026-10-25 from the same pricing page; standard (global) inference"
+    }
   }
 }

@@ -1,0 +1,5 @@
+Held-out inputs fingerprinted BEFORE the first run: 2026-10-25 15:54:37 +08
+5bc573205db7454b50b1be158827fa69f79a01c88a6d0ffcd3bb61f56a5c40c7  data/heldout_requests.txt
+1f18219682df26a1e7057a3837c02b2ea9ceb24fc490671b3b0b6c8e5cfaaf29  eval/labels_heldout.csv
+Oct 25 15:50:23 2026 data/heldout_requests.txt
+Oct 25 15:46:20 2026 eval/labels_heldout.csv

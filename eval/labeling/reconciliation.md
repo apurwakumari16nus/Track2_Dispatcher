@@ -40,3 +40,26 @@ with no content changes. The final notes in `labels.csv` were simplified by the 
 | Date | Request | Change | Reason |
 |---|---|---|---|
 | 24 Oct 2026 | R20, R28, R30 | `refuse` → `allocate` (issues unchanged: `none_makes_date`, `due_date_passed`) | The data dictionary calls these "complete but impossible" and says to give the numbers, the earliest date and the options, and not to allocate silently. Recommending the least-late option while stating that the date is missed fits that better than refusing. Agreed by Vanshika Dhamija and Apurwa Kumari. **This change was made after seeing the system's answers** (the system answered `allocate` for all three). Agreement with the original frozen labels: 27/30. |
+
+## Held-out set
+
+Files: `data/heldout_requests.txt`, `eval/labels_heldout.csv`. Written 25 Oct 2026.
+
+| Item | Entry |
+|---|---|
+| Requests | R31–R47: 16 remain. **R39 was removed before the run** (an order-status question that no behaviour fits) |
+| Who wrote them | R31–R43 and R47 by the team. **R44–R46 were drafted by an AI assistant** and used unchanged |
+| Labels | Drafted by an AI assistant from the rubric and data (system not run), then reviewed by the team. Same rules as `labels.csv` |
+| Frozen before the run | File SHA-256 values saved before the first run in `eval/heldout_haiku/inputs_before_run.txt`; committed unchanged in 208b8bc |
+| Evaluated | Once on Haiku 5.5 (15/16 behaviour, 13/16 decision); later also run on Sonnet 5.5 with the same files |
+
+## Version 2 labels (team rule change, after seeing results)
+
+Decided by the team on 25 Oct 2026, after the version 1 results, from the user's point of view:
+**speed words (urgent, asap, rush, quick, faster, fastest) count as a "fastest" preference, and quality
+words (quality, careful, few defects, a previous rejection) count as "lowest defect rate".** A remark that
+only explains an exclusion stays an exclusion; pressure alone ("chasing", "already late") is not a preference.
+
+Files: `eval/labels_v2.csv`, `eval/labels_heldout_v2.csv`. Version 1 files are unchanged.
+Changed (constraint only; behaviours unchanged): dev R10, R15, R23; held-out R32, R38.
+Results scored against version 2 are development results, not a clean held-out test.

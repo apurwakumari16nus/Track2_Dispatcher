@@ -138,7 +138,7 @@ class Agent:
         parsed = intake.parse_request(message, today, orders_df, workshops)
         effective = _objective(parsed, self.config)
         exclude = list(parsed.excluded_workshops)
-        must_make_date = parsed.must_make_date or parsed.preference == "cheapest"
+        must_make_date = parsed.must_make_date or parsed.preference in ("cheapest", "lowest_defect")
         with tracing.span("order_lookup"):
             lookups = tools.order_options(orders_df, parsed.candidate_order_ids or ([parsed.order_id] if parsed.order_id else []))
         if parsed.behaviour not in {"allocate", "refuse"}:
@@ -149,6 +149,8 @@ class Agent:
             constraints_applied={}, awkward_case=None, timestamp=f"{today.isoformat()}T00:00:00",
         )
         evidence = {"order_options": lookups}
+        if parsed.date_conflict:
+            evidence["date_check"] = dict(parsed.date_conflict)
         preview = None
         if parsed.behaviour == "clarify":
             text = _clarification(parsed, lookups)
@@ -206,6 +208,9 @@ class Agent:
             "objective_override": effective.name if parsed.preference else None,
         })
         warnings = []
+        if parsed.date_conflict:
+            warnings.append(f"DATE CHECK: the message gives {parsed.date_conflict['message_due']} but the order file "
+                            f"says {parsed.date_conflict['file_due']}; the message date is used. Please confirm.")
         if parsed.already_late:
             warnings.append("ALREADY LATE: the requested deadline is today or in the past.")
         if record.awkward_case == "none_makes_date":

@@ -470,13 +470,16 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=ROOT / "eval")
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "eval/cache")
     parser.add_argument("--labels", type=Path, default=ROOT / "eval/labels.csv")
+    parser.add_argument("--requests", type=Path, default=ROOT / "data/dispatch_requests.txt",
+                        help="Request file (default: the supplied 30-request inbox); use it for a held-out set")
     parser.add_argument("--model", help="Intake model; overrides the LLM_PROVIDER's *_INTAKE_MODEL")
     parser.add_argument("--offline", action="store_true", help="Reuse existing matching cache only; never call the API")
     parser.add_argument("--mock", action="store_true", help="Explicit synthetic-fixture dry run; not live LLM evaluation")
     args = parser.parse_args(argv)
     load_dotenv(ROOT / ".env", override=False)
-    messages = inbox_messages(ROOT / "data/dispatch_requests.txt")
-    if len(messages) != 30:
+    default_requests = ROOT / "data/dispatch_requests.txt"
+    messages = inbox_messages(args.requests)
+    if args.requests == default_requests and len(messages) != 30:
         raise ValueError("Expected the supplied 30-request inbox")
     labels = read_labels(args.labels, messages)
     fixture = None
@@ -499,7 +502,7 @@ def main(argv=None):
         "mode": mode, "provider": "synthetic-fixture" if args.mock else provider, "model": model, "today": TODAY.isoformat(), "objective": "lateness",
         "queue_policy": "workshops.csv current_queue_days as the 2026-04-01 snapshot; independent per request",
         "input_hashes": {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in {
-            "inbox": ROOT / "data/dispatch_requests.txt", "orders": ROOT / "data/orders.csv",
+            "inbox": args.requests, "orders": ROOT / "data/orders.csv",
             "workshops": ROOT / "data/workshops.csv", "labels": args.labels}.items()},
         "requests": details})
     temperature = 0 if args.mock or provider == "openai" else "provider default (Claude rejects temperature=0)"
