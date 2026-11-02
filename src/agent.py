@@ -53,11 +53,32 @@ def _objective(parsed, config):
     return config
 
 
-def _clarification(parsed, options):
+def _option(r):
+    return f"{r['order_id']} ({r['customer']}, {r['product']}, {r['pieces']} pieces)"
+
+
+def _guardrail_reply(parsed, options):
+    """Replies for messages a Sprint 3 guard stopped early (intake.ParsedRequest.guardrail). No free text is echoed."""
+    if parsed.guardrail == "too_long":
+        return "This message is too long to read safely. Please send a shorter message about one order."
+    if parsed.guardrail == "no_reference":
+        return "I could not find an order in this message. Please send the order ID, or the customer and product."
+    if parsed.guardrail == "several_orders":
+        listed = f": {'; '.join(_option(r) for r in options)}" if options else ""
+        return f"This message names more than one order{listed}. Please send one message per order so each gets its own check."
+    if parsed.guardrail == "order_suggestion":
+        return f"That order ID is not in the order book. Did you mean {' or '.join(_option(r) for r in options)}? Please reply with the right order ID."
+    return None
+
+
+def _clarification(parsed, options, workshops=None):
+    early = _guardrail_reply(parsed, options)
+    if early:
+        return early + " No allocation has been made."
     questions = []
     if not parsed.order_id:
         if options:
-            choices = "; ".join(f"{r['order_id']} ({r['customer']}, {r['product']}, {r['pieces']} pieces)" for r in options)
+            choices = "; ".join(_option(r) for r in options)
             questions.append(f"Which order do you mean: {choices}?")
         else:
             questions.append("No in-progress order matches the supplied references. Please provide the order ID or the customer and product for the intended order.")
@@ -69,7 +90,12 @@ def _clarification(parsed, options):
         questions.append("What is the confirmed due date, including the year?")
     if parsed.unresolved_workshops:
         # Do not echo unverified free text (including potentially invented numbers).
-        questions.append("Which workshop IDs do the unrecognized workshop references mean? Please use the workshop directory.")
+        guesses = [parsed.workshop_suggestions[v] for v in parsed.unresolved_workshops if v in parsed.workshop_suggestions]
+        if guesses and len(guesses) == len(parsed.unresolved_workshops):
+            names = " and ".join(dict.fromkeys(workshops[w].name if workshops and w in workshops else w for w in guesses))
+            questions.append(f"Did you mean {names}? Please confirm the workshop.")
+        else:
+            questions.append("Which workshop IDs do the unrecognized workshop references mean? Please use the workshop directory.")
     if parsed.pieces is None and parsed.order_id:
         questions.append("How many pieces should be sent?")
     if parsed.category is None and parsed.order_id:
@@ -82,6 +108,9 @@ def _clarification(parsed, options):
 
 
 def _decline(parsed):
+    if parsed.guardrail == "off_topic":
+        return ("I can only help with sending orders to workshops, and this message does not name an order. "
+                "No allocation has been made.")
     if parsed.reason == "order not found":
         return ("The supplied order table does not contain the named order. I need a corrected order ID "
                 "or an authoritative order record before proceeding. No allocation has been made.")
@@ -153,7 +182,7 @@ class Agent:
             evidence["date_check"] = dict(parsed.date_conflict)
         preview = None
         if parsed.behaviour == "clarify":
-            text = _clarification(parsed, lookups)
+            text = _clarification(parsed, lookups, workshops)
         elif parsed.behaviour == "decline":
             text = _decline(parsed)
         elif parsed.behaviour in {"allocate", "refuse"}:
@@ -170,7 +199,7 @@ class Agent:
                 exclude = list(dict.fromkeys([*exclude, rejected["workshop_id"]]))
             complete = all(getattr(parsed, k) is not None for k in ("order_id", "category", "pieces", "due_date")) and not parsed.unresolved_workshops
             if not complete:
-                text = prefix + "An alternative needs confirmed order details first. " + _clarification(parsed, lookups)
+                text = prefix + "An alternative needs confirmed order details first. " + _clarification(parsed, lookups, workshops)
             else:
                 batch = {"order_id": parsed.order_id, "category": parsed.category, "pieces": parsed.pieces,
                          "sent_date": today, "due_date": parsed.due_date}

@@ -1,0 +1,78 @@
+name: Threadline
+options:
+  bundleIdPrefix: com.adityapandhari
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: GA5MADTKBJ
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+targets:
+  Threadline:
+    type: application
+    platform: iOS
+    sources: [Threadline, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.adityapandhari.threadline
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: Threadline/Info.plist
+      properties:
+        CFBundleDisplayName: Threadline
+        CFBundleURLTypes:
+          - CFBundleURLName: com.adityapandhari.threadline
+            CFBundleURLSchemes: [threadline]
+        NSMicrophoneUsageDescription: Threadline listens while you speak a request, so you can see it written as you talk.
+        NSSpeechRecognitionUsageDescription: Your words are turned into text on this iPhone and on your desk Mac so Threadline can read the request.
+        NSLocalNetworkUsageDescription: Threadline connects to your dispatch desk on this network.
+        NSSupportsLiveActivities: true
+        ITSAppUsesNonExemptEncryption: false
+        ThreadlineHost: $(THREADLINE_HOST)
+        ThreadlineToken: $(THREADLINE_TOKEN)
+        ThreadlineProbe: $(THREADLINE_PROBE)
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        UILaunchScreen:
+          UIColorName: AccentColor
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    entitlements:
+      path: Threadline/Threadline.entitlements
+      properties:
+        aps-environment: development
+        com.apple.security.application-groups: [group.com.adityapandhari.threadline]
+    dependencies:
+      - target: ThreadlineWidgets
+        embed: true
+  ThreadlineWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [ThreadlineWidgets, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.adityapandhari.threadline.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: ThreadlineWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Threadline
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: ThreadlineWidgets/ThreadlineWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.adityapandhari.threadline]
+schemes:
+  Threadline:
+    build:
+      targets:
+        Threadline: all
+    run:
+      config: Release

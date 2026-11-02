@@ -1054,3 +1054,59 @@ i.base { background: #9DBDF0; } i.add { background: var(--cobalt); }
   .gd-bar i, [data-testid="stButtonGroup"] button::after, .ob-card, .na-chip, .inb, .tw { transition: none !important; }
   [class*="st-key-obj_"]:hover .ob-card:not(.on), button[kind="primary"]:hover:not(:disabled), button[kind="secondary"]:hover:not(:disabled) { transform: none !important; }
 }
+
+/* Sprint 3: Today board, due-back timeline, pick against runner-up ------------------------------------ */
+.tb-sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.6667rem; margin: 1.0667rem 0 1.0667rem; }
+@media (max-width: 900px) { .tb-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tb-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.6667rem 0.9333rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.tb-kpi strong { font-size: 1.6rem; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; }
+.tb-kpi small { color: var(--text-muted); font-size: 0.8667rem; }
+.tb-kpi.overdue { border-top: 3px solid var(--coral); } .tb-kpi.due_today, .tb-kpi.at_risk { border-top: 3px solid var(--amber); }
+.tb-kpi.on_track { border-top: 3px solid var(--cobalt); } .tb-kpi.received { border-top: 3px solid var(--green); }
+.st-key-tb_decide, .st-key-tb_back, .st-key-tb_risk { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.9333rem 1.0667rem !important; box-shadow: var(--shadow-sm); gap: 0.4rem !important; }
+.tb-head { display: flex; align-items: center; gap: 0.5333rem; font-size: 1.0667rem; color: var(--text); }
+.tb-head span { margin-left: auto; background: var(--sunken); border-radius: 999px; padding: 0.1333rem 0.6rem; font-size: 0.8667rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.tb-head .material-symbols-rounded, .tb-head i { color: var(--cobalt); }
+.tb-sub { color: var(--text-muted); font-size: 0.8667rem; margin-bottom: 0.2667rem; }
+.tb-item { border-top: 1px solid var(--border); padding-top: 0.5333rem; }
+.tb-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5333rem; font-size: 0.9333rem; }
+.tb-rid { color: var(--text-faint); font-size: 0.8rem; }
+.tb-body { font-size: 0.9333rem; color: var(--text); margin-top: 0.1333rem; overflow-wrap: anywhere; }
+.tb-meta, .tb-more { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1333rem; }
+.tb-empty { font-size: 0.9333rem; color: var(--text-faint); padding: 0.5333rem 0; }
+
+.tl { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.9333rem 1.0667rem; box-shadow: var(--shadow-sm); margin: 0.6667rem 0; overflow-x: auto; }
+.tl-axis, .tl-row { display: grid; grid-template-columns: 10.6667rem minmax(36rem, 1fr); gap: 0.8rem; }
+.tl-scale { position: relative; height: 1.4rem; border-bottom: 1px solid var(--border); }
+.tl-tick { position: absolute; transform: translateX(-50%); font-size: 0.7333rem; color: var(--text-faint); white-space: nowrap; }
+.tl-body { position: relative; }
+.tl-now { position: absolute; top: -0.4rem; bottom: -0.4rem; width: 0; border-left: 2px dashed var(--cobalt); z-index: 2; }
+.tl-tick.now { top: -1.2rem; color: var(--cobalt-ink); font-weight: 600; }
+.tl-scale { margin-top: 1.2rem; }
+.tl-row { border-bottom: 1px solid var(--border); padding: 0.4rem 0; }
+.tl-row:last-child { border-bottom: none; }
+.tl-name b { display: block; font-size: 0.9333rem; color: var(--text); } .tl-name small { color: var(--text-muted); font-size: 0.8rem; }
+.tl-track { position: relative; }
+.tl-bar { position: absolute; height: 1.4rem; border-radius: 0.4rem; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden;
+  font-size: 0.7333rem; font-weight: 600; color: #fff; white-space: nowrap; background: var(--cobalt); box-shadow: 0 1px 2px rgba(18,34,51,.15); }
+.tl-bar.on_track { background: var(--cobalt); } .tl-bar.due_today, .tl-bar.at_risk { background: var(--amber); color: #3b2604; }
+.tl-bar.overdue { background: var(--coral); } .tl-bar.received { background: var(--green); opacity: .55; }
+.tl-due { position: absolute; width: 0.6667rem; height: 0.6667rem; background: var(--text); transform: translate(-50%, -50%) rotate(45deg); z-index: 1; border: 2px solid var(--surface); }
+.tl-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.0667rem; margin-top: 0.6667rem; font-size: 0.8rem; color: var(--text-muted); }
+.tl-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.tl-key { width: 0.9333rem; height: 0.5333rem; border-radius: 0.2rem; display: inline-block; background: var(--cobalt); }
+.tl-key.overdue { background: var(--coral); } .tl-key.due_today, .tl-key.at_risk { background: var(--amber); } .tl-key.received { background: var(--green); opacity: .55; }
+.tl-key.due { width: 0.5333rem; height: 0.5333rem; background: var(--text); transform: rotate(45deg); border-radius: 0; }
+
+.ru { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.9333rem 1.0667rem; box-shadow: var(--shadow-sm); margin-top: 0.8rem; }
+.ru-head { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.6667rem; }
+.ru-head b { font-size: 1.0667rem; color: var(--text); } .ru-head span { font-size: 0.9333rem; color: var(--text-muted); }
+.ru-t { width: 100%; border-collapse: collapse; font-size: 0.9333rem; }
+.ru-t th, .ru-t td { padding: 0.5333rem 0.6667rem; border-bottom: 1px solid var(--border); text-align: left; }
+.ru-t thead th { font-size: 0.9333rem; color: var(--text); } .ru-t thead small { display: block; font-size: 0.7333rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); font-weight: 600; }
+.ru-t tbody th { font-weight: 500; color: var(--text-muted); width: 36%; }
+.ru-t tbody th em { font-style: normal; margin-left: 0.5333rem; font-size: 0.7333rem; font-weight: 600; color: var(--cobalt-ink); background: rgba(42,119,232,.1); border-radius: 999px; padding: 0.1333rem 0.5rem; }
+.ru-t td { font-variant-numeric: tabular-nums; color: var(--text); }
+.ru-t td.win { color: var(--green-ink); font-weight: 600; }
+.ru-t tr.dec { background: rgba(42,119,232,.05); }
+.ru-note { font-size: 0.8667rem; color: var(--cobalt-ink); margin-top: 0.5333rem; }

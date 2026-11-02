@@ -33,7 +33,14 @@ def data():
 
 @pytest.fixture
 def extract(monkeypatch):
-    """Supply arbitrary extraction fields for rule tests, regardless of live mode."""
+    """Supply arbitrary extraction fields for rule tests, regardless of live mode.
+
+    Rule tests use placeholder messages, so grounding (tested on its own in
+    test_guardrails.py and on the 30 real messages above) is switched off here.
+    """
+    for name in ("grounded_name", "grounded_pieces", "grounded_order_id"):
+        monkeypatch.setattr(intake.guardrails, name, lambda *args: True)
+
     def install(**overrides):
         payload = copy.deepcopy(FIXTURE["defaults"])
         payload.update(overrides)

@@ -1,0 +1,215 @@
+<title>Threadline Video Script</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of step cards, ticked off in order, with a progress bar that stays in reach. Colours come from the app's stages. */
+:root { --bg:#F4F7FB; --card:#FFFFFF; --ink:#14233A; --soft:#55677D; --line:#DCE4EE; --cobalt:#3F5FE0; --violet:#7452D6; --teal:#0F8F7C; --slate:#5D6C7B; --human:#1F8A5B; --coral:#C8452F; --amber:#A96A08; --wash:#EAF0F8; --serif:"Source Serif 4",Georgia,serif; --sans:"Figtree",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0E1622; --card:#172233; --ink:#E9EFF7; --soft:#9DB0C6; --line:#2A3A50; --cobalt:#7E9AF9; --violet:#A88BFA; --teal:#2BD0B4; --slate:#A9B6C4; --human:#4BD08C; --coral:#F2876F; --amber:#E9B44C; --wash:#1E2C40; color-scheme:dark; } }
+:root[data-theme="dark"] { --bg:#0E1622; --card:#172233; --ink:#E9EFF7; --soft:#9DB0C6; --line:#2A3A50; --cobalt:#7E9AF9; --violet:#A88BFA; --teal:#2BD0B4; --slate:#A9B6C4; --human:#4BD08C; --coral:#F2876F; --amber:#E9B44C; --wash:#1E2C40; color-scheme:dark; }
+body { background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:15.5px; line-height:1.5; padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px)); padding-block:0 64px; }
+body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:var(--bg); }
+.wrap { max-width:880px; margin:0 auto; display:grid; gap:28px; }
+.top { padding-top:36px; display:grid; gap:12px; }
+h1 { font-family:var(--serif); font-weight:600; font-size:clamp(30px,6vw,42px); line-height:1.1; margin:0; text-wrap:balance; }
+.stitch { height:3px; width:190px; background:repeating-linear-gradient(90deg,var(--teal) 0 12px,transparent 12px 20px); border-radius:2px; }
+.top p { margin:0; max-width:64ch; color:var(--soft); }
+.bar { position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--bg); padding-block:10px; border-bottom:1px solid var(--line); display:grid; gap:7px; }
+.bar .row { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; justify-content:space-between; }
+.score { font-variant-numeric:tabular-nums; font-weight:600; }
+.score .bad { color:var(--coral); }
+.meter { height:6px; background:var(--wash); border-radius:3px; overflow:hidden; display:flex; }
+.meter i { display:block; height:100%; background:var(--teal); width:0; transition:width .2s; }
+.meter i + i { background:var(--coral); }
+.tools { display:flex; gap:8px; flex-wrap:wrap; }
+button { font:inherit; cursor:pointer; color:inherit; }
+.tool { background:none; border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:13.5px; color:var(--soft); }
+button:focus-visible, a:focus-visible { outline:2px solid var(--cobalt); outline-offset:2px; }
+nav { display:flex; flex-wrap:wrap; gap:6px; }
+nav a { color:var(--soft); text-decoration:none; font-size:13.5px; background:var(--wash); padding:3px 9px; border-radius:6px; }
+nav a b { color:var(--ink); }
+.legend { display:grid; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+.legend p { margin:0; }
+.table { overflow-x:auto; }
+section { display:grid; gap:12px; scroll-margin-top:90px; }
+h2 { font-family:var(--serif); font-weight:600; font-size:26px; margin:14px 0 0; display:flex; gap:12px; align-items:baseline; text-wrap:balance; }
+h2 span { font-family:var(--mono); font-size:14px; font-weight:500; color:var(--teal); }
+.lede { margin:0; color:var(--soft); max-width:66ch; }
+.step { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:grid; gap:10px; scroll-margin-top:90px; }
+.step.passed { border-color:var(--teal); }
+.step.failed { border-color:var(--coral); }
+.step header { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; }
+.sid { font-family:var(--mono); font-size:13px; color:var(--soft); }
+h3 { font-size:17px; font-weight:700; margin:0; flex:1 1 220px; }
+.wheres { display:flex; gap:5px; flex-wrap:wrap; }
+.where { font-size:12px; font-weight:600; padding:1px 8px; border-radius:6px; background:var(--wash); }
+.where.ip { color:var(--cobalt); } .where.pr { color:var(--violet); } .where.gr { color:var(--teal); } .where.mc { color:var(--slate); }
+.body { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:10px 22px; }
+.body > div { min-width:0; }
+h4 { margin:0 0 3px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--soft); font-weight:600; }
+ol, ul { margin:0; padding-left:20px; display:grid; gap:3px; }
+.say { display:flex; gap:8px; align-items:flex-start; background:var(--wash); border-radius:8px; padding:6px 8px; margin-top:7px; }
+.say code { font-family:var(--mono); font-size:13.5px; flex:1; min-width:0; overflow-wrap:anywhere; }
+.copy { flex:none; background:var(--card); border:1px solid var(--line); border-radius:6px; font-size:12.5px; padding:1px 8px; }
+.step footer { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; justify-content:space-between; border-top:1px solid var(--line); padding-top:9px; }
+.step footer p { margin:0; flex:1 1 280px; min-width:0; font-size:14.5px; color:var(--soft); }
+.step footer p b { color:var(--ink); }
+.verdict { display:flex; gap:6px; }
+.verdict button { border:1px solid var(--line); background:none; border-radius:8px; padding:4px 14px; min-height:34px; font-weight:600; font-size:14px; }
+.verdict .pass[aria-pressed="true"] { background:var(--teal); border-color:var(--teal); color:var(--bg); }
+.verdict .fail[aria-pressed="true"] { background:var(--coral); border-color:var(--coral); color:var(--bg); }
+.hiding .step.passed { display:none; }
+.lefts { display:grid; gap:12px; }
+table { border-collapse:collapse; width:100%; background:var(--card); border:1px solid var(--line); border-radius:12px; font-size:14.5px; }
+th, td { text-align:left; padding:7px 12px; border-bottom:1px solid var(--line); }
+.left { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:grid; gap:7px; }
+.left h3 { flex:none; }
+.left.bad h3 { color:var(--coral); } .left.warn h3 { color:var(--amber); } .left.info h3 { color:var(--cobalt); } .left.note h3 { color:var(--soft); }
+.verdict-box { background:var(--card); border:1px solid var(--teal); border-radius:12px; padding:14px 16px; }
+.verdict-box p { margin:0; max-width:68ch; }
+@media (prefers-reduced-motion: reduce) { .meter i { transition:none; } }
+
+.seg{min-width:0;padding:8px 10px;background:var(--wash);border-radius:8px;display:grid;gap:1px;font-size:13px}.seg b{font-weight:600;overflow-wrap:anywhere}.seg span{color:var(--soft);font-variant-numeric:tabular-nums}.s1{background:color-mix(in srgb,var(--teal) 18%,var(--wash))}
+.timeline{display:flex;gap:6px;flex-wrap:wrap}.timeline>*{flex-basis:130px}
+blockquote{margin:0;font-family:var(--serif);font-size:17px;line-height:1.45;border-left:3px dashed var(--teal);padding-left:12px}
+.step footer{border-top:none;padding-top:0;justify-content:flex-end}.step footer p{display:none}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px 20px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.setup>div{min-width:0}
+.plain{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:7px}.plain h3{flex:none}
+</style>
+<div class="wrap">
+<div class="top"><h1>Threadline video script</h1><div class="stitch"></div>
+<p>The 5-minute video and your simple test in one place: 18 shots, in order, from one reset. Do each shot and tick it. If every shot passes, you can record. The spoken words total 725 words, about 4.8 minutes at a normal pace, which leaves room for what you say live to Siri and the app.</p></div>
+<div class="bar"><div class="row"><span class="score" id="score">0 of 18 passed</span><span class="tools"><button type="button" class="tool" id="hide">Hide passed</button><button type="button" class="tool" id="clear">Clear ticks</button></span></div><div class="meter"><i id="ok"></i><i id="no"></i></div></div>
+<div class="timeline"><div class="seg s0" style="flex:40"><b>Objective</b><span>0:00 to 0:40</span></div><div class="seg s1" style="flex:160"><b>Demo</b><span>0:40 to 3:20</span></div><div class="seg s2" style="flex:75"><b>Capabilities, evidence, limitations</b><span>3:20 to 4:35</span></div><div class="seg s3" style="flex:25"><b>Conclusion</b><span>4:35 to 5:00</span></div></div>
+<section id="setup"><h2><span>before shot 1</span>Set up</h2><div class="setup"><div><h4>Start from a clean state</h4><ul><li>Check http://localhost:8600/api/health shows &quot;telegram&quot;:true and &quot;island_push&quot;:true.</li><li>Phone on the hotspot, Low Power Mode off, Focus off.</li><li>Open Threadline and tap Allow for notifications.</li></ul></div><div><h4>Connect the chats</h4><ul><li>In the group, send /iam Team.</li><li>On the phone: Settings, Rehearse, Reset the demo.</li><li>In the private chat, send /iam and tap FreshStart.</li></ul></div><div><h4>Prepare the props</h4><ul><li>Stick an NFC tag on a box, and add the Shortcuts automation from step K of the full plan with Order number 41.</li><li>Open Telegram Desktop on the Mac, with the group and the private chat both visible.</li></ul></div></div></section>
+<section id="part-0"><h2><span>0:00 to 0:40</span>Objective</h2><article class="step" id="shot-1" data-step="1">
+<header><span class="sid">0:00</span><h3>The problem</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>SweaterCo makes garments through eight outside workshops. One dispatcher decides where every order goes, from a busy group chat, with dates, cost and quality pulling against each other. Get it wrong and orders come back late. Always picking the cheapest workshop makes 92 percent of batches late, and even choosing at random makes 34 percent late. Threadline is for that dispatcher, for workshops who already live in Telegram, and for clients who want to hear about a delay first. It is a native iPhone app joined to Telegram, built on one rule: the model reads, Python decides, a person approves.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Settings, The project story. Stay on the first page.</li></ol></div><div><h4>Check</h4><ul><li>The page shows 91.8%, 84.3% and 34.2%, and Who it is for.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article></section><section id="part-1"><h2><span>0:40 to 3:20</span>Demo</h2><article class="step" id="shot-2" data-step="2">
+<header><span class="sid">0:40</span><h3>The dispatcher&#x27;s morning</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>This is the dispatcher&#x27;s morning. Every order sits somewhere on this line. One thing needs attention: SteadyHands has not answered an offer.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Close the story. Show Today.</li></ol></div><div><h4>Check</h4><ul><li>&quot;1 thing needs you&quot; and No answer from SteadyHands.</li><li>The line reads Sent 2, Accepted 3, Sewing 3, Completed 0, Back 0.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-3" data-step="3">
+<header><span class="sid">0:49</span><h3>Say it to Siri</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>A new order comes in, and I just say it. Words appear live. My Mac re-listens with our workshop and customer names, and the card shows the pick, the date and why.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Say the first line to Siri.</li><li>Say the second line to the app and tap stop.</li></ol><div class="say"><code>Hey Siri, talk to Threadline</code><button type="button" class="copy" data-text="Hey Siri, talk to Threadline">Copy</button></div><div class="say"><code>Order 45, 150 vests for Cotton Club, back by 9 April, fastest please</code><button type="button" class="copy" data-text="Order 45, 150 vests for Cotton Club, back by 9 April, fastest please">Copy</button></div></div><div><h4>Check</h4><ul><li>Grey words turn dark, with fact chips lifting out.</li><li>Card: FreshStart, back 5 Apr, 4 days to spare, &quot;FreshStart finishes 3.3 days before Nimble Needle.&quot;</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-4" data-step="4">
+<header><span class="sid">1:04</span><h3>The workshop accepts in Telegram</h3><div class="wheres"><span class="where ip">iPhone</span><span class="where pr">Private chat</span></div></header>
+<blockquote>Nothing moves until I slide. The workshop gets a job card in Telegram, with nothing to install, and taps Accept.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Slide to send to FreshStart, then swipe up to the home screen.</li><li>In Telegram, tap Accept on ORD-045.</li></ol></div><div><h4>Check</h4><ul><li>&quot;New job from SweaterCo: ORD-045, 150 vests.&quot; with Accept and Cannot take it.</li><li>The group receives &quot;FreshStart accepted ORD-045, 150 vests. Back by 5 Apr 2026.&quot;</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-5" data-step="5">
+<header><span class="sid">1:13</span><h3>Alert and Dynamic Island</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>With the app closed, that reaches my phone as an alert, and the Dynamic Island moves to Accepted.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Show the phone with the app closed.</li></ol></div><div><h4>Check</h4><ul><li>A notification pops up: FreshStart accepted ORD-045.</li><li>The Island shows the thumbs up and Accepted.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-6" data-step="6">
+<header><span class="sid">1:20</span><h3>An automation chases</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where ip">iPhone</span></div></header>
+<blockquote>Now SteadyHands. An automation chases silent workshops by itself, with a fixed message.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Off camera: /iam, tap SteadyHands.</li><li>Settings, Automations, Chase a silent workshop, Run now.</li></ol></div><div><h4>Check</h4><ul><li>&quot;SteadyHands reminded about ORD-095.&quot;</li><li>Telegram: &quot;A reminder about ORD-095, 800 hoodies. Can you take it? We need to plan today.&quot;</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-7" data-step="7">
+<header><span class="sid">1:28</span><h3>A workshop refuses, with a reason</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where ip">iPhone</span><span class="where gr">Group chat</span></div></header>
+<blockquote>They cannot take it. Telegram asks why before anything is recorded. The team gets the reason and a plan: move it to QuickStitch, back 13 April. A refused batch can only move, and the team can approve it right from the chat.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Tap Cannot take it, then No capacity right now.</li><li>Show the alert. Today, Review.</li><li>In the group, tap Approve plan.</li></ol></div><div><h4>Check</h4><ul><li>Group: &quot;SteadyHands cannot take ORD-095. Reason given: No capacity right now.&quot;</li><li>App: Move to QuickStitch, back 13 Apr, and no Keep here option.</li><li>ORD-095 shows at QuickStitch, Sent.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-8" data-step="8">
+<header><span class="sid">1:45</span><h3>A late batch and a client notice</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where ip">iPhone</span></div></header>
+<blockquote>QuickStitch reports a batch three days late, in two taps. Python compares staying against moving. The customer date is missed either way, so a client notice is drafted. If I promise a date we do not hold, it stops me. With the true date, the client hears from us first.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Off camera: /iam, tap QuickStitch, then /jobs.</li><li>On ORD-017: Report a problem, Will be late, +3 days.</li><li>Today, Review, Slide to approve the plan.</li><li>Off camera: /iam TrendCart.</li><li>Today, Review notice. Change 12 Apr 2026 to 5 Apr 2026, Done, Slide to send.</li><li>Change it back, Done, Slide to send.</li></ol></div><div><h4>Check</h4><ul><li>&quot;Moving would not be any better.&quot;</li><li>&quot;Not in the record: 5 Apr 2026&quot;</li><li>The TrendCart chat receives &quot;we now expect it back on 12 Apr 2026 instead of 10 Apr 2026&quot;.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-9" data-step="9">
+<header><span class="sid">2:04</span><h3>Completed changes the next decision</h3><div class="wheres"><span class="where ip">iPhone</span><span class="where pr">Private chat</span><span class="where gr">Group chat</span></div></header>
+<blockquote>Here is a rule we changed this sprint. A workshop is free when it finishes, not when the goods land. This request goes to FreshStart, back 9 April. Nimble Needle taps Completed, and its queue drops from 5.6 days to 1. The same request now goes to Nimble Needle, back 5 April. Four days sooner.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Speak the sentence below, tap Add and recommend, tap +.</li><li>Off camera: /iam, tap Nimble Needle, /jobs.</li><li>Tap Completed on ORD-041.</li><li>Network, Nimble Needle.</li><li>Speak the same sentence, tap Add and recommend. Leave this card open.</li></ol><div class="say"><code>300 cardigans for TrendCart, back by 20 April, fastest please</code><button type="button" class="copy" data-text="300 cardigans for TrendCart, back by 20 April, fastest please">Copy</button></div></div><div><h4>Check</h4><ul><li>First card: FreshStart, back 9 Apr.</li><li>Queue 1.0 d and &quot;1 completed and not back yet&quot;.</li><li>Second card: Nimble Needle, back 5 Apr, 15 days to spare.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-10" data-step="10">
+<header><span class="sid">2:24</span><h3>A closure, in their own words</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where gr">Group chat</span><span class="where ip">iPhone</span></div></header>
+<blockquote>When things go wrong, workshops write the way they talk. QuickStitch says the power is out until Monday, in Hinglish. The model reads it, and Python works out the date and the plan. Nothing happens until I approve. One slide, and everyone is told.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Off camera: /iam, tap QuickStitch.</li><li>Send the text below.</li><li>Today, Review. Show the rows, then Slide to approve the plan.</li></ol><div class="say"><code>bhai light gayi hai, monday tak band rahega</code><button type="button" class="copy" data-text="bhai light gayi hai, monday tak band rahega">Copy</button></div></div><div><h4>Check</h4><ul><li>Group: &quot;QuickStitch reports closed until 6 Apr&quot;.</li><li>ORD-017 moves to Nimble Needle, ORD-109 moves to GiantWeave, ORD-095 stays.</li><li>Telegram: &quot;ORD-017 has been moved to another workshop, so please do not start it.&quot;</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-11" data-step="11">
+<header><span class="sid">2:42</span><h3>Escalate, with a reason</h3><div class="wheres"><span class="where ip">iPhone</span><span class="where gr">Group chat</span></div></header>
+<blockquote>If it is not my call, I escalate. A reason is required, nothing is allocated, and the team is told.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Open Speak, where the ORD-122 card is waiting. Tap Escalate.</li><li>Pick Customer needs a decision and tap Escalate.</li></ol></div><div><h4>Check</h4><ul><li>Group: &quot;Dispatcher escalated ORD-122 to the planner: Customer needs a decision.&quot;</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-12" data-step="12">
+<header><span class="sid">2:51</span><h3>Split a large order</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>A large order can be split between two workshops, back two days sooner for a little more cost.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Speak the sentence below, tap Add and recommend, tap Split.</li></ol><div class="say"><code>1500 cardigans for TrendCart, back by 20 April, fastest please</code><button type="button" class="copy" data-text="1500 cardigans for TrendCart, back by 20 April, fastest please">Copy</button></div></div><div><h4>Check</h4><ul><li>One workshop: GiantWeave, back 16 Apr, cost 1,650.</li><li>Two workshops: GiantWeave 829 and Nimble Needle 671, back 14 Apr, cost 1,717.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-13" data-step="13">
+<header><span class="sid">3:01</span><h3>Goods arrive at the door</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where ip">iPhone</span></div></header>
+<blockquote>At the goods door, one tap on an NFC tag checks a batch in. We simulated this with a tag on a box.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Off camera: /iam, tap Nimble Needle. Tap Shipped on ORD-041.</li><li>Tap the phone on the NFC tag and confirm.</li></ol></div><div><h4>Check</h4><ul><li>&quot;Marked received.&quot; Today&#x27;s line shows Back 1.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-14" data-step="14">
+<header><span class="sid">3:11</span><h3>Hindi and Chinese</h3><div class="wheres"><span class="where pr">Private chat</span><span class="where gr">Group chat</span></div></header>
+<blockquote>Workshops can also write in Hindi or Chinese. The team reads the result in English, with the date worked out.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Off camera: /iam, tap FreshStart.</li><li>Send the text below.</li></ol><div class="say"><code>आज बिजली नहीं है, सोमवार तक काम बंद रहेगा</code><button type="button" class="copy" data-text="आज बिजली नहीं है, सोमवार तक काम बंद रहेगा">Copy</button></div></div><div><h4>Check</h4><ul><li>Group: &quot;FreshStart reports closed until 6 Apr&quot;.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article></section><section id="part-2"><h2><span>3:20 to 4:35</span>Capabilities, evidence, limitations</h2><article class="step" id="shot-15" data-step="15">
+<header><span class="sid">3:20</span><h3>Core capabilities</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>What it does well: it understands spoken and typed requests, recommends with reasons, works with workshops in Telegram in four languages, and plans the recovery when something breaks.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>The project story, page 2.</li></ol></div><div><h4>Check</h4><ul><li>Six capabilities on screen.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-16" data-step="16">
+<header><span class="sid">3:31</span><h3>Evidence</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>The evidence. In the course simulator, 120 orders over ten seeds, 1.7 percent of batches were late, and 1.9 with a workshop closed. On unseen chat requests we got 15 of 16 right, and in all 30 development answers every number was verified. Unseen Hindi and Chinese replies scored 11 of 12. Speech errors fell from 26 to 6 percent, on synthetic voices. The median reply takes 2.4 seconds and costs about one cent.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Swipe to page 3, then page 4.</li></ol></div><div><h4>Check</h4><ul><li>Page 3 shows 1.7% against 91.8%, 84.3% and 34.2%.</li><li>Page 4 shows 15/16, 30/30, 11/12, 48/48, 26% to 6%, 2.4 s.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article><article class="step" id="shot-17" data-step="17">
+<header><span class="sid">4:01</span><h3>Limitations</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>Now where it breaks. On lateness we only tie a simple earliest-finish rule. Our gain is the checks, reasons and recovery. Speed costs quality: 7 percent of pieces defective against 3 at best, and one workshop takes 26 percent of the work. A question about delivery got a clarifying question instead of a refusal, and a request to split was read as one order. A whole-number price in Chinese was dropped, so the desk asks again. Workshops are role-played, and one Mac runs the desk. Next we would host it and test with real workshops.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Swipe to page 5.</li></ol></div><div><h4>Check</h4><ul><li>Six limitations on the red page.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article></section><section id="part-3"><h2><span>4:35 to 5:00</span>Conclusion</h2><article class="step" id="shot-18" data-step="18">
+<header><span class="sid">4:35</span><h3>Conclusion</h3><div class="wheres"><span class="where ip">iPhone</span></div></header>
+<blockquote>We built a native iPhone app, now in TestFlight, joined to Telegram with one shared record, and we measured it. Two lessons. Test before you trust: Apple&#x27;s vocabulary hints changed nothing, and only measuring showed that. And keep people on the decisions: nothing here moved until someone approved it. Thank you.</blockquote>
+<div class="body"><div><h4>Do</h4><ol><li>Swipe to page 6.</li><li>End on the TestFlight screen showing Threadline.</li></ol></div><div><h4>Check</h4><ul><li>Only say &quot;now in TestFlight&quot; once the build is really there.</li></ul></div></div>
+<footer><p></p><div class="verdict"><button type="button" class="pass" data-mark="pass" aria-pressed="false">Pass</button><button type="button" class="fail" data-mark="fail" aria-pressed="false">Fail</button></div></footer>
+</article></section>
+<section id="recording"><h2><span>after the checks pass</span>Recording</h2><div class="plain"><ul><li>Record the phone with its built-in Screen Recording, with the microphone off, and Telegram with QuickTime on the Mac. Put them side by side in the editor.</li><li>Record the voice last, over the finished picture, using the words above.</li><li>Cut every wait. Off-camera steps are never shown. Where you speed up a shot, keep the on-screen timer out of frame.</li><li>Record in order from one reset, because each shot changes the numbers for the next. If a shot fails, reset and start again from the top.</li><li>Test Siri and the alert once with Screen Recording on. If iOS hides either from the recording, film that moment with a second phone.</li><li>Keep a small on-screen label, &quot;Workshops role-played&quot;, during the demo.</li></ul></div></section>
+<section id="submission"><h2><span>13 and 15 Nov</span>Submission</h2><div class="plain"><ul><li>Files named exactly Presentation_Group01.mp4 and Presentation_Group01.pptx or .pdf, assuming you are still Group 01. Uploaded by 3:00 PM, Fri 13 Nov 2026.</li><li>The slides must exist even though the video uses the app. Slide 1: group number, team members with student IDs, public GitHub link, demo link.</li><li>The GitHub repository must be public and contain this work. Nothing from Sprint 3 is committed yet.</li><li>Group01.zip by 11:59 PM, Sun 15 Nov 2026, following the Final Deliverables section of the brief.</li></ul></div></section>
+<section id="qa"><h2><span>2 minutes live</span>Likely questions</h2><div class="plain"><ul><li><b>Are workshops real?</b> No. They are role-played in real Telegram, which the professor allowed. The reading is live.</li><li><b>What does the model decide?</b> Nothing. It reads. Allocation, dates and plans are Python, and a person approves.</li><li><b>Why not just use earliest finish?</b> On lateness you could, and we tie it. The system adds checks, reasons, recovery and the loop with workshops.</li><li><b>How do you know the numbers are fair?</b> The simulator is the course&#x27;s. The 16 chat requests and 12 replies were unseen. The 48 replies were used to fix the reader, and we say so.</li><li><b>What fails most?</b> Reading was right on meaning. Failures are specific values, such as a whole-number price in Chinese, and they fail safely by asking again.</li><li><b>Why both an app and Telegram?</b> Workshops will not install an app for one customer, but they already answer Telegram. A chat cannot show who has room or what breaks if a workshop closes.</li></ul></div></section>
+</div>
+<script>
+(function () {
+  var KEY = "threadline-video", total = 18, marks = {};
+  try { marks = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} }
+  function draw() {
+    var ok = 0, no = 0;
+    document.querySelectorAll(".step").forEach(function (s) {
+      var m = marks[s.dataset.step];
+      s.classList.toggle("passed", m === "pass"); s.classList.toggle("failed", m === "fail");
+      s.querySelector(".pass").setAttribute("aria-pressed", String(m === "pass"));
+      s.querySelector(".fail").setAttribute("aria-pressed", String(m === "fail"));
+      if (m === "pass") ok++; if (m === "fail") no++;
+    });
+    document.getElementById("score").innerHTML = ok + " of " + total + " passed" + (no ? ' <span class="bad">' + no + " failed</span>" : "");
+    document.getElementById("ok").style.width = (ok / total * 100) + "%";
+    document.getElementById("no").style.width = (no / total * 100) + "%";
+  }
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.mark) { var id = b.closest(".step").dataset.step; marks[id] = marks[id] === b.dataset.mark ? undefined : b.dataset.mark; save(); draw(); }
+    if (b.classList.contains("copy")) {
+      var done = function (t) { b.textContent = t; setTimeout(function () { b.textContent = "Copy"; }, 1200); };
+      var pick = function () { var r = document.createRange(); r.selectNodeContents(b.previousElementSibling); var s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Selected"); };
+      if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.text).then(function () { done("Copied"); }, pick); else pick();
+    }
+  });
+  document.getElementById("hide").onclick = function () { var on = document.body.classList.toggle("hiding"); this.textContent = on ? "Show passed" : "Hide passed"; };
+  var armed = false;
+  document.getElementById("clear").onclick = function () {
+    if (!armed) { armed = true; this.textContent = "Tap again to clear"; var t = this; setTimeout(function () { armed = false; t.textContent = "Clear ticks"; }, 3000); return; }
+    marks = {}; save(); draw(); armed = false; this.textContent = "Clear ticks";
+  };
+  draw();
+})();
+</script>

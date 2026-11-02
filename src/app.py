@@ -1,6 +1,6 @@
 """Threadline by Sweater Co, the subcontracting desk. Run: uv run streamlit run src/app.py
 
-Four areas: Dispatch (default), Workshop Network, Simulation Lab, Audit Trail.
+Areas: Today, Dispatch (default), Workshop Network, Workshop queues, Simulation Lab, Audit Trail, QA checklist.
 The model only reads requests; Python validates, estimates, scores and selects;
 a person confirms. Evaluating a request is a preview: only the explicit
 confirmation writes an audit row and updates this session's queue. No workshop
@@ -25,13 +25,13 @@ import intake
 import rehearsal
 from desk import (TODAY, ConfirmState, Preview, confirm_preview, confirm_state, filtered_records,  # noqa: F401
                   init_session, load_inputs, make_preview, projected_queues, reset_session, signature)
-from ui import audit, dispatch, explain, guide, lab, network, queues
+from ui import audit, dispatch, explain, guide, lab, network, qa, queues, today
 from ui.components import banner, esc, html, icon, inject_css, mode_ribbon
 
-PAGES = ["Dispatch", "Workshop Network", "Workshop queues", "Simulation Lab", "Audit Trail"]
-ICONS = {"Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Workshop queues": ":material/view_timeline:",
+PAGES = ["Today", "Dispatch", "Workshop Network", "Workshop queues", "Simulation Lab", "Audit Trail", "QA checklist"]
+ICONS = {"Today": ":material/today:", "Dispatch": ":material/send:", "Workshop Network": ":material/hub:", "Workshop queues": ":material/view_timeline:",
          "Simulation Lab": ":material/science:",
-         "Audit Trail": ":material/verified_user:"}
+         "Audit Trail": ":material/verified_user:", "QA checklist": ":material/fact_check:"}
 # Page values that must survive navigation are kept under their own session keys,
 # never under widget keys (see ui/state.py), so no restore step is needed here.
 SOURCE_LABELS = {"live": "Live model", "cached": "Rehearsal: recorded model replies", "fixture": "Rehearsal: test fixtures"}
@@ -127,7 +127,9 @@ def main():
         desk.sync_session(state, workshops)
     state["_app_run"] = True   # Cleared below; a fragment-only rerun sees False.
     mode_banner(state)
-    if page == "Workshop Network":
+    if page == "Today":
+        today.render(workshops, messages)
+    elif page == "Workshop Network":
         network.render(workshops)
     elif page == "Workshop queues":
         queues.render(workshops)
@@ -135,6 +137,8 @@ def main():
         lab.render(workshops)
     elif page == "Audit Trail":
         audit.render(workshops)
+    elif page == "QA checklist":
+        qa.render(workshops)
     else:
         dispatch.render(orders, workshops, messages)
     guide.render(workshops, messages)

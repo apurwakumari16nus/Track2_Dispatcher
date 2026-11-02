@@ -1,0 +1,13 @@
+reader,expected,behaviour_correct,decision_correct,n
+id_only,allocate,9,7,9
+id_only,clarify,1,1,2
+id_only,decline,0,0,2
+id_only,refuse,0,0,3
+keywords_blind,allocate,5,5,9
+keywords_blind,clarify,1,1,2
+keywords_blind,decline,0,0,2
+keywords_blind,refuse,2,2,3
+keywords_seen,allocate,9,9,9
+keywords_seen,clarify,2,2,2
+keywords_seen,decline,2,2,2
+keywords_seen,refuse,3,3,3

@@ -39,6 +39,8 @@ def kind(row: dict) -> str:
         return "Escalated"
     if confirmation.get("split"):
         return "Split allocation"
+    if confirmation.get("override"):
+        return "Dispatcher override"
     if confirmation.get("accepted_lateness"):
         return "Late return accepted"
     if confirmation.get("accepted_alternative"):
@@ -311,6 +313,13 @@ def record_panel(row, workshops):
                       f'{esc(workshop_name(split.get("instead_of"), workshops))}</div><ul class="dk-list">{items}</ul>'
                       f'<div class="ev">Back {esc(explain.short_date(split["eta_date"]))}, combined cost {split["total_cost"]:,.0f}, '
                       f'expected defect rate {split["expected_defect_rate"]:.1%}.</div></div>')
+        override = record.get("constraints_applied", {}).get("override")
+        if override:
+            extra += (f'<div class="dk-card" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Dispatcher override</div>'
+                      f'<ul class="dk-list"><li>Engine recommended <b>{esc(workshop_name(override["engine_pick"], workshops))}</b></li>'
+                      f'<li>Sent to <b>{esc(workshop_name(override["chosen"], workshops))}</b></li>'
+                      f'<li>Reason: <b>{esc(override["reason"])}</b>{(": " + esc(override["note"])) if override.get("note") else ""}</li></ul>'
+                      '<div class="ev">The chosen workshop was one of the permitted candidates, so its estimate is on record.</div></div>')
         if confirmation.get("escalated"):
             extra += (f'<div class="dk-card" style="margin-top:0.8rem"><div class="eyebrow" style="color:var(--cyan)">Escalated to the '
                       f'{esc(confirmation.get("escalated_to", "").lower())}</div><p style="margin:0.4rem 0 0">{esc(confirmation.get("note") or "No note")}</p>'
