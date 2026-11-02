@@ -240,6 +240,57 @@ def confirm_split(preview, current_signature, saved, split, workshops, queues, a
     return row, next_queues, next_allocator
 
 
+OVERRIDE_REASONS = ("Customer asked for it", "Quality concern", "Workshop relationship", "Capacity I know about", "Other")
+
+
+def confirm_override(preview, current_signature, saved, workshop_id: str, reason: str, note: str, workshops, queues, allocator, *,
+                     append=None, guided_demo=False, channel="desk", by=None):
+    """The dispatcher sends the batch to a different permitted workshop and says why.
+
+    Same rules as confirm_preview (validated first, written once). Only a workshop
+    the engine already estimated (a permitted candidate) can be chosen, so its
+    date, cost and defect rate are on record. The engine's pick, the reason and
+    the note are kept in constraints_applied.override. Returns (row, next_queues,
+    next_allocator), with the batch booked into the chosen workshop's queue."""
+    status = confirm_state(preview, current_signature, saved)
+    if status.state == "confirmed":
+        return saved[preview.token], None, None
+    if not status.ready:
+        raise ValueError(status.reason)
+    record = preview.response.decision_record
+    engine_pick = record.get("chosen_workshop")
+    target = next((c for c in record.get("candidates", []) if c["workshop_id"] == workshop_id), None)
+    if target is None or workshop_id == engine_pick:
+        raise ValueError("Choose a different workshop from the permitted candidates.")
+    if reason not in OVERRIDE_REASONS:
+        raise ValueError("Pick a reason for the override.")
+    if reason == "Other" and not note.strip():
+        raise ValueError("Add a short note when the reason is Other.")
+    response = deepcopy(preview.response)
+    response.allocation_committed = True
+    engine_name = next((c["name"] for c in record["candidates"] if c["workshop_id"] == engine_pick), engine_pick)
+    # Names only: dates and costs stay in the candidate rows, so the logged text adds no unchecked numbers.
+    response.explanation_text = (f"CONFIRMED OVERRIDE. The dispatcher sent this batch to {target['name']} instead of the engine's "
+                                 f"pick, {engine_name}. Reason: {reason}.\n\nOriginal preview:\n" + response.explanation_text)
+    response.decision_record["chosen_workshop"] = workshop_id
+    response.decision_record["constraints_applied"]["override"] = {
+        "engine_pick": engine_pick, "chosen": workshop_id, "reason": reason, "note": note.strip(), "by": by}
+    response.decision_record["constraints_applied"]["confirmation"] = {
+        "confirmed": True, "preview_token": preview.token, "override": True,
+        "accepted_lateness": target["days_to_spare"] < 0, "accepted_alternative": False,
+        "extraction_source": preview.source, "trace_id": preview.trace_id, "guided_demo": bool(guided_demo),
+        "batch_review": False, "changes": deepcopy(response.parsed_request.answers_applied), "channel": channel, "confirmed_by": by,
+    }
+    row = (append or records.append)(response)
+    saved[preview.token] = row
+    parsed = response.parsed_request
+    next_queues, next_allocator = dict(queues), deepcopy(allocator)
+    batch = {"pieces": int(parsed.pieces), "category": parsed.category}
+    next_queues[workshop_id] = tools.overload_probe(batch, workshop_id, workshops, queues)["queue_after"]
+    next_allocator.pieces_by_workshop[workshop_id] = next_allocator.pieces_by_workshop.get(workshop_id, 0) + int(parsed.pieces)
+    return row, next_queues, next_allocator
+
+
 def escalate(preview, to: str, note: str, *, append=None, guided_demo=False, channel="desk", by=None) -> dict:
     """Record that the dispatcher raised this request with a planner or the customer instead of deciding.
     Nothing is allocated, no queue changes and nothing is sent; the record says who it went to and why."""

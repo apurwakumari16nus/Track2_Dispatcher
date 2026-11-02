@@ -1,0 +1,247 @@
+{
+ "pages": [
+  {
+   "id": "objective",
+   "eyebrow": "Objective",
+   "title": "Getting every order back on time",
+   "lead": "SweaterCo sews through eight outside workshops. One dispatcher decides where each order goes, from a busy group chat, with dates, cost and quality pulling in different directions.",
+   "blocks": [
+    {
+     "heading": "Choosing by habit, % of batches late",
+     "note": null,
+     "bars": [
+      {
+       "label": "Always the cheapest",
+       "value": 91.8,
+       "unit": "%",
+       "ours": false
+      },
+      {
+       "label": "Always the biggest",
+       "value": 84.3,
+       "unit": "%",
+       "ours": false
+      },
+      {
+       "label": "At random",
+       "value": 34.2,
+       "unit": "%",
+       "ours": false
+      }
+     ]
+    },
+    {
+     "heading": "Who it is for",
+     "points": [
+      {
+       "title": "The dispatcher",
+       "detail": "Decides and approves, from an iPhone"
+      },
+      {
+       "title": "Workshops",
+       "detail": "Work in Telegram, with nothing to install"
+      },
+      {
+       "title": "Clients",
+       "detail": "Hear about a delay first"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "capabilities",
+   "eyebrow": "Core capabilities",
+   "title": "What Threadline does well",
+   "lead": "The model reads, Python decides, a person approves.",
+   "blocks": [
+    {
+     "points": [
+      {
+       "title": "Understands requests",
+       "detail": "Spoken or typed, with this business's names"
+      },
+      {
+       "title": "Recommends and shows why",
+       "detail": "Ranks workshops on date, cost and defects"
+      },
+      {
+       "title": "Works with workshops in Telegram",
+       "detail": "Accept, refuse with a reason, report a problem, complete"
+      },
+      {
+       "title": "Reads four languages",
+       "detail": "English, Hinglish, Hindi and Chinese"
+      },
+      {
+       "title": "Plans the recovery",
+       "detail": "A closure or refusal gets a plan to approve"
+      },
+      {
+       "title": "Frees a workshop when it finishes",
+       "detail": "Completed changes the next decision"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "decisions",
+   "eyebrow": "Evidence",
+   "title": "1.7% of batches late",
+   "lead": "The course simulator: 120 orders over 10 paired seeds.",
+   "blocks": [
+    {
+     "heading": "% of batches late, lower is better",
+     "note": null,
+     "bars": [
+      {
+       "label": "Always the cheapest",
+       "value": 91.8,
+       "unit": "%",
+       "ours": false
+      },
+      {
+       "label": "Always the biggest",
+       "value": 84.3,
+       "unit": "%",
+       "ours": false
+      },
+      {
+       "label": "At random",
+       "value": 34.2,
+       "unit": "%",
+       "ours": false
+      },
+      {
+       "label": "Threadline",
+       "value": 1.7,
+       "unit": "%",
+       "ours": true
+      }
+     ]
+    },
+    {
+     "facts": [
+      {
+       "value": "1.9%",
+       "label": "late with a workshop closed"
+      },
+      {
+       "value": "0.18",
+       "label": "mean late days"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "reading",
+   "eyebrow": "Evidence",
+   "title": "Reading messages",
+   "lead": "Scored against hand-written labels.",
+   "blocks": [
+    {
+     "facts": [
+      {
+       "value": "15/16",
+       "label": "unseen chat requests right"
+      },
+      {
+       "value": "30/30",
+       "label": "development requests right"
+      },
+      {
+       "value": "11/12",
+       "label": "unseen Hindi and Chinese replies"
+      },
+      {
+       "value": "48/48",
+       "label": "replies across four languages"
+      },
+      {
+       "value": "26% to 6%",
+       "label": "words misheard, 48 synthetic clips"
+      },
+      {
+       "value": "2.4 s",
+       "label": "median reply, 1.1 cents each"
+      }
+     ]
+    },
+    {
+     "note": "541 automated tests. The 48 replies were used to fix the reader, so the 12 unseen ones are the fair score."
+    }
+   ]
+  },
+  {
+   "id": "limits",
+   "eyebrow": "Limitations",
+   "title": "Where it breaks",
+   "lead": "What fails, and what we would fix.",
+   "blocks": [
+    {
+     "points": [
+      {
+       "title": "It only ties a simple rule on lateness",
+       "detail": "Earliest finish also reaches 1.7%. Our gain is the checks, reasons and recovery"
+      },
+      {
+       "title": "Speed costs quality and spread",
+       "detail": "7.2% of pieces defective against 2.9% at best. One workshop gets 26% of the work, or 20% on a hybrid at 5.1% late"
+      },
+      {
+       "title": "Some messages go wrong, safely",
+       "detail": "\"Is ORD-069 delivered?\" got a question, not a refusal. A request to split was read as one order"
+      },
+      {
+       "title": "Chinese prices",
+       "detail": "A whole-number price was dropped, so the desk asks again. The check needs a fix"
+      },
+      {
+       "title": "Not tested with real people",
+       "detail": "Workshops are role-played, speech used synthetic voices, and the simulator has no Completed rule"
+      },
+      {
+       "title": "One Mac runs the desk",
+       "detail": "If it sleeps, the app shows the last update. A hosted desk is the fix"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "conclusion",
+   "eyebrow": "Conclusion",
+   "title": "What we built and learned",
+   "blocks": [
+    {
+     "heading": "Achieved",
+     "points": [
+      {
+       "title": "A native iPhone app, ready for TestFlight",
+       "detail": "Siri, Dynamic Island, Apple push, widgets"
+      },
+      {
+       "title": "A two-way loop with Telegram",
+       "detail": "One record on both sides, nothing to install"
+      }
+     ]
+    },
+    {
+     "heading": "Learned",
+     "points": [
+      {
+       "title": "Measure before you trust",
+       "detail": "Apple's vocabulary hints changed nothing. Testing showed it"
+      },
+      {
+       "title": "Keep people on the decisions",
+       "detail": "Nothing moves until someone approves it"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+reader,expected,behaviour_correct,decision_correct,n
+id_only,allocate,5,5,7
+id_only,clarify,4,4,7
+id_only,decline,0,0,2
+keywords_blind,allocate,3,3,7
+keywords_blind,clarify,4,4,7
+keywords_blind,decline,1,1,2
+keywords_seen,allocate,5,5,7
+keywords_seen,clarify,4,4,7
+keywords_seen,decline,0,0,2

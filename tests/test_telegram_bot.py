@@ -129,7 +129,11 @@ def test_escalation_and_split_are_recorded_and_only_the_split_moves_the_queue(bo
     instance.reply["payload"] = extraction("R30")
     instance.handle(message("ORD-099 1500 polo shirts, deadline Apr 05", mid=1))
     instance.handle(tap(api, button(api, "e:")))
-    assert records.load()[0]["decision_record"]["constraints_applied"]["confirmation"]["escalated"]
+    assert not records.load()                     # Nothing is recorded until the reason is given.
+    instance.handle(tap(api, button(api, "x:")))
+    confirmation = records.load()[0]["decision_record"]["constraints_applied"]["confirmation"]
+    assert confirmation["escalated"] and confirmation["note"].startswith("Customer needs a decision")
+    assert "Customer needs a decision" in api.edits[-1]["text"]
     assert desk.queues_from_log(instance.workshops)[2] == 0
     instance.handle(message("ORD-099 1500 polo shirts, deadline Apr 05", mid=2))
     instance.handle(tap(api, button(api, "s:")))
@@ -150,3 +154,13 @@ def test_chat_requests_and_their_outcomes_reach_the_shared_inbox(bot):
     assert thread["channel"] == "telegram" and thread["sender"] == "Aditya" and thread["text"].startswith("ORD-045")
     assert [e["event"] for e in thread["events"]] == ["Recommended", "Confirmed"] and thread["status"] == "Confirmed"
     assert thread["events"][-1]["by"] == "Aditya"
+
+
+def test_a_chat_that_floods_the_bot_is_slowed_down_without_model_calls(bot, monkeypatch):
+    instance, api = bot
+    calls = []
+    monkeypatch.setattr(instance, "evaluate", lambda *a, **k: calls.append(a))
+    for mid in range(telegram_bot.RATE_LIMIT + 2):
+        instance.handle(message(f"ORD-045 request {mid}", mid=mid + 1))
+    assert len(calls) == telegram_bot.RATE_LIMIT
+    assert "wait a minute" in api.sent[-1]["text"]

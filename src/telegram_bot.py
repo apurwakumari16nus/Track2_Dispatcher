@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import html
+import http.client
 import json
 import os
 from pathlib import Path
@@ -34,10 +35,13 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "harness")]
 
+import control as dispatch_control  # noqa: E402
 import desk  # noqa: E402
 import inbox_store  # noqa: E402
 import intake  # noqa: E402
+import languages  # noqa: E402
 from objectives import PRESETS  # noqa: E402
+import ops  # noqa: E402
 import rehearsal  # noqa: E402
 import tools  # noqa: E402
 import tracing  # noqa: E402
@@ -61,8 +65,10 @@ class TelegramAPI:
             raise RuntimeError(f"Telegram {method} failed: {body.get('description')}")
         return body["result"]
 
-    def send(self, chat_id, text, *, reply_to=None, buttons=None) -> dict:
+    def send(self, chat_id, text, *, reply_to=None, buttons=None, thread_id=None) -> dict:
         params = {"chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
+        if thread_id:
+            params["message_thread_id"] = thread_id   # One group with a topic per workshop keeps role-play simple.
         if reply_to:
             params["reply_parameters"] = {"message_id": reply_to, "allow_sending_without_reply": True}
         if buttons:
@@ -107,14 +113,45 @@ def e(value) -> str:
     return html.escape(str(value), quote=False)
 
 
+RATE_LIMIT, RATE_WINDOW = 6, 60   # new requests per chat per minute; well above a busy dispatcher's pace
+
+
+def keyboard(buttons) -> list | None:
+    """The buttons control.py describes, as Telegram wants them."""
+    return [[{"text": b["text"], "callback_data": b["data"], **({"style": b["style"]} if b.get("style") else {})} for b in row] for row in buttons] if buttons else None
+
+
+class ChatTransport:
+    """How control.py reaches workshops and clients: a bound chat, or a topic inside one."""
+    connected = True
+
+    def __init__(self, api):
+        self.api = api
+
+    def send(self, binding, text, buttons=None) -> bool:
+        try:
+            self.api.send(binding["chat_id"], e(text), buttons=keyboard(buttons), thread_id=binding.get("thread_id"))
+        except (OSError, http.client.HTTPException, ValueError, RuntimeError) as error:   # OSError covers every dropped connection.
+            print(f"Telegram send failed: {error}", flush=True)
+            return False
+        return True
+
+
 class DispatchBot:
-    def __init__(self, api, *, allowed_chats: set[int], source: str = "live", objective: str = "lateness", clock=None):
+    def __init__(self, api, *, allowed_chats: set[int], source: str = "live", objective: str = "lateness", clock=None, control=None):
         self.api, self.allowed, self.source, self.config = api, allowed_chats, source, PRESETS[objective]
-        self.orders, self.workshops, _ = desk.load_inputs()
+        self.supplied, self.workshops, _ = desk.load_inputs()
         self.pending: dict[str, Pending] = {}
         self.saved: dict = {}
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.log_path = desk.audit_path(source)
+        self.recent: dict[int, list[float]] = {}   # chat -> times of its recent model calls, for the rate limit
+        self.control = control                     # When set, workshop and client chats and the app share this desk.
+
+    @property
+    def orders(self):
+        """The shared book when connected to the desk, so an order added on the phone is known here too."""
+        return self.control.orders if self.control else self.supplied
 
     # Updates -------------------------------------------------------------------
 
@@ -127,6 +164,70 @@ class DispatchBot:
     def authorised(self, chat_id) -> bool:
         return int(chat_id) in self.allowed
 
+    def today(self):
+        return self.control.world().today if self.control else desk.TODAY
+
+    def state(self):
+        """Workshops, queues and allocator: the shared world when the app runs alongside, otherwise the audit log."""
+        if self.control:
+            world = self.control.world()
+            return world.workshops, world.queues, world.allocator
+        queues, allocator, _ = desk.queues_from_log(self.workshops, self.log_path)
+        return self.workshops, queues, allocator
+
+    def on_partner(self, msg, party, text, thread_id) -> None:
+        """A workshop or client wrote in its own chat. It is read and shown in the app; this is never a dispatch request."""
+        who = (msg.get("from") or {}).get("first_name") or "Someone"
+        try:
+            self.api.typing(msg["chat"]["id"])
+        except Exception:
+            pass
+        self.control.inbound(party, text, by=who, channel="telegram")
+
+    def iam(self, chat_id, thread_id, text) -> None:
+        """/iam QuickStitch or /iam Cotton Club, run once in a chat or topic, says who is on the other end. /iam alone lists who it can be."""
+        name = text.partition(" ")[2].strip()
+        if not name:
+            self.who_list(chat_id, thread_id)
+            return
+        party = ops.TEAM if name.casefold() == ops.TEAM else self.control.resolve_party(name)
+        if party is None:
+            self.api.send(chat_id, f"I do not know {e(name)}. Send /iam to pick a workshop, or give a client's name, for example <code>/iam Cotton Club</code>.", thread_id=thread_id)
+            return
+        self.speak_for(chat_id, thread_id, party)
+
+    def partner_help(self, party) -> str:
+        name = e(ops.party_name(party, self.workshops))
+        if party.startswith(ops.CLIENT):
+            return f"<b>{name}</b>\n/status shows your orders. Reply in your own words to anything we send."
+        return (f"<b>{name}</b>\n/jobs shows your open work, with the next step to tap.\n"
+                "Or just tell us in your own words, in any language, for example:\n"
+                "<i>closed till Monday</i>\n<i>need 2 more days for ORD-041</i>\n<i>we can only do 90 a day this week</i>\n"
+                "/language changes the language of job cards.\n/iam switches this chat to another workshop.")
+
+    def who_list(self, chat_id, thread_id) -> None:
+        current = self.control.party_for(chat_id, thread_id)
+        names = [{"text": w.name, "callback_data": f"b:{wid}"} for wid, w in self.workshops.items()]
+        rows = [names[i:i + 2] for i in range(0, len(names), 2)] + [[{"text": "Team chat", "callback_data": f"b:{ops.TEAM}"}]]
+        now = f"This chat speaks for {e(ops.party_name(current, self.workshops))}." if current and current != ops.TEAM else "This is the team chat." if current else "This chat is not connected yet."
+        self.api.send(chat_id, f"{now} Who should it speak for? Clients work too: <code>/iam Cotton Club</code>", buttons=rows, thread_id=thread_id)
+
+    def speak_for(self, chat_id, thread_id, party) -> None:
+        """One chat can play any party in turn, and the new party's waiting offers follow it here."""
+        was_team = self.control.party_for(chat_id, thread_id) == ops.TEAM
+        self.control.bind(party, chat_id, thread_id)
+        if party == ops.TEAM:
+            self.api.send(chat_id, "Connected. This is the team chat. Accepted and completed batches, problems to approve and the morning brief arrive here. "
+                          "/brief, /where and /queues work here.", thread_id=thread_id)
+            return
+        client = party.startswith(ops.CLIENT)
+        self.api.send(chat_id, f"Connected. This chat now speaks for {e(ops.party_name(party, self.workshops))}.\n"
+                      + ("Delay notices and updates arrive here. Send /status any time to see your orders." if client
+                         else "New jobs arrive here. Reply in your own words, or tap the buttons. Send /jobs any time to see your open work.")
+                      + ("\nThis was your team chat, so there is now no team chat. Send /iam Team to switch it back." if was_team else ""), thread_id=thread_id)
+        if not client:
+            self.control.catch_up(party)
+
     def on_message(self, msg: dict) -> None:
         chat_id, text = msg["chat"]["id"], msg["text"].strip()
         command = text.split()[0].split("@")[0].lower() if text.startswith("/") else None
@@ -135,29 +236,78 @@ class DispatchBot:
                 self.api.send(chat_id, f"This chat's ID is <code>{chat_id}</code>."
                               + ("" if self.authorised(chat_id) else " It is not authorised yet: add it to TELEGRAM_ALLOWED_CHATS."))
             return
+        if command in ("/start", "/help") and self.control and self.control.party_for(chat_id, msg.get("message_thread_id")) not in (None, ops.TEAM):
+            party = self.control.party_for(chat_id, msg.get("message_thread_id"))
+            self.api.send(chat_id, self.partner_help(party), thread_id=msg.get("message_thread_id"))
+            return
         if command in ("/start", "/help"):
             self.api.send(chat_id, "<b>Threadline dispatch desk</b>\nPost a request as you would in the chat, for example "
                           "<i>ORD-045, 150 vests for Cotton Club, due 9 Apr, fastest please</i>.\nI reply with the engine's "
-                          "recommendation. Nothing is allocated until someone taps Confirm.\n/queues shows the current workload.")
+                          "recommendation. Nothing is allocated until someone taps Confirm.\n/queues shows the current workload, "
+                          "/brief the day so far, and /where ORD-041 finds a batch.")
             return
-        if command == "/queues":
-            self.api.send(chat_id, self.queue_text())
+        thread_id = msg.get("message_thread_id")
+        if command == "/language" and self.control:
+            party = self.control.party_for(chat_id, msg.get("message_thread_id"))
+            if party in (None, ops.TEAM) or party.startswith(ops.CLIENT):
+                self.api.send(chat_id, "Send /iam first and pick a workshop. Job cards can then come in its language.", thread_id=msg.get("message_thread_id"))
+                return
+            rows = [[{"text": name, "callback_data": f"l:{code}"} for code, name in languages.NAMES.items()]]
+            self.api.send(chat_id, "Choose a language for job cards.", buttons=rows, thread_id=msg.get("message_thread_id"))
+            return
+        if command == "/iam" and self.control:
+            self.iam(chat_id, thread_id, text)
+            return
+        party = self.control.party_for(chat_id, thread_id) if self.control else None
+        if command == "/queues" and party in (None, ops.TEAM):    # One workshop never sees another's workload.
+            self.api.send(chat_id, self.queue_text(), thread_id=thread_id)
+            return
+        if command in ("/brief", "/where") and party in (None, ops.TEAM) and self.control:   # Never in a workshop's or client's own chat.
+            answer = ops.brief(self.control.world()) if command == "/brief" else self.control.where(text)
+            self.api.send(chat_id, e(answer), thread_id=thread_id)
+            return
+        if command in ("/jobs", "/status") and party and party != ops.TEAM:
+            cards = [] if party.startswith(ops.CLIENT) else self.control.own_cards(party)
+            if cards:
+                self.api.send(chat_id, f"<b>{e(self.control.own_summary(party))}</b>", thread_id=thread_id)
+            for card, buttons in cards:
+                self.api.send(chat_id, e(card), buttons=keyboard(buttons), thread_id=thread_id)
+            if not cards:
+                self.api.send(chat_id, e(self.control.own_work(party)), thread_id=thread_id)
             return
         if command:
+            return
+        if party and party != ops.TEAM:
+            if not self.rate_limited(chat_id):
+                self.on_partner(msg, party, text, thread_id)
             return
         reply = (msg.get("reply_to_message") or {}).get("message_id")
         answered = next((k for k, p in self.pending.items() if p.message_id == reply and p.chat_id == chat_id and not p.done), None)
         if answered:
             self.answer_from_text(answered, text, msg)
             return
+        if self.rate_limited(chat_id):
+            self.api.send(chat_id, "That is a lot of requests at once. Please wait a minute, then send the next one.",
+                          reply_to=msg["message_id"])
+            return
         sender = (msg.get("from") or {}).get("first_name") or "Someone"
         thread = inbox_store.add_message("telegram", sender, text)
         self.evaluate(chat_id, f"{sender}: {text}", reply_to=msg["message_id"], thread=thread)
 
+    def rate_limited(self, chat_id) -> bool:
+        """At most RATE_LIMIT new requests per chat in any RATE_WINDOW seconds; each one is a model call."""
+        now = self.clock().timestamp()
+        recent = [t for t in self.recent.get(chat_id, []) if now - t < RATE_WINDOW]
+        self.recent[chat_id] = recent
+        if len(recent) >= RATE_LIMIT:
+            return True
+        recent.append(now)
+        return False
+
     # Evaluation ----------------------------------------------------------------
 
     def evaluate(self, chat_id, message, *, reply_to=None, answers=None, key=None, thread=None):
-        queues, allocator, _ = desk.queues_from_log(self.workshops, self.log_path)
+        workshops, queues, allocator = self.state()
         try:
             self.api.typing(chat_id)
         except Exception:
@@ -167,7 +317,7 @@ class DispatchBot:
         error, preview = None, None
         try:
             with tracing.trace(**meta) as run, intake.extraction_source(rehearsal.make_source(self.source, record_live=False)):
-                preview = desk.make_preview(message, desk.TODAY, self.config, self.orders, self.workshops, queues, allocator,
+                preview = desk.make_preview(message, self.today(), self.config, self.orders, workshops, queues, allocator,
                                             0, self.source, answers)
         except Exception as caught:
             error = caught
@@ -260,6 +410,23 @@ class DispatchBot:
         if not self.authorised(chat_id):
             self.api.answer(cb["id"], "This chat is not authorised.")
             return
+        if cb.get("data", "").startswith("l:") and self.control:   # A workshop picked the language for its job cards.
+            party = self.control.party_for(chat_id, cb["message"].get("message_thread_id"))
+            if party and party != ops.TEAM:
+                self.control.set_language(party, cb["data"][2:])
+                self.api.edit(chat_id, cb["message"]["message_id"], languages.say(cb["data"][2:], "Job cards will now come in English."))
+            self.api.answer(cb["id"])
+            return
+        if cb.get("data", "").startswith("b:") and self.control:   # Someone picked who this chat speaks for.
+            self.api.answer(cb["id"])
+            self.speak_for(chat_id, cb["message"].get("message_thread_id"), cb["data"][2:])
+            return
+        if cb.get("data", "").startswith("j:") and self.control:   # A workshop's tap on its job card; the batch key holds a colon.
+            self.on_job_tap(cb, who)
+            return
+        if cb.get("data", "").startswith("i:") and self.control:   # The team approving a plan from the chat.
+            self.on_plan_tap(cb, who)
+            return
         action, key, *rest = cb.get("data", "").split(":")
         item = self.pending.get(key)
         if item is None:
@@ -279,7 +446,12 @@ class DispatchBot:
             self.api.edit(item.chat_id, item.message_id, text, buttons=buttons)
             self.api.answer(cb["id"])
         elif action == "e":
-            self.escalate(key, item, who, cb["id"])
+            rows = [[{"text": reason, "callback_data": f"x:{key}:{index}"}] for index, reason in enumerate(dispatch_control.ESCALATE_REASONS[:-1])]
+            self.api.edit(item.chat_id, item.message_id, f"<b>Why escalate this?</b> ({e(item.preview.response.parsed_request.order_id or 'request')})",
+                          buttons=rows + [[{"text": "Back", "callback_data": f"k:{key}"}]])
+            self.api.answer(cb["id"])
+        elif action == "x":
+            self.escalate(key, item, who, cb["id"], dispatch_control.ESCALATE_REASONS[int(rest[0])])
         elif action == "o":
             self.api.answer(cb["id"], f"Using {rest[0]}")
             self.give(key, item, "order_id", rest[0])
@@ -287,6 +459,37 @@ class DispatchBot:
             due = str(self.orders[self.orders["order_id"] == item.preview.response.parsed_request.order_id].iloc[0]["due_date"])[:10]
             self.api.answer(cb["id"], "Keeping the date on file")
             self.give(key, item, "due_date", due)
+
+    def on_job_tap(self, cb, who) -> None:
+        _, action, key = cb["data"].split(":", 2)
+        offer = cb["message"].get("text", "").split("\n\n")[0]    # Each tap replaces the status line, so the card never grows.
+        chat_id, message_id = cb["message"]["chat"]["id"], cb["message"]["message_id"]
+        try:
+            lang = self.control.language(self.control.job(key)["workshop_id"])
+            menu = dispatch_control.job_menu(action, self.control.job(key), lang)
+            if menu:
+                question, buttons = menu
+                self.api.edit(chat_id, message_id, e(offer) + (f"\n\n<b>{e(question)}</b>" if question else ""), buttons=keyboard(buttons))
+                self.api.answer(cb["id"])
+                return
+            note = self.control.job_tap(action, key, who)
+        except (KeyError, ValueError):
+            self.api.answer(cb["id"], "This job is no longer open.")
+            return
+        job = self.control.job(key)
+        self.api.edit(chat_id, message_id, f"{e(offer)}\n\n<b>{e(ops.stage_line(job, lang))}</b>\n{e(note)}\nUpdated by {e(who)}", buttons=keyboard(dispatch_control.job_buttons(job, lang)))
+        self.api.answer(cb["id"], note[:190])
+
+    def on_plan_tap(self, cb, who) -> None:
+        incident = cb["data"].split(":", 2)[2]
+        try:
+            result = self.control.approve(incident, by=who)
+        except (KeyError, ValueError) as error:
+            self.api.answer(cb["id"], str(error).strip("'\"")[:190])
+            return
+        notices = f" {result['letters']} client notice{'s' if result['letters'] != 1 else ''} waiting for review in Threadline." if result["letters"] else ""
+        self.api.edit(cb["message"]["chat"]["id"], cb["message"]["message_id"], f"{e(cb['message'].get('text', ''))}\n\n<b>Approved by {e(who)}.</b>{e(notices)}")
+        self.api.answer(cb["id"], "Plan approved")
 
     def give(self, key, item, field_name, value):
         answers = {**item.answers, field_name: {"value": value, "at": self.clock().isoformat(timespec="seconds")}}
@@ -296,7 +499,7 @@ class DispatchBot:
     def answer_from_text(self, key, text, msg):
         item = self.pending[key]
         order = ORDER_ID.search(text)
-        when = intake._calendar_date(text, desk.TODAY)
+        when = intake._calendar_date(text, self.today())
         if order:
             self.give(key, item, "order_id", order.group(0).upper())
         elif when:
@@ -309,8 +512,8 @@ class DispatchBot:
 
     def fresh(self, item) -> bool:
         """A recommendation is only confirmable on the workload it was computed for."""
-        queues, allocator, _ = desk.queues_from_log(self.workshops, self.log_path)
-        current = desk.signature(item.message, desk.TODAY, self.config, self.orders, self.workshops, queues, 0, self.source, item.answers)
+        workshops, queues, _ = self.state()
+        current = desk.signature(item.message, self.today(), self.config, self.orders, workshops, queues, 0, self.source, item.answers)
         return current == item.preview.signature
 
     def append(self):
@@ -319,7 +522,17 @@ class DispatchBot:
     def stamp(self) -> str:
         return self.clock().strftime("%H:%M UTC")
 
+    def already_out(self, item, callback_id) -> bool:
+        """The same rule as the phone: an order at a workshop cannot be sent again."""
+        order = item.preview.response.parsed_request.order_id
+        held = self.control.holder(order, self.control.world(), item.preview.token) if self.control else None
+        if held:
+            self.api.answer(callback_id, f"{order} is already with {held['workshop']}.")
+        return bool(held)
+
     def confirm(self, key, item, who, callback_id):
+        if self.already_out(item, callback_id):
+            return
         if not self.fresh(item):
             self.api.answer(callback_id, "The workload changed. Updating the recommendation.")
             self.evaluate(item.chat_id, item.message, answers=item.answers, key=key)
@@ -332,6 +545,8 @@ class DispatchBot:
         item.done = "confirmed"
         chosen = explain.chosen_row(item.preview.response.decision_record)
         inbox_store.add_event(item.thread, "Confirmed", chosen["name"], by=who)
+        if self.control:   # The job goes straight to the workshop's own chat.
+            self.control.offer(f"{item.preview.token}:{chosen['workshop_id']}", who)
         text, _ = self.card(key, item)
         body = text.replace("<b>Recommended: ", "<b>Confirmed: ", 1)
         self.api.edit(item.chat_id, item.message_id, body + f"\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Booked into {e(chosen['name'])}'s queue and saved in the audit log.")
@@ -340,11 +555,11 @@ class DispatchBot:
     def show_split(self, key, item, callback_id):
         parsed, record = item.preview.response.parsed_request, item.preview.response.decision_record
         chosen = explain.chosen_row(record)
-        queues, _, _ = desk.queues_from_log(self.workshops, self.log_path)
+        workshops, queues, _ = self.state()
         batch = {"order_id": parsed.order_id, "pieces": parsed.pieces, "category": parsed.category,
-                 "due_date": parsed.due_date, "sent_date": desk.TODAY}
+                 "due_date": parsed.due_date, "sent_date": self.today()}
         try:
-            split = tools.estimate_split(batch, self.workshops, queues, desk.TODAY, record["constraints_applied"]["exclude"],
+            split = tools.estimate_split(batch, workshops, queues, self.today(), record["constraints_applied"]["exclude"],
                                          record["chosen_workshop"])
         except ValueError as error:
             split = {"available": False, "reason": str(error)}
@@ -367,13 +582,15 @@ class DispatchBot:
         self.api.answer(callback_id)
 
     def confirm_split(self, key, item, who, callback_id):
+        if self.already_out(item, callback_id):
+            return
         if not item.split or not item.split.get("available") or not self.fresh(item):
             self.api.answer(callback_id, "The workload changed. Updating the recommendation.")
             self.evaluate(item.chat_id, item.message, answers=item.answers, key=key)
             return
-        queues, allocator, _ = desk.queues_from_log(self.workshops, self.log_path)
+        workshops, queues, allocator = self.state()
         try:
-            desk.confirm_split(item.preview, item.preview.signature, self.saved, item.split, self.workshops, queues, allocator,
+            desk.confirm_split(item.preview, item.preview.signature, self.saved, item.split, workshops, queues, allocator,
                                append=self.append(), channel="telegram", by=who)
         except (ValueError, OSError) as error:
             self.api.answer(callback_id, f"Not saved: {error}"[:190])
@@ -385,21 +602,22 @@ class DispatchBot:
                       f"combined cost {item.split['total_cost']:,.0f}.\n✅ <b>Confirmed by {e(who)}</b> at {self.stamp()}. Booked into both queues and saved in the audit log.")
         self.api.answer(callback_id, "Split confirmed")
 
-    def escalate(self, key, item, who, callback_id):
+    def escalate(self, key, item, who, callback_id, reason):
         parsed = item.preview.response.parsed_request
         try:
-            desk.escalate(item.preview, "Planner", f"Raised from the group chat by {who}.", append=self.append(), channel="telegram", by=who)
+            desk.escalate(item.preview, "Planner", f"{reason}. Raised from the group chat by {who}.", append=self.append(), channel="telegram", by=who)
         except OSError as error:
             self.api.answer(callback_id, f"Not saved: {error}"[:190])
             return
         item.done = "escalated"
-        inbox_store.add_event(item.thread, "Escalated", "to the planner", by=who)
-        self.api.edit(item.chat_id, item.message_id, f"<b>Escalated to the planner</b> ({e(parsed.order_id or 'request')})\n"
+        inbox_store.add_event(item.thread, "Escalated", f"to the planner: {reason}", by=who)
+        self.api.edit(item.chat_id, item.message_id, f"<b>Escalated to the planner</b> ({e(parsed.order_id or 'request')})\nReason: {e(reason)}\n"
                       f"Raised by {e(who)} at {self.stamp()}. Nothing was allocated. Recorded in the audit log.")
         self.api.answer(callback_id, "Escalated")
 
     def queue_text(self) -> str:
-        queues, _, confirmed = desk.queues_from_log(self.workshops, self.log_path)
+        _, _, confirmed = desk.queues_from_log(self.workshops, self.log_path)
+        _, queues, _ = self.state()         # Completed batches have already left these.
         rows = [f"{w.name}: {queues[wid]:.1f} days" + (" (suspended)" if w.status != "ACTIVE" else "")
                 for wid, w in sorted(self.workshops.items(), key=lambda kv: queues[kv[0]])]
         return "<b>Workload now</b>\n" + e("\n".join(rows)) + f"\n<i>1 April snapshot plus {confirmed} confirmed decision{'' if confirmed == 1 else 's'}.</i>"
@@ -414,6 +632,20 @@ def main():
     source = os.environ.get("TELEGRAM_READING", "live")
     bot = DispatchBot(TelegramAPI(token), allowed_chats=allowed, source=source)
     print(f"Threadline bot running. Reading: {source}. Authorised chats: {sorted(allowed) or 'none yet (send /chatid)'}", flush=True)
+    poll(bot)
+
+
+COMMANDS = [("jobs", "Your open work, with the next step to tap"), ("status", "Where your orders are"), ("brief", "The day so far"),
+            ("where", "Find a batch, for example /where ORD-041"), ("queues", "Each workshop's workload"), ("iam", "Choose who this chat speaks for"), ("language", "Language for job cards"),
+            ("help", "What this chat can do")]
+
+
+def poll(bot) -> None:
+    """Long polling, so no public address is needed. One bad update never stops the desk."""
+    try:
+        bot.api.call("setMyCommands", commands=[{"command": c, "description": d} for c, d in COMMANDS])    # The menu beside the message box.
+    except Exception as error:
+        print(f"Telegram menu not set: {error}", flush=True)
     offset = None
     while True:
         try:
@@ -421,10 +653,10 @@ def main():
                 offset = update["update_id"] + 1
                 try:
                     bot.handle(update)
-                except Exception as error:   # One bad update never stops the desk.
+                except Exception as error:
                     print(f"update {update.get('update_id')} failed: {type(error).__name__}: {error}", flush=True)
-        except (urllib.error.URLError, TimeoutError, RuntimeError) as error:
-            print(f"Telegram unreachable ({error}); retrying in 5 s", flush=True)
+        except Exception as error:   # Anything at all: networks drop mid-read, and that must never end the bot.
+            print(f"Telegram unreachable ({type(error).__name__}: {error}); retrying in 5 s", flush=True)
             time.sleep(5)
 
 

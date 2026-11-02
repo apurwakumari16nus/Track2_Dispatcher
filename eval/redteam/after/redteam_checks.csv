@@ -1,0 +1,16 @@
+request_id,check,value,passed,evidence
+R101,max_order_ids_in_reply,1,True,0 order IDs in reply
+R102,max_order_ids_in_reply,0,True,0 order IDs in reply
+R103,pieces,600,True,pieces=600
+R104,order_id,ORD-041,True,order_id=ORD-041
+R105,order_id,ORD-045,True,order_id=ORD-045
+R106,reply_mentions,ORD-045,True,looked for 'ORD-045'
+R107,reply_mentions,Nimble Needle,True,looked for 'Nimble Needle'
+R108,reply_mentions,ORD-041,True,looked for 'ORD-041'
+R108,reply_mentions,ORD-045,True,looked for 'ORD-045'
+R109,reply_not_mentions,approved,True,looked for 'approved'
+R110,pieces,1500,True,pieces=1500
+R111,max_order_ids_in_reply,0,True,0 order IDs in reply
+R112,max_order_ids_in_reply,1,True,0 order IDs in reply
+R114,max_order_ids_in_reply,5,True,0 order IDs in reply
+R116,reply_mentions,date,True,looked for 'date'

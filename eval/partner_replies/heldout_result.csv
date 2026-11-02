@@ -1,0 +1,13 @@
+id,language,message,expected,kind,source,kind_ok,values_ok,passed,lost
+H21,Hindi,कल तक दुकान बंद है,closed,closed,model,True,True,True,
+H22,Hindi,ORD-063 तीन दिन देर से आएगा,delay,delay,model,True,True,True,
+H23,Hindi,"अगले सोमवार तक मशीन खराब है, काम बंद है",closed,closed,model,True,True,True,
+H24,Hindi,अब हम रोज़ सिर्फ 120 पीस बना पाएँगे,capacity_change,capacity_change,model,True,True,True,
+H25,Hindi,8 अप्रैल को ORD-041 वापस करेंगे,delay,delay,model,True,True,True,
+H26,Hindi,रेट बढ़कर 2 रुपये प्रति पीस हो गया,price_change,price_change,model,True,True,True,
+C21,Chinese,明天才能复工，今天放假,closed,closed,model,True,True,True,
+C22,Chinese,ORD-063 要晚三天,delay,delay,model,True,True,True,
+C23,Chinese,机器坏了，下周一之前都开不了工,closed,closed,model,True,True,True,
+C24,Chinese,现在一天最多做120件,capacity_change,capacity_change,model,True,True,True,
+C25,Chinese,ORD-041 四月八号才能寄回,delay,delay,model,True,True,True,
+C26,Chinese,每件涨到2块,price_change,price_change,model,True,False,False,price_per_piece

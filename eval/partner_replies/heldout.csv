@@ -1,0 +1,13 @@
+id,language,message,kind,date,delay_days,capacity_per_day,price_per_piece
+H21,Hindi,कल तक दुकान बंद है,closed,2026-04-02,,,
+H22,Hindi,ORD-063 तीन दिन देर से आएगा,delay,,3,,
+H23,Hindi,"अगले सोमवार तक मशीन खराब है, काम बंद है",closed,2026-04-06,,,
+H24,Hindi,अब हम रोज़ सिर्फ 120 पीस बना पाएँगे,capacity_change,,,120,
+H25,Hindi,8 अप्रैल को ORD-041 वापस करेंगे,delay,2026-04-08,,,
+H26,Hindi,रेट बढ़कर 2 रुपये प्रति पीस हो गया,price_change,,,,2.0
+C21,Chinese,"明天才能复工，今天放假",closed,2026-04-02,,,
+C22,Chinese,ORD-063 要晚三天,delay,,3,,
+C23,Chinese,"机器坏了，下周一之前都开不了工",closed,2026-04-06,,,
+C24,Chinese,现在一天最多做120件,capacity_change,,,120,
+C25,Chinese,ORD-041 四月八号才能寄回,delay,2026-04-08,,,
+C26,Chinese,每件涨到2块,price_change,,,,2.0

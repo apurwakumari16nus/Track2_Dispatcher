@@ -23,6 +23,7 @@ from typing import Any, Literal
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+import guardrails
 from tools import check_eligibility
 import tracing
 
@@ -155,6 +156,10 @@ class ParsedRequest:
     post_checks: list[dict[str, Any]] = field(default_factory=list)
     # Answers the dispatcher gave to a clarification, applied by Python: field, previous value, new value, when.
     answers_applied: list[dict[str, Any]] = field(default_factory=list)
+    # Which Sprint 3 guard shaped the reply (guardrails.py): too_long, several_orders, order_suggestion,
+    # no_reference or off_topic; None when the request went through the normal checks.
+    guardrail: str | None = None
+    workshop_suggestions: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         record = asdict(self)
@@ -235,11 +240,26 @@ def _anthropic_schema(node):
 _EXTRACTION_SOURCE: ContextVar = ContextVar("intake_extraction_source", default=None)
 _ANSWERS: ContextVar = ContextVar("intake_dispatcher_answers", default=None)
 _MODEL_OVERRIDE: ContextVar = ContextVar("intake_model_override", default=None)
+_GUARDS: ContextVar = ContextVar("intake_sprint3_guards", default=True)
 # Background work (the whole-inbox run) uses the lighter model. On the 30 labelled requests Haiku 5.5 at low
 # effort matched Sonnet 5.5 on every behaviour and decision at about 7% of the cost, but answered about
 # 1.1 s slower (eval/model_comparison.md). Nobody waits on a background run, so the saving wins there;
 # the desk and the chat, where a person waits, keep the configured model.
 BACKGROUND_MODEL, BACKGROUND_EFFORT = "claude-haiku-5-5", "low"
+
+
+@contextmanager
+def guards(enabled: bool):
+    """Switch the Sprint 3 guards (guardrails.py) off or on in this context.
+
+    Off reproduces the Sprint 2 post-checks on the same model reply, so the
+    Guardrail check page can show any message before and after.
+    """
+    token = _GUARDS.set(enabled)
+    try:
+        yield
+    finally:
+        _GUARDS.reset(token)
 
 
 @contextmanager
@@ -294,23 +314,25 @@ def extraction_source(call):
         _EXTRACTION_SOURCE.reset(token)
 
 
-def _call_llm(system_prompt: str, message: str) -> LLMReply:
+def _call_llm(system_prompt: str, message: str, schema: dict | None = None) -> LLMReply:
     """Single provider boundary, replaced with a fixture in normal CI.
 
     Set LLM_PROVIDER (anthropic or openai) plus that provider's API key and
-    intake model in .env. Both paths constrain the reply to JSON_SCHEMA and
-    never silently drop that constraint.
+    intake model in .env. Both paths constrain the reply to JSON_SCHEMA (or the
+    schema a caller passes, such as partners.py for workshop replies) and never
+    silently drop that constraint.
     """
     provider, model = llm_settings()
     key_var, model_var = PROVIDERS[provider]
     if not model or not os.environ.get(key_var):
         raise IntakeError(f"Set {key_var} and {model_var} for live intake", category="unconfigured")
     override = _MODEL_OVERRIDE.get()
+    shape = {"schema": schema} if schema else {}
     if provider == "anthropic" and override:
-        return _call_anthropic(override[0], system_prompt, message, effort=override[1])
+        return _call_anthropic(override[0], system_prompt, message, effort=override[1], **shape)
     if provider == "anthropic":
-        return _call_anthropic(model, system_prompt, message)
-    return _call_openai(model, system_prompt, message)
+        return _call_anthropic(model, system_prompt, message, **shape)
+    return _call_openai(model, system_prompt, message, **shape)
 
 
 ANTHROPIC_TIMEOUT_S, ANTHROPIC_MAX_RETRIES = 60.0, 2
@@ -343,7 +365,7 @@ def _attempt_hooks(attempts: list):
     return {"request": [on_request], "response": [on_response]}
 
 
-def _call_anthropic(model: str, system_prompt: str, message: str, *, effort: str | None = None) -> LLMReply:
+def _call_anthropic(model: str, system_prompt: str, message: str, *, effort: str | None = None, schema: dict | None = None) -> LLMReply:
     """Claude Messages API with JSON-schema structured output.
 
     Current Claude models reject non-default temperature, so none is sent.
@@ -361,7 +383,7 @@ def _call_anthropic(model: str, system_prompt: str, message: str, *, effort: str
     fallback = model in SERVER_FALLBACK_MODELS
     base = {"provider": "anthropic", "requested_model": model, "temperature": None, "effort": effort or "model default",
             "fallbacks_enabled": fallback, "timeout_s": ANTHROPIC_TIMEOUT_S, "max_retries": ANTHROPIC_MAX_RETRIES}
-    output_config = {"format": {"type": "json_schema", "schema": _anthropic_schema(JSON_SCHEMA)}}
+    output_config = {"format": {"type": "json_schema", "schema": _anthropic_schema(schema or JSON_SCHEMA)}}
     if effort:
         output_config["effort"] = effort
     extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if fallback else {}
@@ -393,7 +415,7 @@ def _call_anthropic(model: str, system_prompt: str, message: str, *, effort: str
     return LLMReply(text, metadata)
 
 
-def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
+def _call_openai(model: str, system_prompt: str, message: str, *, schema: dict | None = None) -> LLMReply:
     """OpenAI Chat Completions with strict JSON Schema and temperature=0.
 
     See https://developers.openai.com/api/docs/guides/structured-outputs .
@@ -408,7 +430,7 @@ def _call_openai(model: str, system_prompt: str, message: str) -> LLMReply:
                 messages=[{"role": "system", "content": system_prompt},
                           {"role": "user", "content": message}],
                 response_format={"type": "json_schema", "json_schema": {
-                    "name": "dispatch_intake", "strict": True, "schema": JSON_SCHEMA,
+                    "name": "dispatch_intake", "strict": True, "schema": schema or JSON_SCHEMA,
                 }},
             )
     except openai.OpenAIError as error:
@@ -435,7 +457,9 @@ _MONTH = (r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|au
 _EMBEDDED_DATE = re.compile(
     r"(?P<iso>\b\d{4}-\d{2}-\d{2}\b)"
     rf"|\b{_MONTH.replace('(', '(?P<m1>', 1)}\.?\s+(?P<d1>\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(?P<y1>\d{{4}})\b)?"
-    rf"|\b(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+{_MONTH.replace('(', '(?P<m2>', 1)}\b\.?(?:\s+(?P<y2>\d{{4}})\b)?",
+    rf"|\b(?P<d2>\d{{1,2}})(?:st|nd|rd|th)?\s+{_MONTH.replace('(', '(?P<m2>', 1)}\b\.?(?:\s+(?P<y2>\d{{4}})\b)?"
+    # Numeric dates are day/month, as written in the team's chat ('21/4' is 21 April).
+    r"|(?<![\d/])(?P<d3>\d{1,2})/(?P<m3>\d{1,2})(?:/(?P<y3>\d{4}|\d{2}))?(?![\d/])",
     re.IGNORECASE)
 
 
@@ -451,8 +475,13 @@ def _embedded_date(text: str, today: date) -> date | None:
                 found.add(date.fromisoformat(m["iso"]))
             elif m["d1"]:
                 found.add(date(int(m["y1"] or today.year), _MONTH_NUMBER[m["m1"][:3].lower()], int(m["d1"])))
-            else:
+            elif m["d2"]:
                 found.add(date(int(m["y2"] or today.year), _MONTH_NUMBER[m["m2"][:3].lower()], int(m["d2"])))
+            else:
+                if not _GUARDS.get():
+                    continue   # Sprint 2 read no numeric dates
+                year = int(m["y3"]) + (2000 if m["y3"] and len(m["y3"]) == 2 else 0) if m["y3"] else today.year
+                found.add(date(year, int(m["m3"]), int(m["d3"])))
         except ValueError:
             continue   # impossible calendar date, e.g. Feb 30
     return found.pop() if len(found) == 1 else None
@@ -515,6 +544,16 @@ def parse_request(message: str, today: date, orders_df, workshops) -> ParsedRequ
     if orders_df["order_id"].isna().any() or orders_df["order_id"].astype(str).str.casefold().duplicated().any():
         raise ValueError("orders_df must contain unique non-null order IDs")
 
+    if _GUARDS.get() and len(message) > guardrails.MAX_MESSAGE_CHARS:
+        # Too long to read safely: answered without calling the model.
+        envelope = re.match(r"^\s*(R\d+)\s+\[\d{2}:\d{2}\]\s+([^:]+):", message)
+        result = ParsedRequest(request_id=envelope.group(1) if envelope else None,
+                               sender=envelope.group(2).strip() if envelope else None, raw_text=message,
+                               behaviour="clarify", reason="message too long", guardrail="too_long")
+        result.post_checks.append({"layer": "python", "rule": "message_length", "result": "too_long",
+                                   "before": None, "after": {"behaviour": result.behaviour, "reason": result.reason},
+                                   "evidence": {"characters": len(message), "limit": guardrails.MAX_MESSAGE_CHARS}})
+        return result
     with tracing.span("llm.prepare"):
         prompt = build_system_prompt(today, orders_df, workshops)
     with tracing.span("llm.call") as call_span:
@@ -569,6 +608,36 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         item = answers.get(name)
         return item.get("value") if isinstance(item, dict) else item
 
+    guards_on = _GUARDS.get()
+    if guards_on:
+        # Grounding: names and quantities must be traceable to the message; dozens are converted here.
+        for name in ("customer", "product"):
+            value = getattr(result, name)
+            if value and not guardrails.grounded_name(value, message):
+                result.notes.append(f"{name} {value!r} is not in the message; ignored")
+                log("grounding", "dropped", field=name, value=value)
+                setattr(result, name, None)
+        dozens = guardrails.dozen_pieces(message)
+        if dozens and result.pieces != dozens:
+            log("units", "dozens_converted", llm_pieces=result.pieces, pieces=dozens)
+            result.pieces = dozens
+        elif result.pieces is not None and not guardrails.grounded_pieces(result.pieces, message):
+            result.notes.append(f"pieces {result.pieces} is not in the message; ignored")
+            log("grounding", "dropped", field="pieces", value=result.pieces)
+            result.pieces = None
+        refs = guardrails.order_refs(message)
+        if result.order_id and not answer("order_id") and not guardrails.grounded_order_id(result.order_id, message):
+            result.notes.append(f"order_id {result.order_id!r} is not in the message; ignored")
+            log("grounding", "dropped", field="order_id", value=result.order_id)
+            result.order_id = None
+        if len(refs) > 1 and not answer("order_id"):
+            known = set(orders_df["order_id"].astype(str))
+            result.order_id, result.guardrail = None, "several_orders"
+            result.candidate_order_ids = [r for r in refs if r in known]
+            log("several_orders", "found", behaviour="clarify", reason=f"message names {len(refs)} orders", order_refs=refs)
+            return result
+    message_pieces = result.pieces
+
     aliases = {_key(v): w.workshop_id for w in workshops.values() for v in (w.workshop_id, w.name)}
     for ref, wid in (answer("workshop_alias") or {}).items():   # The dispatcher said which workshop a name meant, or to ignore it.
         if wid in workshops:
@@ -580,6 +649,11 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         applied("workshop_alias", ref, wid, "message")
     references = ([result.suggested_workshop] if result.suggested_workshop else []) + result.excluded_workshops
     result.unresolved_workshops = [v for v in dict.fromkeys(references) if _key(v) not in aliases]
+    for ref in result.unresolved_workshops if guards_on else []:
+        guess = guardrails.close_workshop(ref, workshops)
+        if guess:
+            result.workshop_suggestions[ref] = guess
+            log("workshop_name", "close_match", reference=ref, suggestion=guess)
     if result.suggested_workshop:
         result.suggested_workshop = aliases.get(_key(result.suggested_workshop), result.suggested_workshop)
     result.excluded_workshops = list(dict.fromkeys(aliases[_key(v)] for v in result.excluded_workshops if _key(v) in aliases))
@@ -589,8 +663,20 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         applied("order_id", result.order_id, answer("order_id"), "message" if result.order_id else "not stated")
         result.order_id = answer("order_id")
     if result.order_id:
+        normal = guardrails.normalize_order_id(result.order_id)
+        if guards_on and normal and normal != result.order_id and (orders_df["order_id"].astype(str) == normal).any():
+            log("order_id_format", "normalized", written=result.order_id, order_id=normal)
+            result.order_id = normal
         matches = orders_df[orders_df["order_id"].astype(str).str.casefold() == _key(result.order_id)]
         if matches.empty:
+            open_ids = orders_df.loc[orders_df["status"] == "IN_PROGRESS", "order_id"].astype(str)
+            suggestions = guardrails.close_order_ids(result.order_id, open_ids) if guards_on else []
+            if suggestions:
+                # A likely typo: offer the close matches, never pick one.
+                log("order_id_exists", "close_match", behaviour="clarify", reason="order not found; close matches offered",
+                    order_id=result.order_id, suggestions=suggestions)
+                result.order_id, result.guardrail, result.candidate_order_ids = None, "order_suggestion", suggestions
+                return result
             log("order_id_exists", "failed", behaviour="decline", reason="order not found", order_id=result.order_id)
             return result
         row = matches.iloc[0]
@@ -599,6 +685,16 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         log("resolve_order", "not_needed")
     else:
         log("order_id_exists", "not_given")
+        unavailable_question = result.is_question_only and result.question_topic in {"allocation_history", "customer_quote", "worker_names"}
+        if guards_on and not (result.customer or result.product) and not unavailable_question:
+            # Nothing in the message points to an order: one short question, or a decline if it is off topic.
+            if result.is_question_only and result.question_topic == "other":
+                log("order_reference", "off_topic", behaviour="decline", reason="not about an order")
+                result.guardrail = "off_topic"
+            else:
+                log("order_reference", "none", behaviour="clarify", reason="no order reference in the message")
+                result.guardrail = "no_reference"
+            return result
         matches = orders_df[orders_df["status"] == "IN_PROGRESS"]
         for name in ("customer", "product"):
             value = getattr(result, name)
@@ -689,10 +785,10 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
     else:
         log("suggested_eligibility", "not_suggested" if not result.suggested_workshop else "unresolved")
 
-    mismatch = row is not None and extraction.pieces is not None and not pd.isna(row["pieces"]) and extraction.pieces != row["pieces"]
+    mismatch = row is not None and message_pieces is not None and not pd.isna(row["pieces"]) and message_pieces != row["pieces"]
     if mismatch:
-        result.notes.append(f"pieces mismatch: message={extraction.pieces}; orders.csv={int(row['pieces'])}; using message quantity")
-    log("pieces_consistency", "mismatch_noted" if mismatch else "no_mismatch", message_pieces=extraction.pieces)
+        result.notes.append(f"pieces mismatch: message={message_pieces}; orders.csv={int(row['pieces'])}; using message quantity")
+    log("pieces_consistency", "mismatch_noted" if mismatch else "no_mismatch", message_pieces=message_pieces)
 
     result.missing_fields = [name for name in ("order_id", "category", "pieces", "due_date") if getattr(result, name) is None]
     if result.unresolved_workshops:

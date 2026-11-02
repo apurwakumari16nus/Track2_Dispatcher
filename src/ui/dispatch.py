@@ -623,6 +623,7 @@ def result(preview, current_signature, workshops, orders, queues, progress):
         html(thread_link(f"Confirmed by you for {parsed.order_id or 'this request'}" if done else
                          f"Engine recommendation for {parsed.order_id or 'this request'}, waiting for you", confirmed=done))
         recommendation(preview, chosen, record, parsed, workshops, status)
+        runner_up_card(record, chosen)
         options_card(preview, record, parsed, workshops, queues, status)
     elif parsed.behaviour == "clarify":
         clarify_card(parsed, record, workshops, orders)
@@ -665,6 +666,11 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     state = st.session_state
     awkward = record.get("awkward_case") == "none_makes_date"
     confirmed = status.state == "confirmed"
+    engine_name = chosen["name"]
+    override_done = ((state["desk_saved"].get(preview.token) or {}).get("decision_record") or {}).get(
+        "constraints_applied", {}).get("override") if confirmed else None
+    if override_done:   # Show the workshop the dispatcher chose, with its own estimate.
+        chosen = next((c for c in record["candidates"] if c["workshop_id"] == override_done["chosen"]), chosen)
     name, wid = chosen["name"], chosen["workshop_id"]
     passed = (preview.response.faithfulness or {}).get("passed")
     if confirmed:
@@ -692,12 +698,19 @@ def recommendation(preview, chosen, record, parsed, workshops, status):
     evidence = (f'<div class="ws-ev {"ok" if passed else "bad"}">{icon("fact_check" if passed else "error")}'
                 f'{"Every number checked against the tools" if passed else "Evidence check failed"}</div>')
     points = "".join(f"<li>{icon('check_circle')}<span>{esc(p)}</span></li>" for p in why_points(record, chosen, parsed))
+    if override_done:
+        won = {"sentence": f"The engine recommended {engine_name}. You sent it to {name} instead."
+                           + (f" Note: {override_done['note']}" if override_done.get("note") else "")}
+        points = ""
     state_cls = "rec-done" if confirmed else "rec-late" if awkward else ""
     headline = (f"Assigned to {name}" if confirmed else f"Least late: {name}" if awkward
                 else f"Assign to {name} instead" if parsed.behaviour == "refuse" else f"Assign to {name}")
     split_done = ((state["desk_saved"].get(preview.token) or {}).get("decision_record") or {}).get("split_allocation") if confirmed else None
     if split_done:
         headline = "Split between " + " and ".join(p["name"] for p in split_done["parts"])
+    if override_done:
+        headline = f"Sent to {name}, your choice over {engine_name}"
+        line = state_line("conf", "Confirmed by you as an override", f"Reason: {override_done['reason']}. Saved in the audit log.")
     session_note = session_load_note(workshops)
     with st.container(key="rec"):
         main, card = st.columns([1.45, 1], gap="medium")
@@ -996,6 +1009,10 @@ def options_card(preview, record, parsed, workshops, queues, status):
             if split.get("available"):
                 st.button("Confirm the split instead", key="desk_confirm_split", icon=":material/call_split:",
                           disabled=not status.ready, on_click=confirm_split_choice, args=(preview, split))
+            others = [c for c in explain.selection_order(record) if c["workshop_id"] != chosen["workshop_id"]]
+            if others:
+                with st.popover("Send to a different workshop", icon=":material/alt_route:"):
+                    override_form(preview, others, status)
             with st.popover("Escalate", icon=":material/outgoing_mail:"):
                 to = st.radio("Raise it with", ["Planner", "Customer"], key="esc_to", horizontal=True)
                 due = explain.short_date(parsed.due_date)
@@ -1005,6 +1022,76 @@ def options_card(preview, record, parsed, workshops, queues, status):
                 note = st.text_area("Note", value=draft, key=f"esc_note_{preview.token[:8]}", height=90)
                 st.button("Record escalation", key="desk_escalate", type="primary", on_click=escalate_choice, args=(preview, to, note))
                 html('<div class="meta">This records the escalation in the audit log. It does not send a message.</div>')
+
+
+def runner_up_card(record, chosen):
+    """The pick beside the next best permitted workshop, with the rows that decided it marked."""
+    other = explain.runner_up(record)
+    if other is None:
+        return
+    deciding = {r["label"] for r in explain.deciding_metrics(record, chosen, other)}
+    alias = {"Days late": "Days to spare", "Defect probability": "Defect risk"}
+    deciding |= {alias[d] for d in deciding if d in alias}
+    specs = [("Back by", lambda r: date.fromisoformat(r["eta_date"]).toordinal(), lambda r: explain.short_date(r["eta_date"]), False),
+             ("Days to spare", lambda r: r["days_to_spare"], lambda r: explain.days(r["days_to_spare"]) if r["days_to_spare"] >= 0
+              else f'{explain.days(-r["days_to_spare"])} late', True),
+             ("Total time", lambda r: r["total_days"], lambda r: f'{r["total_days"]:.1f} days', False),
+             ("Cost per piece", lambda r: r["cost_per_piece"], lambda r: f'{r["cost_per_piece"]:g}', False),
+             ("Total cost", lambda r: r["total_cost"], lambda r: f'{r["total_cost"]:,.0f}', False),
+             ("Defect risk", lambda r: r["expected_defect_rate"], lambda r: f'{r["expected_defect_rate"]:.0%}', False)]
+    rows = []
+    for label, value, show, higher_better in specs:
+        a, b = value(chosen), value(other)
+        win = "" if abs(a - b) < 1e-9 else ("a" if (a > b) == higher_better else "b")
+        dec = label in deciding
+        rows.append(f'<tr class="{"dec" if dec else ""}"><th>{esc(label)}{"<em>Decided here</em>" if dec else ""}</th>'
+                    f'<td class="{"win" if win == "a" else ""}">{esc(show(chosen))}</td><td class="{"win" if win == "b" else ""}">{esc(show(other))}</td></tr>')
+    extra = [r for r in explain.deciding_metrics(record, chosen, other) if r["label"] not in {s[0] for s in specs} | set(alias)]
+    note = "".join(f'<div class="ru-note">{esc(r["label"])}: {esc(r["winner"])} against {esc(r["other"])}. Decided here.</div>' for r in extra)
+    won = explain.why_won(record)
+    with st.container(key="runner_up"):
+        html(f'<div class="ru"><div class="ru-head"><b>Pick against runner-up</b><span>{esc(won["sentence"] if won else "")}</span></div>'
+             f'<div class="dt-wrap"><table class="ru-t"><thead><tr><th></th><th>{esc(chosen["name"])}<small>Recommended</small></th>'
+             f'<th>{esc(other["name"])}<small>Next best</small></th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>{note}</div>')
+
+
+def override_form(preview, others, status):
+    """Pick another permitted workshop and a reason; the engine's pick and the reason go to the audit log."""
+    key = preview.token[:8]
+    pick = st.selectbox("Workshop", [c["workshop_id"] for c in others], key=f"ov_ws_{key}",
+                        format_func=lambda w: next(f'{c["name"]}: back {explain.short_date(c["eta_date"])}, '
+                                                   + (f'{explain.days(c["days_to_spare"])} spare' if c["days_to_spare"] >= 0 else f'{explain.days(-c["days_to_spare"])} late')
+                                                   + f', cost {c["total_cost"]:,.0f}' for c in others if c["workshop_id"] == w))
+    reason = st.pills("Reason", list(desk.OVERRIDE_REASONS), key=f"ov_reason_{key}")
+    note = st.text_input("Note (needed for Other)", key=f"ov_note_{key}", placeholder="For example: customer called, wants SteadyHands again")
+    target = next(c for c in others if c["workshop_id"] == pick)
+    st.button(f"Send to {target['name']} instead", key="desk_override", type="primary", width="stretch",
+              disabled=not status.ready or not reason or (reason == "Other" and not note.strip()),
+              on_click=confirm_override_choice, args=(preview, pick, reason, note))
+    html('<div class="meta">The engine\'s pick, your choice and the reason are saved in the audit log.</div>')
+
+
+def confirm_override_choice(preview, workshop_id, reason, note):
+    state = st.session_state
+    path = desk.audit_path(preview.source, demo=guide.active())
+    append = (lambda response: desk.records.append(response, path)) if path else None
+    try:
+        _, queues, allocator = desk.confirm_override(preview, preview.signature, state["desk_saved"], workshop_id, reason or "", note,
+                                                     desk.load_inputs()[1], state["desk_queues"], state["desk_allocator"],
+                                                     append=append, guided_demo=guide.active())
+    except (ValueError, OSError) as error:
+        state["desk_confirm_error"] = str(error)
+        return
+    if queues is not None:
+        state["desk_queues"], state["desk_allocator"] = queues, allocator
+        state["desk_queue_date"] = preview.today
+        state["desk_revision"] += 1
+        state.pop("desk_confirm_error", None)
+        desk.mark_log_seen(state)
+        note_event(preview, "Override confirmed", f"{workshop_id}: {reason}")
+    rid = envelope(preview.response.parsed_request.raw_text)[0]
+    if rid:
+        state.setdefault("desk_outcomes", {})[rid] = "Confirmed"
 
 
 def confirm_split_choice(preview, split):

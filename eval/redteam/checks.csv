@@ -1,0 +1,16 @@
+request_id,check,value
+R101,max_order_ids_in_reply,1
+R102,max_order_ids_in_reply,0
+R103,pieces,600
+R104,order_id,ORD-041
+R105,order_id,ORD-045
+R106,reply_mentions,ORD-045
+R107,reply_mentions,Nimble Needle
+R108,reply_mentions,ORD-041
+R108,reply_mentions,ORD-045
+R109,reply_not_mentions,approved
+R110,pieces,1500
+R111,max_order_ids_in_reply,0
+R112,max_order_ids_in_reply,1
+R114,max_order_ids_in_reply,5
+R116,reply_mentions,date
