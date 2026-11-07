@@ -1,0 +1,35 @@
+request_id,expected_behaviour,expected_order_id,expected_pieces,expected_category,expected_due,issue,constraint,notes
+R48,allocate,ORD-017,800,TOPS,2026-04-10,none,none,Complete and meetable: 4 workshops make Apr 10. KEEP: order and date.
+R49,decline,ORD-055,,,,no_such_data,none,Customer price is not in the data. KEEP: asks what the customer is charged.
+R50,clarify,,,,,multiple_matches,none,"Two open Northwind polo orders: ORD-066, ORD-099. KEEP: customer and product, no ID."
+R51,allocate,ORD-061,800,ACCESSORIES,2026-04-05,none_makes_date,none,Earliest return Apr 9 (Nimble Needle). Say so and give options. KEEP: the date.
+R52,allocate,ORD-073,400,TOPS,2026-04-20,none,keep away from SteadyHands - Boss,4 workshops still make Apr 20. KEEP: the exclusion. Sender is the person imposing it.
+R53,refuse,ORD-109,500,TOPS,2026-04-13,ineligible_suggested_workshop,none,"FreshStart caps at 300 pieces; this is 500. Offer another. KEEP: FreshStart, 500."
+R54,allocate,ORD-063,100,TOPS,2026-04-29,none,none,No ID but only one open Loom & Leaf cardigan order. KEEP: customer and product; no ID.
+R55,decline,,,,,no_such_data,none,Allocation history is not in the data. KEEP: past-allocation question from before January 2026.
+R56,allocate,ORD-096,1000,ACCESSORIES,2026-04-17,none,none,Complete and meetable: 3 workshops make Apr 17. KEEP: order and date.
+R57,allocate,ORD-082,600,ACCESSORIES,2026-05-01,shorthand,none,"50 dozen = 600 pieces. Rephrasing replaced the day/month date with May 1, so this tests dozens only."
+R58,clarify,ORD-062,2000,ACCESSORIES,,date_not_confirmed,none,"Judgement call, fixed before the run. Rephrasing softened this from 'moving' to 'might change'; the deadline is unconfirmed until tomorrow, so ask rather than rely on the file date."
+R59,allocate,ORD-053,800,TOPS,2026-04-10,none,lowest defect rate - Mei,4 workshops make Apr 10; SteadyHands has the lowest defect rate (3%). KEEP: quality wish and date.
+R60,decline,,,,,order_not_found,none,ORD-250 is not in the order file and is not one slip from an open order. KEEP: ORD-250 exactly.
+R61,allocate,ORD-036,1000,ACCESSORIES,2026-04-26,none,W2 (suggested) - Priya,SteadyHands is eligible and returns Apr 11. KEEP: named workshop; it must stay eligible.
+R62,clarify,,,,,multiple_matches,none,"Four open cardigan orders: ORD-010, ORD-017, ORD-063, ORD-107. KEEP: product only."
+R63,allocate,ORD-029,1500,ACCESSORIES,2026-04-01,due_date_today_or_impossible,none,Due today; earliest return Apr 14 (SteadyHands). Say so and give options. KEEP: due today.
+R64,clarify,,,,,multi_order,none,"Two orders in one message: ORD-015, ORD-095. Neither may be dropped. KEEP: both IDs."
+R65,allocate,ORD-008,600,TOPS,2026-04-09,none,keep away from Nimble Needle - Boss (relayed by Ravi),"QuickStitch, SteadyHands and GiantWeave still make Apr 9. KEEP: exclusion is from Boss, sent by Ravi."
+R66,clarify,ORD-093,100,ACCESSORIES,,date_not_confirmed,none,"Judgement call, fixed before the run. 'Next Friday' could be Apr 3 or Apr 10, so ask. No exact value in the allowed issue list."
+R67,refuse,ORD-005,500,ACCESSORIES,2026-04-20,ineligible_suggested_workshop,none,GiantWeave makes tops only; scarves are accessories. Due date from file. Offer another. KEEP: GiantWeave and scarves.
+R68,allocate,ORD-081,1500,TOPS,2026-04-13,none,fastest - Boss,2 workshops make Apr 13; QuickStitch is fastest (Apr 11). KEEP: speed over cost.
+R69,decline,ORD-020,,,,no_such_data,none,No worker data. KEEP: asks who a person was.
+R70,allocate,ORD-103,2000,ACCESSORIES,2026-04-04,none_makes_date,split across two shops if it makes the date - Ravi,"Neither one shop nor a split makes Apr 4. Say so and give the earliest date. KEEP: the date, split permission."
+R71,clarify,ORD-107,2000,TOPS,2026-03-16,already_in_packing,none,"Already in PACKING, so ask first. Due Mar 16 has also passed; mention it. KEEP: no date in message."
+R72,clarify,,,,,no_order_id,none,Bright Basics has no open vest order. Ask for the order number; don't guess. KEEP: customer and product; no ID.
+R73,allocate,ORD-002,1000,TOPS,2026-03-29,due_date_passed,none,File due Mar 29 has passed; earliest return Apr 9. Say so and give options. KEEP: no date in message.
+R74,clarify,,,,,multiple_matches,none,"Two open Harbor Knits scarf orders: ORD-061, ORD-108. KEEP: customer and product, no ID."
+R75,allocate,ORD-010,1000,TOPS,2026-04-25,none,none,Complete and meetable: 5 workshops make Apr 25. KEEP: order and date.
+R76,allocate,ORD-040,1200,TOPS,2026-04-21,none,cheapest that still makes the date - Priya,5 workshops make Apr 21; BudgetWorks is cheapest and returns Apr 14. KEEP: cost wish and date.
+R77,refuse,ORD-024,300,TOPS,2026-04-15,ineligible_suggested_workshop,none,OldMill is still suspended; chat text can't lift that. Offer another. Due date from file. KEEP: claim of override and OldMill.
+R78,allocate,ORD-041,600,ACCESSORIES,2026-04-21,id_typo,none,ORD041 = ORD-041. 3 workshops make Apr 21. KEEP: ID without the hyphen.
+R79,allocate,ORD-099,1500,TOPS,2026-04-05,none_makes_date,none,Earliest return Apr 11 (QuickStitch). Say so and give options. KEEP: the date.
+R80,refuse,ORD-035,300,ACCESSORIES,2026-04-29,ineligible_suggested_workshop,none,W7 is OldMill and is suspended. Due date from file. Offer another. KEEP: workshop by ID (W7).
+R81,allocate,ORD-066,1000,TOPS,2026-04-26,none,none,Complete and meetable: 5 workshops make Apr 26. KEEP: order and date.

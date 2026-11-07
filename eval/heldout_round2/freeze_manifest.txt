@@ -1,0 +1,14 @@
+# Fingerprints saved before the single Round 2 run
+frozen_utc: 2026-11-07T06:50:37Z
+code_commit: 95a08158272f4cec5c4b672a48ccd8d044e97dd4
+tracked_code_modified: 0 files
+model: claude-sonnet-5-5
+provenance: requests drafted by Claude, rephrased by the team; labels drafted by Claude, not yet reviewed by the team
+fd25b677a785234361d69a244119c83bf8c899a1f0a864258c79557794d01ec3  data/heldout_round2_requests.txt
+a1caaf28f41cfeb2e69638069a467c9134c2c7a79fbd5a420e3e072382220360  eval/labels_heldout_round2.csv
+0880af9742fe7cc0923c5009e2de48a0bedb57b78cc294e35a1c9721fe0311f8  data/orders.csv
+d7e1c97d3d338a2b5aef8e35f167e3582f22c4526e9c736c5b4c8125505ec59e  data/workshops.csv
+11200acaa049b8b611625193576b2a049e8f2fef973d19690692659bd23fb21a  src/intake.py
+259427916c2c0e5119ee9194d1e33c4c392de851d0764d3164082b6d21d3ff92  src/agent.py
+beff723cbbaf86a7fc58d5320d3d406ad6796e5daf03ccf09c262fccdcc4f530  src/guardrails.py
+122048c3a557233d499cf4df6d638ceab79c27ad8185e2c79f8167be58c04c5b  eval/run_inbox.py
