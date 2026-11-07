@@ -1,0 +1,35 @@
+request_id,expected_behaviour,actual_behaviour,behaviour_correct,decision_correct,faithfulness_passed,constraint_honoured,already_late_flagged_when_needed,notes
+R48,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R49,decline,decline,True,True,True,True,True,
+R50,clarify,clarify,True,False,True,True,,"Reference clarification candidates: ORD-002, ORD-005, ORD-008, ORD-010, ORD-015, ORD-017, ORD-020, ORD-024, ORD-029, ORD-035, ORD-036, ORD-040, ORD-041, ORD-045, ORD-053, ORD-055, ORD-061, ORD-062, ORD-063, ORD-066, ORD-073, ORD-081, ORD-082, ORD-083, ORD-093, ORD-095, ORD-096, ORD-099, ORD-103, ORD-107, ORD-108, ORD-109, ORD-114, ORD-120 Late flag unscored: reference deadline unresolved."
+R51,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R52,allocate,allocate,True,True,True,False,True,Heuristic-best under reference constraints: W6; actual: W6.
+R53,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R54,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R55,decline,decline,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R56,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R57,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R58,clarify,clarify,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R59,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W2; actual: W2.
+R60,decline,decline,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R61,allocate,allocate,True,True,True,,True,Heuristic-best under reference constraints: W6; actual: W6. Constraint unscored: human constraint text is outside the documented literal reference grammar.
+R62,clarify,clarify,True,True,True,True,,"Reference clarification candidates: ORD-010, ORD-017, ORD-063, ORD-107 Late flag unscored: reference deadline unresolved."
+R63,allocate,clarify,False,False,True,True,False,Reference fact mismatch: due_date Heuristic-best under reference constraints: W2; actual: None.
+R64,clarify,clarify,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R65,allocate,allocate,True,True,True,False,True,Heuristic-best under reference constraints: W1; actual: W1.
+R66,clarify,clarify,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R67,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R68,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R69,decline,decline,True,True,True,True,True,
+R70,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W2; actual: W2.
+R71,clarify,clarify,True,True,True,True,True,
+R72,clarify,clarify,True,True,True,True,,Reference clarification candidates:  Late flag unscored: reference deadline unresolved.
+R73,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R74,clarify,clarify,True,True,True,True,,"Reference clarification candidates: ORD-061, ORD-108 Late flag unscored: reference deadline unresolved."
+R75,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R76,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W3; actual: W3.
+R77,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R78,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R79,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R80,refuse,refuse,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R81,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
