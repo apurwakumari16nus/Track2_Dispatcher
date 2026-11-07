@@ -16,7 +16,7 @@ Where else can GenAI help industry? Group 01, Track 2. Three low-hanging opportu
 We built a dispatch desk expecting the AI's value to be in the decision. Our tests said otherwise:
 
 - On the course simulator, a one-line rule (earliest finish) **tied** our allocator on every metric.
-- On unseen chat requests, keyword rules written without sight of the messages got **8 of 16** right. Our LLM reader got **15 of 16**.
+- On unseen chat requests, keyword rules written without sight of the messages got **8 of 16** right. Our LLM reader got **15 of 16**. On a second set of 34 new requests, it got **33 of 34** on behaviour. We have not run the keyword rules on that set.
 - Keyword rules written *with* sight of the messages got 16 of 16 on those messages, then fell to 9 of 16 on new ones.
 - Reading one message cost about **one US cent** and two seconds.
 

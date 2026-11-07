@@ -118,7 +118,7 @@ Three principles shape everything else:
 | Speech | Whisper (`whisper.cpp`, small English model) on the Mac, with names as hints | On 48 synthetic spoken requests, word errors fell from 26% (phone's model) to 6%. Audio does not leave the Mac |
 | Storage | Append-only JSONL, `portalocker` | Easy to audit and enough for one desk. It will not scale past that |
 | Push | APNs with JWT | Moves the Dynamic Island while the app is closed |
-| Tooling | `uv`, `pytest` (568 tests), XcodeGen | A locked environment, no API calls in the tests |
+| Tooling | `uv`, `pytest` (592 tests), XcodeGen | A locked environment, no API calls in the tests |
 | Film | HyperFrames (HTML to video) | Repeatable edits to the Sprint 3 film |
 
 An AI coding assistant (Claude Code) was used throughout for code, tests, documents and the film. Teams.pdf says so too.
@@ -188,7 +188,7 @@ An AI coding assistant (Claude Code) was used throughout for code, tests, docume
 - **One Mac.** The desk, the bot and Whisper run on one Mac. If it sleeps, the desk sleeps.
 - **The allocator adds nothing over earliest finish** on lateness.
 - **Speed has a price.** The lateness setting gives 7.2% defective pieces. The most careful setting gives 2.9%, with 95% of batches late.
-- **Small tests.** 15 of 16 has a rough 95% range of 72% to 99%. The fixes have no clean held-out test.
+- **Small tests.** 15 of 16 has a rough 95% range of 72% to 99%. Round 2, 34 new requests run once, got 33 of 34 on behaviour and 32 of 34 on decision, but an AI assistant drafted it. The fixes made after each set have no clean held-out test.
 - **Telegram link-up.** Team alerts, Approve in chat, `/jobs` and `/status` pass automated tests with a stand-in, and have not been tried in a real group.
 - **Three messages stay in English** for Hindi and Mandarin workshops, so "language is never a barrier" is not yet fully true.
 - **Film stand-ins.** Siri is typed, speech is scripted, Telegram is rebuilt, and Apple push is not shown live.
@@ -213,7 +213,7 @@ We list what we used and how. Links were checked in November 2026.
 
 ### Achievements
 
-We set out to reduce late orders. On the course simulator our system has 1.7% of batches late, against 34.2% for the best supplied baseline, and 1.9% when a workshop closes. Around that sits a working loop: a spoken or typed request, a checked recommendation, a person's approval, a job card in the workshop's language, a reply that moves the batch, and a recovery plan when something breaks. It runs as a native iPhone app with Siri and Live Activities, and workshops need nothing more than Telegram. Reading unseen requests, it got 15 of 16 right, about 2 seconds and a cent each, with no invented numbers.
+We set out to reduce late orders. On the course simulator our system has 1.7% of batches late, against 34.2% for the best supplied baseline, and 1.9% when a workshop closes. Around that sits a working loop: a spoken or typed request, a checked recommendation, a person's approval, a job card in the workshop's language, a reply that moves the batch, and a recovery plan when something breaks. It runs as a native iPhone app with Siri and Live Activities, and workshops need nothing more than Telegram. Reading unseen requests, it got 15 of 16 right and then 33 of 34 on a second set, about 2 seconds and a cent each, with no invented numbers.
 
 ### Lessons
 
@@ -225,7 +225,7 @@ We set out to reduce late orders. On the course simulator our system has 1.7% of
 
 ### Future work
 
-1. A clean second held-out round, written by someone who did not build the guards.
+1. A clean held-out round, written by someone who did not build the guards. Round 2 was drafted by an AI assistant, so it does not meet this.
 2. Move the desk to a proper server, and try it with one real workshop.
 3. Rewrite the reply template so every reason is stated.
 4. Status answers from data we hold, and honest "not recorded" for what we do not.

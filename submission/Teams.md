@@ -39,6 +39,7 @@ Roles and contribution breakdown. DSS5105 Capstone, Track 2, Group 01.
 - Live inbox evaluation, per-request timing, and the date-reader fix.
 - Hybrid weight sweep and its pre-declared selection rule.
 - Held-out set, one-shot Haiku run, three-model comparison, send-date field, date-conflict check, rule version 2, results and failure write-up.
+- Round 2 held-out set (AI-drafted, rephrased by the team), one-shot Sonnet run, and the two fixes that followed it.
 
 ### Yin Ning
 
@@ -58,7 +59,7 @@ Commit counts are a weak measure of work and leave out meetings, labelling time,
 
 - **Division of work.** Each person owned one part of the chain: pipeline, evaluation, product. That let us work in parallel, with the evaluation kept apart from the code it measures.
 - **Independent review.** Two reviewers labelled the requests alone before comparing, and agreed on 27 of 30 behaviours. Disagreements are logged in `eval/labeling/reconciliation.md`.
-- **Separation of duties, partly.** The held-out set was frozen with fingerprints before it was run. The planned second round, written by someone who did not build the guards, has not been done.
+- **Separation of duties, partly.** The held-out set was frozen with fingerprints before it was run. Round 2 was also frozen first and run once, but an AI assistant drafted it, so the planned round written by someone who did not build the guards has not been done.
 - **Branches.** Evaluation work was done on a branch and merged through pull requests.
 - **AI assistance.** We used an AI coding assistant (Claude Code) for code, tests, labelling drafts, documents and the film. Where AI drafted evaluation material, the evaluation report says so.
 - **What was hard.** TO CONFIRM with the team: one honest sentence on where collaboration went badly, and what you changed.
