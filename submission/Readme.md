@@ -56,7 +56,7 @@ uv run python eval/run_simulator.py --output-dir /tmp/threadline_sim
 uv run python harness/simulate.py --shock --seeds 10
 ```
 
-You should see 568 tests pass. `/tmp/threadline_sim/results.csv` should match `eval/results.csv` exactly.
+You should see 592 tests pass. `/tmp/threadline_sim/results.csv` should match `eval/results.csv` exactly.
 
 ## Run the web desk
 
@@ -111,12 +111,13 @@ uv run python eval/replay_cache.py eval/guardrails_v2/sonnet_dev/inbox_audit.jso
 uv run python eval/run_inbox.py --offline --cache-dir /tmp/cache_dev --model claude-sonnet-5-5 --labels eval/labels_v2.csv --output-dir /tmp/dev
 uv run python eval/replay_cache.py eval/guardrails_v2/sonnet_heldout/inbox_audit.json /tmp/cache_held
 uv run python eval/run_inbox.py --offline --cache-dir /tmp/cache_held --model claude-sonnet-5-5 --labels eval/labels_heldout_v2.csv --requests data/heldout_requests.txt --output-dir /tmp/held
+uv run python eval/run_inbox.py --offline --cache-dir eval/heldout_round2/cache --model claude-sonnet-5-5 --labels eval/labels_heldout_round2.csv --requests data/heldout_round2_requests.txt --output-dir /tmp/round2
 uv run python eval/run_redteam.py --offline --output-dir /tmp/red
 uv run python eval/run_rule_baseline.py
 uv run python eval/run_explanation_review.py eval/guardrails_v2/sonnet_dev/inbox_audit.json eval/guardrails_v2/sonnet_heldout/inbox_audit.json
 ```
 
-Expected: 30/30 behaviour and 29/30 decision on the supplied set, 15/16 and 15/16 on held-out, 16/16 behaviour on the red team. The last two commands rewrite `eval/rule_baseline/` and `eval/explanation_review.csv`.
+Expected: 30/30 behaviour and 29/30 decision on the supplied set, 15/16 and 15/16 on held-out, 34/34 and 33/34 on Round 2, 16/16 behaviour on the red team. The first Round 2 run, before its fixes, scored 33/34 and 32/34 and is saved in `eval/heldout_round2/`. The last two commands rewrite `eval/rule_baseline/` and `eval/explanation_review.csv`.
 
 A live run (`uv run python eval/run_inbox.py`) makes 30 model calls and needs a key.
 
