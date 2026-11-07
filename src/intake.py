@@ -487,6 +487,9 @@ def _embedded_date(text: str, today: date) -> date | None:
     return found.pop() if len(found) == 1 else None
 
 
+_DEADLINE_TODAY = re.compile(r"(?:due|deadline(?:\s+is)?|(?:back\s+|due\s+|needed\s+)?by)[\s:]+today", re.IGNORECASE)
+
+
 def _calendar_date(value, today: date) -> date | None:
     """Parse explicit dates only; missing years use today's year, never roll forward.
 
@@ -502,6 +505,9 @@ def _calendar_date(value, today: date) -> date | None:
         return value
     text = str(value).strip()
     if text.casefold() == "today":
+        return today
+    # Deadline wording only: 'out today' is a send date and must stay unresolved here.
+    if _GUARDS.get() and _DEADLINE_TODAY.fullmatch(text):
         return today
     for candidate, formats in [
         (text, ("%Y-%m-%d", "%b %d %Y", "%B %d %Y", "%d %b %Y", "%d %B %Y")),
@@ -798,4 +804,10 @@ def _post_checks(message, today, orders_df, workshops, extraction, raw, reply) -
         log("required_fields", "missing", behaviour="clarify", reason=f"missing or unresolved fields: {', '.join(result.missing_fields)}")
     else:
         log("required_fields", "checked", missing_fields=result.missing_fields)
+    # The brief asks who imposed each constraint. If the model applied one but named nobody,
+    # record the sender and mark it as assumed, since a relayed instruction would differ.
+    if guards_on and not result.constraints and (result.excluded_workshops or result.preference or result.split_allowed):
+        wording = message[envelope.end():].strip() if envelope else message.strip()
+        result.constraints = [{"text": wording, "imposed_by": result.sender, "relayed_by": None, "attribution": "assumed_sender"}]
+        log("constraint_attribution", "assumed_sender", imposed_by=result.sender)
     return result

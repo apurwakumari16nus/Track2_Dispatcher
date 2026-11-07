@@ -185,3 +185,54 @@ def test_guards_off_reproduces_the_sprint2_replies_exactly(audit, data):
         with intake.guards(False), intake.extraction_source(lambda prompt, message: reply):
             response = run(item["raw_message"], (orders.copy(), workshops))
         assert response.explanation_text == item["response"]["explanation_text"], item["request_id"]
+
+
+# Fixes from the Round 2 held-out run -----------------------------------------------
+
+@pytest.mark.parametrize("literal", ["today", "due today", "Due Today", "by today", "back by today", "deadline today",
+                                     "deadline is today", "deadline: today", "needed by today"])
+def test_deadline_wording_around_today_is_read_as_today(literal):
+    assert intake._calendar_date(literal, TODAY) == TODAY
+
+
+@pytest.mark.parametrize("literal", ["out today", "send today", "needs a home today", "today or tomorrow", "due tomorrow",
+                                     "not due today", "next Friday"])
+def test_other_wording_around_today_is_not_read_as_the_deadline(literal):
+    assert intake._calendar_date(literal, TODAY) is None
+
+
+def test_due_today_with_guards_off_stays_unresolved():
+    with intake.guards(False):
+        assert intake._calendar_date("due today", TODAY) is None
+
+
+def test_a_due_today_order_is_allocated_and_flagged_late(data, reply_with):
+    reply_with(order_id="ORD-029", pieces=1500, due_date_text="due today")
+    response = run("R63 [13:16] Boss: ORD-029, 1500 beanies for Northwind, due today. Any shop that can take it?", data)
+    assert response.parsed_request.behaviour == "allocate" and response.parsed_request.due_date == TODAY
+    assert response.already_late and "ALREADY LATE" in response.explanation_text
+
+
+@pytest.mark.parametrize("fields", [{"excluded_workshops": ["SteadyHands"]}, {"preference": "cheapest"}, {"split_allowed": True}])
+def test_an_applied_constraint_with_nobody_named_records_the_sender_as_assumed(fields, data, reply_with):
+    reply_with(order_id="ORD-073", pieces=400, due_date_text="Apr 20", **fields)
+    parsed = run("R52 [12:34] Boss: ORD-073, 400 hoodies due Apr 20. Some instruction.", data).parsed_request
+    assert parsed.constraints == [{"text": "ORD-073, 400 hoodies due Apr 20. Some instruction.", "imposed_by": "Boss",
+                                   "relayed_by": None, "attribution": "assumed_sender"}]
+
+
+def test_a_constraint_the_model_attributed_is_left_alone(data, reply_with):
+    given = [{"text": "no new work for Nimble Needle", "imposed_by": "Boss", "relayed_by": "Ravi"}]
+    reply_with(order_id="ORD-008", pieces=600, due_date_text="Apr 9", excluded_workshops=["Nimble Needle"], constraints=given)
+    assert run("R65 [13:23] Ravi: ORD-008, 600 polos, due Apr 9. Boss said no new work for Nimble Needle.", data).parsed_request.constraints == given
+
+
+def test_no_constraint_is_invented_when_none_was_applied(data, reply_with):
+    reply_with(order_id="ORD-073", pieces=400, due_date_text="Apr 20")
+    assert run("R48 [12:20] Mei: ORD-073, 400 hoodies, due Apr 20.", data).parsed_request.constraints == []
+
+
+def test_attribution_fallback_is_off_with_guards_off(data, reply_with):
+    reply_with(order_id="ORD-073", pieces=400, due_date_text="Apr 20", excluded_workshops=["SteadyHands"])
+    with intake.guards(False):
+        assert run("R52 [12:34] Boss: ORD-073, 400 hoodies due Apr 20.", data).parsed_request.constraints == []

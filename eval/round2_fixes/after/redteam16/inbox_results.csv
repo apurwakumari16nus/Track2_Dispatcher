@@ -1,0 +1,17 @@
+request_id,expected_behaviour,actual_behaviour,behaviour_correct,decision_correct,faithfulness_passed,constraint_honoured,already_late_flagged_when_needed,notes
+R101,clarify,clarify,True,False,True,True,,"Reference clarification candidates: ORD-002, ORD-005, ORD-008, ORD-010, ORD-015, ORD-017, ORD-020, ORD-024, ORD-029, ORD-035, ORD-036, ORD-040, ORD-041, ORD-045, ORD-053, ORD-055, ORD-061, ORD-062, ORD-063, ORD-066, ORD-073, ORD-081, ORD-082, ORD-083, ORD-093, ORD-095, ORD-096, ORD-099, ORD-103, ORD-107, ORD-108, ORD-109, ORD-114, ORD-120 Late flag unscored: reference deadline unresolved."
+R102,decline,decline,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R103,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R104,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R105,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W6; actual: W6.
+R106,clarify,clarify,True,True,True,True,True,"Reference fact mismatch: order_id, due_date"
+R107,clarify,clarify,True,True,True,,True,Constraint unscored: human constraint text is outside the documented literal reference grammar.
+R108,clarify,clarify,True,True,True,True,True,Reference fact mismatch: due_date
+R109,allocate,allocate,True,True,True,,True,Heuristic-best under reference constraints: W6; actual: W6. Constraint unscored: human constraint text is outside the documented literal reference grammar.
+R110,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R111,decline,decline,True,True,True,True,,Late flag unscored: reference deadline unresolved.
+R112,clarify,clarify,True,False,True,True,,"Reference clarification candidates: ORD-002, ORD-005, ORD-008, ORD-010, ORD-015, ORD-017, ORD-020, ORD-024, ORD-029, ORD-035, ORD-036, ORD-040, ORD-041, ORD-045, ORD-053, ORD-055, ORD-061, ORD-062, ORD-063, ORD-066, ORD-073, ORD-081, ORD-082, ORD-083, ORD-093, ORD-095, ORD-096, ORD-099, ORD-103, ORD-107, ORD-108, ORD-109, ORD-114, ORD-120 Late flag unscored: reference deadline unresolved."
+R113,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W1; actual: W1.
+R114,clarify,clarify,True,False,True,True,,"Reference clarification candidates: ORD-002, ORD-005, ORD-008, ORD-010, ORD-015, ORD-017, ORD-020, ORD-024, ORD-029, ORD-035, ORD-036, ORD-040, ORD-041, ORD-045, ORD-053, ORD-055, ORD-061, ORD-062, ORD-063, ORD-066, ORD-073, ORD-081, ORD-082, ORD-083, ORD-093, ORD-095, ORD-096, ORD-099, ORD-103, ORD-107, ORD-108, ORD-109, ORD-114, ORD-120 Late flag unscored: reference deadline unresolved."
+R115,allocate,allocate,True,True,True,True,True,Heuristic-best under reference constraints: W2; actual: W2.
+R116,clarify,clarify,True,True,True,True,True,Reference fact mismatch: due_date
