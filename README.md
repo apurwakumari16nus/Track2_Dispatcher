@@ -24,9 +24,9 @@ requests is a separate step. No Java, database, Node.js, or GPU is required.
 
 The app opens on **Dispatch** and has four areas: **Dispatch**, **Workshop
 Network**, **Simulation Lab** and **Audit Trail**. See
-[Product UI v4](docs/product_ui_v4.md) for the design system and page structure,
-[demo readiness](docs/demo_readiness.md) for recording, and the
-[storyboard draft](docs/demo_storyboard_draft.md). The Simulation Lab needs no
+[Product UI v4](docs/archive/web_desk_design/product_ui_v4.md) for the design system and page structure,
+[demo readiness](docs/archive/sprint2_demo/demo_readiness.md) for recording, and the
+[storyboard draft](docs/archive/sprint2_demo/demo_storyboard_draft.md). The Simulation Lab needs no
 API key; its **Course evidence** tab reads the committed ten-seed results.
 Dispatch reads requests with the live model, or with a clearly labelled
 rehearsal source chosen in **System details** (recorded model replies, or the
@@ -134,7 +134,7 @@ Robustness is a stress test: every policy is run normally and with the hidden
 closure, and the change is reported. Sprint 1 named robustness as the secondary
 objective; it was moved because the lateness policy already loses only 0.25 points
 under the closure and weighting robustness made lateness and robustness worse
-(`docs/objective_weighting_analysis.md`). The defect objective and the lateness and
+(`docs/evaluation/objective_weighting_analysis.md`). The defect objective and the lateness and
 defect hybrid are reported only. All six presets run in every evaluation, so the
 change of roles changed no number.
 
@@ -184,7 +184,7 @@ Set `TRACK2_REQUIRE_LABELS=1` to fail rather than skip incomplete human labels.
 In PowerShell, set a flag with `$env:TRACK2_REQUIRE_LABELS = "1"`; on Mac use
 `export TRACK2_REQUIRE_LABELS=1`. Clear flags after use (`Remove-Item Env:NAME`
 on Windows or `unset NAME` on Mac).
-See [inbox evaluation details](docs/inbox_evaluation.md).
+See [inbox evaluation details](docs/evaluation/inbox_evaluation.md).
 
 ## Course data version and interpretation
 
@@ -209,7 +209,7 @@ expose future closure delay through its queues (W2 flagged on day 26 with the
 default robustness trace, before closure on day 30). This is simulated queue
 anomaly detection, not proof of realistic advance outage detection.
 
-See [migration and validation notes](docs/data_v3_migration.md).
+See [migration and validation notes](docs/evaluation/data_v3_migration.md).
 
 ## Architecture
 
@@ -229,7 +229,7 @@ candidate, order-option, and two-workshop split calculations. Its `ShockMonitor`
 compares observed queues with predictions to flag unexplained delays after work
 has been sent. Tool tracing captures outputs for inspection. The arithmetic
 follows the simulator; the monitor cannot see the hidden closure schedule. See
-[the tool specification](docs/tool_spec.md) for inputs, outputs, non-goals, and
+[the tool specification](docs/design/tool_spec.md) for inputs, outputs, non-goals, and
 specific failure modes.
 
 **[src/objectives.py](src/objectives.py)** defines validated objective weights,

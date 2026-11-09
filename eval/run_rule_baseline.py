@@ -36,7 +36,8 @@ import keywords_blind
 
 SETS = {"dev": ("data/dispatch_requests.txt", "eval/labels_v2.csv", "eval/guardrails_v2/sonnet_dev/inbox_results.csv"),
         "heldout": ("data/heldout_requests.txt", "eval/labels_heldout_v2.csv", "eval/guardrails_v2/sonnet_heldout/inbox_results.csv"),
-        "redteam": ("data/redteam_requests.txt", "eval/redteam/labels.csv", "eval/redteam/after/inbox_results.csv")}
+        "redteam": ("data/redteam_requests.txt", "eval/redteam/labels.csv", "eval/redteam/after/inbox_results.csv"),
+        "round2": ("data/heldout_round2_requests.txt", "eval/labels_heldout_round2.csv", "eval/heldout_round2/sonnet/inbox_results.csv")}
 QUESTIONS = r"\b(what price|which workshop did|any movement|who handled|delivered to)\b"
 EXCLUDE = r"(?:keep (?:it )?away from|nothing new to|avoid|not to)\s+"
 DATE = r"\b(Jan|Feb|Mar|Apr|May|Jun)[a-z]*\s+(\d{1,2})\b|\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun)[a-z]*\b"
@@ -145,7 +146,7 @@ def main():
         lines.append(f"| {set_name} | Sonnet 5.5 with guards | {int(system.behaviour_correct.sum())}/{len(system)} | {int(system.decision_correct.sum())}/{len(system)} |")
         frame = pd.DataFrame(rows)
         frame.to_csv(out / f"{set_name}.csv", index=False)
-        lines += [""] if set_name == "heldout" else []
+        lines += [""] if set_name in ("heldout", "redteam") else []
         by = frame.groupby(["reader", "expected"])[["behaviour_correct", "decision_correct"]].sum().join(
             frame.groupby(["reader", "expected"]).size().rename("n"))
         by.to_csv(out / f"{set_name}_by_type.csv")

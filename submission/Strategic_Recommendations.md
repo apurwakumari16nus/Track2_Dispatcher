@@ -1,42 +1,43 @@
 # Strategic recommendations
 
-Where else can GenAI help industry? Group 01, Track 2. Three low-hanging opportunities, chosen with a test we measured on our own system.
+Where else can GenAI help industry? This paper is Group 01's answer for Track 2. We suggest three opportunities that a small team could start on soon, and we chose them with a test based on what we measured on our own system.
 
-**Our answer.** Do not start from "which industry needs AI". Start from a narrower question: where do small firms coordinate work through chat, against a record that can be checked, with a real cost when someone gets it wrong? Most of the famous answers are already crowded. Three are not, and two of them sit inside the supply chain we just built for.
+We did not start by asking which industry needs AI. We asked a narrower question: where do small firms coordinate work through chat, against a record that can be checked, with a real cost when someone gets it wrong? Most of the well-known answers to that question already have funded companies in them. Three do not, and two of those three are inside the supply chain our project was built for:
 
-<div class="key">
-<div><b>36.4%</b>of orders subcontracted without authorisation, in 32,477 apparel orders (Caro et al., 2021)</div>
-<div><b>14 Dec 2027</b>EU ban on products made with forced labour starts to apply</div>
-<div><b>1 year</b>to return inputs from an Indian job worker before GST is due on them</div>
-<div><b>75%</b>of Indian truck operators have fewer than five trucks (Redseer, 2024)</div>
-</div>
+- evidence of hidden subcontracting in apparel supply chains,
+- a job-work ledger for Indian garment firms,
+- trip confirmation for small truck fleets in India.
 
 ## 1. What our own project taught us
 
-We built a dispatch desk expecting the AI's value to be in the decision. Our tests said otherwise:
+We built a dispatch desk and expected the AI to add most value in making the decision. Our tests showed something different:
 
-- On the course simulator, a one-line rule (earliest finish) **tied** our allocator on every metric.
-- On unseen chat requests, keyword rules written without sight of the messages got **8 of 16** right. Our LLM reader got **15 of 16**. On a second set of 34 new requests, it got **33 of 34** on behaviour. We have not run the keyword rules on that set.
-- Keyword rules written *with* sight of the messages got 16 of 16 on those messages, then fell to 9 of 16 on new ones.
-- Reading one message cost about **one US cent** and two seconds.
+- On the course simulator, a one-line rule (pick the earliest finish) tied our allocator on every metric.
+- On chat requests the system had not seen, keyword rules written without looking at the messages got 8 of 16 right. Our LLM reader got 15 of 16. On a second set of 34 new requests, it got 33 of 34 on behaviour, and the same keyword rules got 16 of 34.
+- Keyword rules written after looking at the messages got 16 of 16 on those messages, then dropped to 9 of 16 on new ones.
+- Reading one message cost about one US cent and took about two seconds.
 
-So GenAI's value here is narrow and cheap. It turns messy messages nobody planned for into checked records, and it knows when to ask. The decision itself can stay plain code. That gives a screen for any new idea. We apply these five tests:
+So in our project, GenAI was useful for one narrow and cheap job. It turned messy, unplanned messages into records that code could check, and it knew when to ask a follow-up question. The decision itself could stay as plain code.
 
-1. **Chat in, record out.** Is work coordinated through messages that a fixed form can capture?
+We turned this into five tests for any new idea:
+
+1. **Chat in, record out.** Is the work coordinated through messages that a fixed form could capture?
 2. **A record to check against.** Can code test what the model read?
-3. **A cost to being wrong.** Does a mistake carry a legal or money cost, so a person's approval is worth paying for?
-4. **Nobody holds the risk.** Does it avoid carrying stock, credit or freight on its own balance sheet?
+3. **A cost to being wrong.** Does a mistake carry a legal or money cost, so that paying for a person's approval makes sense?
+4. **Nobody holds the risk.** Can the business avoid carrying stock, credit or freight on its own balance sheet?
 5. **Few funded players.** Is the workflow still open?
 
-Test 4 comes from the most expensive lesson nearby. Convoy, a digital freight broker, was valued at $3.8 billion about 18 months before it closed in October 2023. FreightWaves' account is that it undercut the market, never earned real margins, and its automation did not turn into profit [1].
+Test 4 comes from an expensive failure in a nearby market. Convoy, a digital freight broker, was valued at $3.8 billion about 18 months before it closed in October 2023. FreightWaves reports that it undercut the market, never earned real margins, and that its automation did not turn into profit [1].
 
 ## 2. Screening nine candidates
 
+We scored nine ideas against the five tests. The scores are our own judgement.
+
 | Candidate | Chat in, record out | Check | Cost of error | No risk held | Open? | Verdict |
 |---|---|---|---|---|---|---|
-| **Apparel sub-tier evidence** | Yes | Yes | High | Yes | Mostly | **Pick 1** |
-| **Job-work ledger, Indian garment firms** | Yes | Yes | High | Yes | Yes, at the chat step | **Pick 2** |
-| **Small-fleet trip confirmation, India** | Yes | Yes | Medium | Yes, if not a broker | Partly | **Pick 3** |
+| Apparel sub-tier evidence | Yes | Yes | High | Yes | Mostly | Pick 1 |
+| Job-work ledger, Indian garment firms | Yes | Yes | High | Yes | Yes, at the chat step | Pick 2 |
+| Small-fleet trip confirmation, India | Yes | Yes | Medium | Yes, if not a broker | Partly | Pick 3 |
 | Fax referral intake, US clinics | Yes | Yes | High | Yes | No. Tennr raised $101M at $605M in 2025 [S] | Crowded |
 | Freight forwarder email | Yes | Yes | Medium | Yes | No. Freightmate $5M; others funded [S] | Crowded |
 | Port agent email | Yes | Partly | Medium | Yes | No. Sedna about $86M in total [S] | Crowded |
@@ -44,106 +45,129 @@ Test 4 comes from the most expensive lesson nearby. Convoy, a digital freight br
 | Construction RFIs | Yes | Partly | High | Yes | Unclear. Zero RFI $14M seed [S]; Procore not checked | Hold |
 | EUDR smallholder plot data | Yes | Yes | High | Yes | Not checked | Watch. Applies from 30 Dec 2026 [2] |
 
-[S] means we saw the figure only in a search summary. See section 6.
+[S] means we saw the figure only in a search summary (see section 6). An RFI is a request for information, the formal question a contractor sends about drawings or specifications on a building project. EUDR is the EU Deforestation Regulation, which asks companies to show where certain commodities were grown.
 
 ## 3. Opportunity 1: hidden subcontracting evidence for apparel
 
 ### The problem
 
-A brand orders from a factory. The factory quietly passes work to another one. In the best data we found, a global sourcing manager's 32,477 orders from 226 factories for 30 buyers, **36.4% of orders were subcontracted without authorisation** [3]. The authors caution that this is one dataset and not an industry rate. The people who most need this evidence cannot easily see it, because the workshop at the bottom of the chain has no system to fill in.
+A brand places an order with a factory, and the factory quietly passes some of the work to another workshop. The best data we found comes from Caro et al. (2021), who studied 32,477 orders handled by one global sourcing manager, made in 226 factories for 30 buyers. In that data, 36.4% of orders were subcontracted without authorisation [3]. The authors warn that this is one dataset and should not be read as an industry rate. The brands that need this evidence have trouble getting it, because the workshop at the bottom of the chain has no system to fill in.
 
 ### Why now
 
-The rules have moved, and the common advice is out of date.
+Two EU rules have changed recently, and much of the common advice has not caught up.
 
-- **The EU's due-diligence law shrank.** After the Omnibus deal, CSDDD covers only companies above 5,000 staff and EUR 1.5 billion turnover, with compliance from 26 July 2029. Requests to partners below 5,000 staff are a last resort, and must be "targeted, reasonable and proportionate" [4].
-- **The Forced Labour Regulation did not.** It applies from **14 December 2027**, covers every product on the EU market, and companies may be asked in an investigation how they address forced-labour risk in their supply chains [5].
+The EU's due-diligence law has become much narrower. This law is the Corporate Sustainability Due Diligence Directive (CSDDD), which makes large companies check for human-rights and environmental harm in their supply chains. After the Omnibus deal, an EU package that simplified it, the CSDDD covers only companies with more than 5,000 staff and EUR 1.5 billion turnover, and compliance starts on 26 July 2029. Companies should only ask partners with fewer than 5,000 staff for information as a last resort, and the request must be "targeted, reasonable and proportionate" [4].
 
-**Our insight.** Demand is moving from annual reports to proof for a specific product, and the law now frowns on burying small partners in surveys. A portal questionnaire is the wrong shape for that. One question, about one order, in the workshop's own language, in the app it already uses, is the right shape: targeted, and proportionate by construction. That is exactly what our desk already sends.
+The Forced Labour Regulation (FLR) was not narrowed. It bans products made with forced labour from the EU market and applies from 14 December 2027. It covers every product sold in the EU, and in an investigation a company can be asked how it deals with forced-labour risk in its supply chain [5].
 
-### A second insight: the buyer can tell where to ask
+Taken together, we think demand is moving away from annual reports and towards proof about a specific product. At the same time, the rules discourage sending long surveys to small partners. A questionnaire on a supplier portal does not fit that situation well. A single question about a single order, sent in the workshop's own language through the app it already uses, fits better, because it is targeted and proportionate from the start. Our desk already sends messages of this kind.
 
-Caro et al. found subcontracting is predictable. At 25% below the usual price, the chance rises by at least 3.3 percentage points. Their model predicted more than 80% of orders correctly out of sample [3]. So brands partly create the behaviour they audit. A sensible product does not ask everyone everything. It uses order price and factory history to choose which orders get a question, which also keeps within the proportionate rule.
+### The buyer can tell where to ask
 
-### Who is there
+Caro et al. also found that subcontracting can be predicted. When the order price is 25% below the usual price, the chance of subcontracting rises by at least 3.3 percentage points. Their model predicted more than 80% of orders correctly on data it had not been trained on [3]. This means brands partly cause the behaviour they later audit. A sensible product would not ask every workshop about every order. It would use the order price and the factory's history to decide which orders get a question, which also helps meet the proportionate requirement.
 
-TrusTrace is the clear leader, with a $24M growth round in January 2024 and customers including Adidas and Asics [6]. It sells to brands, and works best with suppliers who will use a platform. We could not establish how far any platform reaches into unregistered workshops, and we could not find usable data on Sourcemap or Retraced. **So "few people doing it" is our judgement, not a finding.** Test it with one call to a sourcing manager before building.
+### Who is already there
+
+TrusTrace is the clear leader. It raised a $24M growth round in January 2024 [6], and the same report [6] lists Adidas and Asics among its customers. TrusTrace sells to brands and works best with suppliers who are willing to use a platform. We could not find out how far any platform reaches into unregistered workshops, and we could not find usable data on Sourcemap or Retraced. So our view that few companies are doing this is a judgement, and we have no data to back it. One phone call to a sourcing manager before building would test it.
 
 ### Implementation
 
-| Step | What to build | From our code |
+| Step | What to build | What we reuse from our code |
 |---|---|---|
 | Schema | Order, unit, who made it, subcontracted yes/no, photo or document | Change the extraction form |
-| Check | Against the purchase order and approved-factory list | The same post-check pattern |
+| Check | Compare against the purchase order and the approved-factory list | The same post-check pattern |
 | Ask | One message per order in the workshop's language, on Telegram or an approved WhatsApp route | `languages.py`, `partners.py` |
-| Approve | A compliance officer reviews mismatches. Nothing is auto-cleared | The same slide to approve |
-| Report | Per-order evidence pack, with who said what and when | The audit log |
+| Approve | A compliance officer reviews mismatches. Nothing is cleared automatically | The same slide to approve |
+| Report | An evidence pack for each order, showing who said what and when | The audit log |
 
-Pilot: one agent or mid-size brand, one country, 50 orders, 8 weeks, two people. At 20 messages per order and one cent each, reading costs about $10 for the pilot. **Stop if** fewer than half of workshops answer, or the buyer will not act on a mismatch.
+For a pilot we would work with one sourcing agent or mid-size brand in one country, covering 50 orders over 8 weeks with two people. At 20 messages per order and one cent per message, reading would cost about $10 for the whole pilot. We would stop the pilot if fewer than half of the workshops answer, or if the buyer will not act on a mismatch.
 
-**The honest weakness.** A workshop hiding subcontracting will not say so in chat. This tool makes honest answers cheap and lies easier to spot by cross-checking. It does not detect a determined liar. Photos, payment records and audits still matter.
+### Weakness
+
+A workshop that is hiding subcontracting will not admit it in chat. The tool makes honest answers cheap to give and makes false answers easier to spot through cross-checks. It will not catch someone who is determined to lie, so photos, payment records and audits are still needed.
 
 ## 4. Opportunity 2: job-work ledger for Indian garment firms
 
 ### The problem
 
-Our own project sends batches to outside workshops. In India this has a tax form attached. A manufacturer can send goods to a job worker on a delivery challan, with no GST at dispatch. The cost is a paper trail [7]:
+Our own project sends batches of work to outside workshops. In India this practice is called job work: a manufacturer (the principal) sends goods to another unit (the job worker) for processing and keeps ownership of them. It comes with tax paperwork. The goods can travel on a delivery challan, which is a dispatch note, without paying GST (India's goods and services tax) when they leave. In return, the principal has to keep a paper trail [7]:
 
-- Inputs must come back within **one year**, and capital goods within three. If not, the original dispatch is treated as a supply, with GST and interest.
-- The principal files Form ITC-04, quarterly above ₹5 crore turnover and half-yearly below.
-- Goods sent between job workers still count under the original dispatch.
+- Inputs must come back within one year, and capital goods within three years. If they do not, the original dispatch is treated as a sale, and GST and interest become due.
+- The principal files Form ITC-04, a return listing goods sent to and received from job workers. Firms with turnover above ₹5 crore file it every quarter, and smaller firms file it every six months.
+- Goods passed from one job worker to another still count under the original dispatch.
 
-Terra Insight describes what this requires: match each return to its outbound challan, treat multi-hop chains as one batch, allow for process wastage, and age every open balance [7]. That is what our desk's event log does, for a different purpose.
+Terra Insight describes what keeping this trail involves. Each return has to be matched to its outbound challan, a chain of several job workers has to be treated as one batch, process wastage has to be allowed for, and every open balance has to be aged [7]. Our desk's event log already does this kind of tracking, for a different purpose.
 
-**Our insight.** The record the taxman wants is already being typed, into chat. "Sent 400 pieces to Ravi's unit", "120 back today", "20 rejected": these messages *are* the ledger. The accounting packages start after someone has keyed that in. A chat reader sits one step earlier, at the point where data is actually created.
+The record the tax authorities want is already being typed, but into chat. Messages like "Sent 400 pieces to Ravi's unit", "120 back today" and "20 rejected" contain the ledger. Accounting packages only start working after someone has keyed these messages in by hand. A chat reader would sit one step earlier, where the data is first created.
 
-### Who is there
+### Who is already there
 
-Plenty of software files the return or prints the challan: Udyog ERP, LOGIC ERP, Vyapar, and an Odoo add-on [S]. A Capterra listing for Kamna, a production tracker for garment job-work houses, says many owners still run lots through paper registers, WhatsApp groups or Excel [S]. That is a vendor's claim, but it matches what we saw in our own brief. In one search we found no product that reads the chat and fills the ledger. That is thin evidence of absence, and Kamna is the first competitor to look at closely.
+Plenty of software can file the return or print the challan, including Udyog ERP, LOGIC ERP, Vyapar and an Odoo add-on [S]. A Capterra listing for Kamna, a production tracker for garment job-work houses, says many owners still track lots in paper registers, WhatsApp groups or Excel [S]. That is a vendor's claim, but it matches what we saw in our own project brief. In one search we did not find any product that reads the chat and fills in the ledger. One search is weak evidence that no such product exists, and Kamna is the first competitor we would look at closely.
 
 ### Implementation
 
 | Step | What to build |
 |---|---|
 | Schema | Challan, job worker, goods, quantity, direction, rejected, date |
-| Check | Quantity against open balance. Python ages each challan and flags those near one year |
-| Approve | Accountant confirms exceptions, not every line |
-| Output | Section 143 register, and an ITC-04 export for the firm's accountant |
+| Check | Compare quantity against the open balance. Python ages each challan and flags those close to one year |
+| Approve | The accountant confirms exceptions, not every line |
+| Output | The register required under section 143 of India's CGST Act, and an ITC-04 export for the firm's accountant |
 
-Effort is the lowest of the three, because the checks are simple arithmetic. Pilot: one Tiruppur or Ludhiana unit with five job workers, one quarter, compared line by line with its filed return. Our cost figures suggest about $0.22 per day at 20 messages. **Stop if** the accountant's line-match rate falls below what they get by hand.
+This is the easiest of the three to build, because the checks are simple arithmetic. For a pilot we would work with one unit in Tiruppur or Ludhiana that uses five job workers, for one quarter, and compare our output line by line with the return it filed. Based on our cost figures, this would cost about $0.22 per day at 20 messages. We would stop if the accountant's line-match rate is lower than what they get by hand.
 
-**Risks.** Tax advice has liability, so this must prepare records for a professional and not file. Filing rules change, and our source is a vendor explainer, so a tax professional must check the current rules first. WhatsApp's API rules also apply, as section 5 covers.
+### Risks
+
+Tax advice carries legal liability, so the tool should prepare records for a tax professional and should never file anything itself. Filing rules change, and our source is a vendor's explainer, so a tax professional needs to check the current rules first. WhatsApp's API rules also apply, as described at the end of section 5.
 
 ## 5. Opportunity 3: trip confirmation for small truck fleets
 
 ### The problem
 
-Redseer puts India at about 12.5 million trucks and 3.5 million operators, with about 75% owning fewer than five, mostly reached through brokers. It reports 24 to 48 hours idle per wait for a load [8]. The channel is telling: Tender Truck reported moving to WhatsApp after drivers would not adopt its app [S].
+Redseer estimates that India has about 12.5 million trucks and 3.5 million operators. About 75% of operators own fewer than five trucks, and most find loads through brokers. Redseer also reports that a truck sits idle for 24 to 48 hours each time it waits for a load [8]. Chat is already the main channel: Tender Truck reported moving to WhatsApp after drivers would not use its app [S].
 
-**Our insight.** Failed logistics startups tried to be the market. Convoy held the risk and the price. Our screen says to do something duller: be the record. A trip message ("loaded", "stuck at the border", "delivered, 2 cartons short") becomes a checked entry against the load. Proof of delivery and payment disputes get easier. No truck, no credit, no price risk.
+Logistics startups that failed in this area tried to run the market themselves. Convoy took on the freight risk and set the price. Our tests point to a duller role: keep the record. A trip message such as "loaded", "stuck at the border" or "delivered, 2 cartons short" becomes a checked entry against the booked load. That makes proof of delivery and payment disputes easier to handle. The business would own no trucks, give no credit and take no price risk.
 
-### Who is there
+### Who is already there
 
-BlackBuck, Vahak and TrucksUp run marketplaces and apps [S]. They are well funded, so this idea is not "nobody is here". The opening is the fleet owner's own record across all brokers, which a single marketplace has no reason to build. **This is the weakest of the three on "few people doing it", and the one to drop first.**
+BlackBuck, Vahak and TrucksUp run freight marketplaces and apps [S]. They are well funded, so this space is not empty. The gap we see is a record that belongs to the fleet owner and covers all of their brokers. A single marketplace has little reason to build that. This opportunity is the weakest of the three on the "few funded players" test, and it is the one we would drop first.
 
 ### Implementation
 
-Schema: load, truck, event, shortage, document photo. Check: against the booking. Approve: the fleet owner confirms disputes. Pilot: ten small fleets, one lane, six weeks, with Hindi and regional voice notes, which our Whisper work has **not** tested on real speakers. **Stop if** drivers will not send one message per trip.
+| Step | What to build |
+|---|---|
+| Schema | Load, truck, event, shortage, document photo |
+| Check | Compare against the booking |
+| Approve | The fleet owner confirms disputes |
+| Pilot | Ten small fleets on one route for six weeks, with voice notes in Hindi and regional languages |
+
+Our Whisper speech-to-text work has not been tested on real speakers of these languages, so the voice part is unproven. We would stop the pilot if drivers will not send one message per trip.
 
 ### A platform risk for all three
 
-Since 15 January 2026, Meta's terms bar AI providers from distributing general-purpose chatbots through the WhatsApp Business API. A business using AI to serve its own customers is not affected [9]. A narrow, schema-bound tool should sit on the right side of that line, but Meta decides at its discretion, and the rule was written for customer service. Get a proper reading before building on it. Telegram, which we used, has no such rule that we found, but we did not measure how many Indian workshops use it. This is our biggest open risk for opportunities 2 and 3.
+Since 15 January 2026, Meta's terms have banned AI providers from offering general-purpose chatbots through the WhatsApp Business API. A business that uses AI to serve its own customers is not affected [9]. A narrow tool that only fills a fixed form should be on the allowed side of that line. However, Meta decides at its own discretion, and the rule was written with customer service in mind, so a proper legal reading is needed before building on WhatsApp. Telegram, which we used in our project, has no such rule as far as we found, but we did not measure how many Indian workshops use it. This is the biggest open risk for opportunities 2 and 3.
 
-## 6. Broader recommendations, and how far to trust this paper
+## 6. Broader recommendations and limits of this paper
 
-**For any firm considering GenAI:**
+### Advice for any firm considering GenAI
 
-1. **Write the simple rule first and measure it.** If a rule ties your model, you have learned where the value is not. We found this cheaply, and it changed our whole product.
-2. **Test keywords written blind.** The gap between rules written with and without sight of the messages shows whether you need a model at all. Regular messages may not need one.
-3. **Let the model read and let code decide.** It costs a cent to read, and the audit trail is what a regulator will ask for.
-4. **Do not hold the risk.** Be the record, not the market.
+1. **Write the simple rule first and measure it.** If a simple rule matches your model, you have learned where the model adds no value. We found this out cheaply, and it changed our whole product.
+2. **Test keyword rules written without looking at the messages.** Compare them with rules written after looking. The gap tells you whether you need a model at all. Regular, predictable messages may not need one.
+3. **Let the model read and let code decide.** Reading costs about a cent per message, and the audit trail this produces is what a regulator will ask for.
+4. **Avoid holding the risk.** Keeping the record is a safer business than running the market.
 
-**Evidence quality.** Sources marked **opened** are pages we opened and checked the stated facts against. **Search summary** means we saw the claim only in a search result, usually because the page refused automated access. A team member should open those pages before relying on them. We did not find, and do not claim: the number of unregistered garment workshops, the share of Indian freight arranged by chat, the CBP's UFLPA totals (its dashboard would not load for us), or current data on Sourcemap and Retraced. Scores in section 2 are our judgement. No customer was interviewed, and that is the first thing to do.
+### How far to trust this paper
+
+Sources marked "Opened" are pages we opened, and we checked the stated facts against them. "Search summary" means we saw the claim only in a search result, usually because the page blocked automated access. A team member should open those pages before anyone relies on them.
+
+We did not find, and do not claim:
+
+- the number of unregistered garment workshops,
+- the share of Indian freight arranged by chat,
+- the totals published by US Customs and Border Protection (CBP) under the Uyghur Forced Labor Prevention Act (UFLPA), because its dashboard would not load for us,
+- current data on Sourcemap and Retraced.
+
+The scores in section 2 are our judgement. We did not interview any customers, and that should be the first next step.
 
 ## Sources
 

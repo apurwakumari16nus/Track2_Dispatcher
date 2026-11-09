@@ -1,6 +1,6 @@
 # Threadline V9, phase 1: visual foundation
 
-> Superseded in part by V10 (`docs/threadline_v10_production.md`): the canvas now covers the
+> Superseded in part by V10 (`docs/archive/web_desk_design/threadline_v10_production.md`): the canvas now covers the
 > whole window with transparent thread layers, and every length scales from one root size.
 
 Phase 1 replaces generated textures with the three approved Threadline background

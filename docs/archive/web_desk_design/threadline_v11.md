@@ -61,7 +61,7 @@ case each without evaluating it.
 
 ## Tracing and performance (section 17)
 
-See `docs/execution_tracing.md`. Audit Trail has a separate **Performance
+See `docs/design/execution_tracing.md`. Audit Trail has a separate **Performance
 diagnostics** view; the decision audit is unchanged.
 
 ## Model comparison

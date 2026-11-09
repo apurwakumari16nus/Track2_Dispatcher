@@ -1,6 +1,6 @@
-"""Build the Group01 submission PDFs and zip from the Markdown sources in this folder.
+"""Build the Group01 submission Word files, PDFs and zip from the Markdown sources in this folder.
 
-    uv run --with pypdf --with reportlab --with matplotlib --with markdown python submission/build.py [Name ...]
+    uv run --with pypdf --with reportlab --with matplotlib --with markdown --with python-docx python submission/build.py [Name ...] [--docx]
     uv run --with pypdf --with reportlab python submission/build.py --zip
 
 Tables and charts are read from eval/ at build time, so a number in a PDF cannot drift from the
@@ -171,7 +171,7 @@ def charts():
     plt.close(fig)
 
 
-def render(name, title):
+def body(name):
     text = (HERE / f"{name}.md").read_text(encoding="utf-8")
     text = (text.replace("{{SIMULATOR}}", simulator_table() if "{{SIMULATOR}}" in text else "")
             .replace("{{READERS}}", reader_table() if "{{READERS}}" in text else "")
@@ -181,7 +181,18 @@ def render(name, title):
             .replace("{{GITHUB}}", GITHUB).replace("{{DEMO_LINK}}", DEMO_LINK))
     import markdown
     text = re.sub(r'<div class="(small|failure)">', r'<div class="\1" markdown="1">', text)
-    html_body = markdown.markdown(text, extensions=["tables", "fenced_code", "md_in_html", "sane_lists"])
+    html = markdown.markdown(text, extensions=["tables", "fenced_code", "md_in_html", "sane_lists"])
+
+    def figure(match):
+        alt = re.search(r'alt="([^"]*)"', match.group(1))
+        text = match.group(2) or (alt.group(1) if alt else "")
+        caption = f"<figcaption>{text}</figcaption>" if text else ""
+        return f"<figure>{match.group(1)}{caption}</figure>"
+    return re.sub(r"(?:<p>\s*)?(<img[^>]*>)(?:\s*</p>)?(?:\s*<p class=\"fig\">(.*?)</p>)?", figure, html, flags=re.S)
+
+
+def render(name, title):
+    html_body = body(name)
     css = (HERE / "style.css").read_text(encoding="utf-8").replace("{{FONTS}}", (ROOT / "src/static/fonts").as_uri())
     page = HERE / f".{name}.html"
     page.write_text(f"<!doctype html><html lang='en'><head><meta charset='utf-8'><title>{title}</title><base href='{HERE.as_uri()}/'><style>{css}</style></head><body>{html_body}</body></html>", encoding="utf-8")
@@ -213,6 +224,238 @@ def stamp(source, target, title):
     return total
 
 
+def word(name, title):
+    """The same document as an editable Word file, built from the same HTML as the PDF."""
+    from docx import Document
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Cm, Pt, RGBColor
+    from lxml import html as lxml_html
+
+    def rgb(hex_colour):
+        return RGBColor.from_string(hex_colour.lstrip("#"))
+
+    def shade(cell, fill):
+        props = cell._tc.get_or_add_tcPr()
+        node = OxmlElement("w:shd")
+        node.set(qn("w:val"), "clear"), node.set(qn("w:fill"), fill.lstrip("#"))
+        props.append(node)
+
+    def soften(grid):
+        props = grid._tbl.tblPr
+        borders = OxmlElement("w:tblBorders")
+        for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            line = OxmlElement(f"w:{edge}")
+            line.set(qn("w:val"), "none" if edge in ("left", "right", "insideV") else "single")
+            line.set(qn("w:sz"), "4"), line.set(qn("w:color"), "D5DCE4")
+            borders.append(line)
+        props.append(borders)
+        margins = OxmlElement("w:tblCellMar")
+        for edge, twips in (("top", 45), ("bottom", 45), ("left", 90), ("right", 90)):
+            node = OxmlElement(f"w:{edge}")
+            node.set(qn("w:w"), str(twips)), node.set(qn("w:type"), "dxa")
+            margins.append(node)
+        props.append(margins)
+
+    def field(paragraph, code):
+        run = paragraph.add_run()
+        for kind, text in (("begin", None), (None, code), ("end", None)):
+            if kind:
+                node = OxmlElement("w:fldChar")
+                node.set(qn("w:fldCharType"), kind)
+            else:
+                node = OxmlElement("w:instrText")
+                node.set(qn("xml:space"), "preserve")
+                node.text = text
+            run._r.append(node)
+        run.font.size, run.font.color.rgb = Pt(7.5), rgb(MUTED)
+
+    doc = Document()
+    section = doc.sections[0]
+    section.page_width, section.page_height = Cm(21), Cm(29.7)
+    section.left_margin = section.right_margin = Cm(2)
+    section.top_margin, section.bottom_margin = Cm(1.8), Cm(1.8)
+    styles = doc.styles
+    styles["Normal"].font.name, styles["Normal"].font.size = "Arial", Pt(10.5)
+    styles["Normal"].paragraph_format.space_after = Pt(6)
+    styles["Normal"].paragraph_format.line_spacing = 1.15
+    for level, size, colour in ((1, 22, INK), (2, 14, INK), (3, 11, "#3A4757")):
+        style = styles[f"Heading {level}"]
+        style.font.name, style.font.size, style.font.bold, style.font.color.rgb = "Arial", Pt(size), True, rgb(colour)
+        for attribute in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+            style.element.rPr.rFonts.attrib.pop(qn(attribute), None)
+        style.paragraph_format.space_before, style.paragraph_format.space_after = Pt(14 if level < 3 else 9), Pt(4)
+    styles["Footer"].font.size, styles["Footer"].font.color.rgb = Pt(7.5), rgb(MUTED)
+    footer = section.footer.paragraphs[0]
+    run = footer.add_run(f"Group 01  Threadline  {title}    Page ")
+    run.font.size, run.font.color.rgb = Pt(7.5), rgb(MUTED)
+    field(footer, "PAGE")
+    footer.add_run(" of ").font.size = Pt(7.5)
+    field(footer, "NUMPAGES")
+
+    def inline(paragraph, node, bold=False, italic=False, code=False, size=None):
+        if node.text:
+            put(paragraph, node.text, bold, italic, code, size)
+        for child in node:
+            tag = child.tag if isinstance(child.tag, str) else ""
+            if tag == "br":
+                paragraph.add_run().add_break()
+            elif tag == "img":
+                picture(paragraph, child)
+            else:
+                inline(paragraph, child, bold or tag in ("strong", "b", "th"), italic or tag in ("em", "i"), code or tag == "code", size)
+            if child.tail:
+                put(paragraph, child.tail, bold, italic, code, size)
+
+    def put(paragraph, text, bold, italic, code, size):
+        text = re.sub(r"\s+", " ", text)
+        if not text.strip() and not paragraph.runs:
+            return
+        run = paragraph.add_run(text)
+        run.bold, run.italic = bold, italic
+        if code:
+            run.font.name, run.font.color.rgb = "Menlo", rgb(INK)
+            run.font.size = Pt((size or 10) - 1)
+        elif size:
+            run.font.size = Pt(size)
+
+    def picture(paragraph, node):
+        from PIL import Image
+        path = (HERE / node.get("src")).resolve()
+        width, height = Image.open(path).size
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.keep_with_next = True
+        paragraph.add_run().add_picture(str(path), width=Cm(min(16.5, 11.5 * width / height)))
+
+    def table(container, node, size):
+        rows_ = node.xpath(".//tr")
+        width = max(len(r.xpath("./th|./td")) for r in rows_)
+        grid = container.add_table(rows=len(rows_), cols=width)
+        grid.style, grid.alignment = "Table Grid", WD_TABLE_ALIGNMENT.CENTER
+        soften(grid)
+        for i, row in enumerate(rows_):
+            for j, cell_node in enumerate(row.xpath("./th|./td")):
+                cell = grid.cell(i, j)
+                paragraph = cell.paragraphs[0]
+                paragraph.paragraph_format.space_after = Pt(0)
+                if "right" in (cell_node.get("style") or "") or cell_node.get("align") == "right":
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                inline(paragraph, cell_node, bold=cell_node.tag == "th", size=size)
+                if cell_node.tag == "th":
+                    shade(cell, "#F0F3F6")
+        weights = [4 + min(40, max(9, *(len(r.xpath("./th|./td")[j].text_content()) if j < len(r.xpath("./th|./td")) else 0 for r in rows_)))
+                   for j in range(width)]
+        floors = [.35 + .2 * max((len(word) for r in rows_ if j < len(r.xpath("./th|./td"))
+                                  for word in r.xpath("./th|./td")[j].text_content().split()), default=1) for j in range(width)]
+        sizes = [max(floor, 17 * share / sum(weights)) for floor, share in zip(floors, weights)]
+        give = [size - floor for size, floor in zip(sizes, floors)]
+        excess = sum(sizes) - 17
+        if excess > 0 and sum(give):
+            sizes = [size - excess * g / sum(give) for size, g in zip(sizes, give)]
+        grid.autofit = False
+        for j, size in enumerate(sizes):
+            grid.columns[j].width = Cm(size)
+            for cell in grid.columns[j].cells:
+                cell.width = Cm(size)
+        if rows_ and rows_[0].xpath("./th"):
+            node_ = OxmlElement("w:tblHeader")
+            node_.set(qn("w:val"), "true")
+            grid.rows[0]._tr.get_or_add_trPr().append(node_)
+        container.add_paragraph().paragraph_format.space_after = Pt(2)
+
+    def block(container, node, size=None, list_style=None):
+        for child in node:
+            tag = child.tag if isinstance(child.tag, str) else ""
+            if tag in ("h1", "h2", "h3", "h4"):
+                inline(container.add_paragraph(style=f"Heading {min(int(tag[1]), 3)}"), child)
+            elif tag == "p":
+                paragraph = container.add_paragraph(style=list_style) if list_style else container.add_paragraph()
+                inline(paragraph, child, size=8.5 if child.get("class") == "fig" else size)
+                if child.get("class") == "fig":
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    for run in paragraph.runs:
+                        run.font.color.rgb = rgb(MUTED)
+                if node.tag == "body" and child.getprevious() is not None and child.getprevious().tag == "h1":
+                    for run in paragraph.runs:
+                        run.font.color.rgb = rgb(MUTED)
+            elif tag in ("ul", "ol"):
+                for item in child.xpath("./li"):
+                    style = "List Bullet" if tag == "ul" else "List Number"
+                    if item.xpath("./p|./ul|./ol"):
+                        block(container, item, size, style)
+                    else:
+                        inline(container.add_paragraph(style=style), item, size=size)
+            elif tag == "table":
+                table(container, child, size or 8.5)
+            elif tag == "pre":
+                paragraph = container.add_paragraph()
+                paragraph.paragraph_format.left_indent = Cm(.4)
+                for k, line in enumerate(child.text_content().rstrip("\n").split("\n")):
+                    if k:
+                        paragraph.add_run().add_break()
+                    run = paragraph.add_run(line)
+                    run.font.name, run.font.size = "Menlo", Pt(8.5)
+            elif tag == "div" and child.find(".//svg") is not None:
+                drawing = child.find(".//svg")
+                _, _, width, height = (float(v) for v in drawing.get("viewbox", drawing.get("viewBox")).split())
+                page = HERE / f".{name}.svg.html"
+                shot = HERE / f".{name}.svg.png"
+                page.write_text("<html><body style='margin:0;background:#fff'>" + lxml_html.tostring(drawing, encoding="unicode")
+                                .replace("<svg", "<svg style='width:1600px;height:auto;display:block'", 1) + "</body></html>", encoding="utf-8")
+                subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--screenshot={shot}",
+                                f"--window-size=1600,{round(1600 * height / width)}", page.as_uri()], capture_output=True, check=True, timeout=120)
+                paragraph = container.add_paragraph()
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                paragraph.add_run().add_picture(str(shot), width=Cm(16.5))
+                page.unlink(), shot.unlink()
+            elif tag == "div" and child.get("class") == "key":
+                items = child.xpath("./div")
+                strip = container.add_table(rows=1, cols=len(items))
+                strip.style = "Table Grid"
+                for cell, item in zip(strip.rows[0].cells, items):
+                    shade(cell, "#EEF4FC")
+                    figure = item.find("b")
+                    run = cell.paragraphs[0].add_run(figure.text_content())
+                    run.bold, run.font.size, run.font.color.rgb = True, Pt(13), rgb(COBALT)
+                    note = cell.add_paragraph((figure.tail or "").strip())
+                    note.runs[0].font.size = Pt(8)
+                container.add_paragraph().paragraph_format.space_after = Pt(2)
+            elif tag == "div" and child.get("class") == "note":
+                box = container.add_table(rows=1, cols=1)
+                box.style = "Table Grid"
+                cell = box.cell(0, 0)
+                shade(cell, "#F4F1EA")
+                first = cell.paragraphs[0]
+                if len(child) == 0 or all(c.tag not in ("p", "ul", "ol", "table", "h3") for c in child):
+                    inline(first, child, size=9.5)
+                else:
+                    block(cell, child, 9.5)
+                    if not first.text:
+                        first._p.getparent().remove(first._p)
+                container.add_paragraph().paragraph_format.space_after = Pt(2)
+            elif tag in ("div", "blockquote", "li"):
+                block(container, child, 8.5 if child.get("class") == "small" else size, list_style)
+            elif tag == "figure":
+                picture(container.add_paragraph(), child.find("img"))
+                caption = child.find("figcaption")
+                if caption is not None:
+                    line = container.add_paragraph()
+                    line.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = line.add_run(caption.text_content())
+                    run.font.size, run.font.color.rgb = Pt(8.5), rgb(MUTED)
+            elif tag == "img":
+                picture(container.add_paragraph(), child)
+            elif tag == "hr":
+                container.add_paragraph()
+
+    tree = lxml_html.fromstring(f"<html><body>{body(name)}</body></html>")
+    block(doc, tree.find("body"))
+    doc.core_properties.title, doc.core_properties.author = f"Group 01 Threadline: {title}", "DSS5105 Group 01"
+    doc.save(OUT / f"{name}.docx")
+
+
 def assemble():
     wanted = ["Readme.pdf", "Slide.pptx", "Video.mp4", "Documentation.pdf", "Evaluation.pdf", "Teams.pdf", "Strategic_Recommendations.pdf"]
     if (ROOT / "Presentation_Group01.pptx").exists():
@@ -235,6 +478,10 @@ def main():
     if "Evaluation" in chosen:
         charts()
     for name in chosen:
+        word(name, DOCS[name])
+        print(f"{name}.docx")
+        if "--docx" in sys.argv:
+            continue
         pages, raw, page = render(name, DOCS[name])
         raw.unlink()
         page.unlink()

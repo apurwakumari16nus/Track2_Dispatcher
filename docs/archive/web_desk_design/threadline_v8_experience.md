@@ -1,6 +1,6 @@
 # Threadline V8: product experience
 
-> Superseded in part by V9 (`docs/threadline_v9_materials.md`): the generated fold line
+> Superseded in part by V9 (`docs/archive/web_desk_design/threadline_v9_materials.md`): the generated fold line
 > art was replaced by the three approved background assets.
 
 V8 builds on V7's design system (`src/ui/threadline.css` over the structural
