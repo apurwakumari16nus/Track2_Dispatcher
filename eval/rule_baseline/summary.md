@@ -17,3 +17,8 @@ Same labels, same reference allocator. keywords_seen is an upper bound: its auth
 | redteam | keywords_seen | 9/16 | 9/16 |
 | redteam | keywords_blind | 8/16 | 8/16 |
 | redteam | Sonnet 5.5 with guards | 16/16 | 13/16 |
+
+| round2 | id_only | 20/34 | 17/34 |
+| round2 | keywords_seen | 25/34 | 24/34 |
+| round2 | keywords_blind | 16/34 | 14/34 |
+| round2 | Sonnet 5.5 with guards | 33/34 | 32/34 |

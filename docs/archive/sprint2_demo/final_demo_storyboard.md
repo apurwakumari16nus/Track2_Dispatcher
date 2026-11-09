@@ -3,7 +3,7 @@
 One take, one request (R09), recorded at 1920 × 1080. Every control named below
 exists in the app; every number shown is produced by the app at recording time.
 The path was run end to end with Playwright on 23 October 2026 at 1920 × 1080 and
-1440 × 900 (screenshots in `docs/final_demo_screens/`).
+1440 × 900 (screenshots in `docs/archive/sprint2_demo/final_demo_screens/`).
 
 The eight-step **Guided demo** stays in the app for people exploring it. It is not
 used for the recording: its coach panel covers part of the screen and its reading

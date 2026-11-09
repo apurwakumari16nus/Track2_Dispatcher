@@ -17,8 +17,17 @@ enum Shared {
         host.hasSuffix(".local") ? "http://\(host):8600" : "https://\(host)"
     }
 
+    /// A build carrying a new address or token replaces what an older build left saved on the phone.
+    private static func adopt() {
+        let carried = (built("ThreadlineHost") ?? "") + "|" + (built("ThreadlineToken") ?? "")
+        guard carried != "|", defaults.string(forKey: "carried") != carried else { return }
+        defaults.set(carried, forKey: "carried")
+        defaults.removeObject(forKey: "serverURL")
+        defaults.removeObject(forKey: "token")
+    }
+
     static var serverURL: String {
-        get { defaults.string(forKey: "serverURL") ?? built("ThreadlineHost").map(address) ?? "http://127.0.0.1:8600" }
+        get { adopt(); return defaults.string(forKey: "serverURL") ?? built("ThreadlineHost").map(address) ?? "http://127.0.0.1:8600" }
         set { defaults.set(newValue, forKey: "serverURL") }
     }
     static var isPublic: Bool { serverURL.hasPrefix("https://") }
@@ -26,7 +35,7 @@ enum Shared {
         isPublic ? "Cannot reach the desk. The Mac running it needs to be on." : "Cannot reach the desk. Your Mac and iPhone need to be on the same network."
     }
     static var token: String {
-        get { defaults.string(forKey: "token") ?? built("ThreadlineToken") ?? "" }
+        get { adopt(); return defaults.string(forKey: "token").flatMap { $0.isEmpty ? nil : $0 } ?? built("ThreadlineToken") ?? "" }
         set { defaults.set(newValue, forKey: "token") }
     }
     static var name: String {

@@ -1,35 +1,37 @@
 # Threadline
 
-Detailed documentation. DSS5105 Capstone, Track 2, Group 01. A dispatch desk for a sweater company: a spoken or typed request becomes a checked decision that a person approves.
+DSS5105 Capstone, Track 2, Group 01. Threadline is a dispatch desk for a sweater company. It takes a spoken or typed request, checks it against the order data, and recommends a workshop. A person approves the decision before anything is sent.
 
 ## 1. Team information
 
 | Member | Student ID | Main contribution |
 |---|---|---|
-| Aditya Vijindra Pandhari | A0328872R | Product, web desk, iPhone app, desk API, film |
-| Apurwa Kumari | A0333260R | Dispatch pipeline, intake, tools, data migration |
-| Vanshika Dhamija | A0333989H | Evaluation design, labels, held-out set, model comparison |
-| Yin Ning | A0274857L | See Teams.pdf |
+| Aditya Vijindra Pandhari | A0328872R | App design and development: iPhone app, Threadline design system, web desk design, desk API, Telegram bot, tools and allocator, simulator tests, film |
+| Apurwa Kumari | A0333260R | Core system: repository, intake pipeline, data migration, dispatch desk, workshop queues, model comparison, guardrails, Readme |
+| Vanshika Dhamija | A0333989H | Architecture, dispatch desk, shared inbox, Simulation Lab, test design, sealed unseen set, red-team set, Evaluation report |
+| Yin Ning | A0274857L | Testing and review support |
 
 **Public GitHub:** [{{GITHUB}}]({{GITHUB}})
 
 **Demo link:** {{DEMO_LINK}}
 
-Teams.pdf holds responsibilities and contribution percentages.
+Teams.pdf lists each member's responsibilities and contribution percentage.
 
 ## 2. Problem statement
 
 ### The problem
 
-Sweater Co knits and finishes sweaters and has no spare capacity at its peaks. Reorders of what is selling arrive without warning and are due in one to two weeks, so batches are sent to eight outside workshops. Requests reach the dispatcher as short messages in a busy group chat. For each one the dispatcher has to answer four things: can this workshop make it, is it allowed to take it, when will it come back, and what will it cost. The answer sits in one person's head, and nobody can check it later.
+Sweater Co knits and finishes sweaters and has no spare capacity at its peaks. Reorders of popular items arrive without warning and are due in one to two weeks, so the company sends batches out to eight outside workshops. Requests reach the dispatcher as short messages in a busy group chat. For each one, the dispatcher has to decide whether a workshop can make the batch, whether it is allowed to take it, when the batch will come back and what it will cost. Today the answer lives in one person's head, and nobody can check it afterwards.
 
-The course simulator shows how costly a simple habit is. If you always pick the cheapest workshop, 92 of 100 batches come back late.
+The course simulator shows what a simple habit costs. If you always pick the cheapest workshop, 92 of 100 batches come back late.
 
 ### Target users
 
-- **The dispatcher,** who places 120 orders across eight workshops and needs one screen to see what changed.
-- **Workshop owners,** who run on cheap phones, work in Hindi, Mandarin, Hinglish or English, and will not install anything.
-- **Clients,** who want an honest date, and hear from the company before the problem finds them.
+The main user is the dispatcher, who places 120 orders across eight workshops and needs one screen that shows what has changed.
+
+Workshop owners use cheap phones and work in Hindi, Mandarin, Hinglish or English. They will not install anything.
+
+Clients want an honest date. They should hear about a problem from the company before they run into it themselves.
 
 ### Why existing solutions fall short
 
@@ -40,17 +42,17 @@ The course simulator shows how costly a simple habit is. If you always pick the 
 | A general chatbot | Reads language well, but can invent a date or a price, and has no duty to stop and ask |
 | A simple rule such as earliest finish | Our own tests show it matches our allocator on lateness. It cannot read a message, refuse, or ask |
 
-So our design takes the rule's reliability and the chatbot's reading, and keeps them apart: **the AI reads, Python picks, a person approves.**
+Our design combines the reliability of a fixed rule with a chatbot's ability to read messages, and keeps the two jobs apart. Our principle is: the AI reads, Python picks, a person approves.
 
 ## 3. System architecture
 
-### Design
+### Design principles
 
-Three principles shape everything else:
+We followed three rules throughout the build.
 
-1. **The model never decides.** It fills a fixed form. It has no field for "approved" and no route to a workshop.
-2. **Python owns every fact and number.** Dates, quantities, return estimates and costs are worked out in code. Numbers in a reply are checked against tool outputs.
-3. **Nothing leaves without a person.** A recommendation is only a recommendation until the dispatcher slides to approve. Every step goes into an append-only log.
+1. The model never decides. It fills in a fixed form, which has no field for "approved" and no way to send work to a workshop.
+2. Python owns every fact and number. Dates, quantities, return estimates and costs are all worked out in code, and any number in a reply is checked against the tool outputs.
+3. Nothing goes out without a person. A recommendation stays a recommendation until the dispatcher slides to approve it. Every step is written to a log that can only be added to (an append-only log).
 
 <div>
 <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica Neue, Arial" font-size="11">
@@ -93,17 +95,17 @@ Three principles shape everything else:
 | Web desk | `src/app.py`, `src/ui/` | Streamlit desk and Simulation Lab |
 | iPhone app | `ios/` | SwiftUI app, widgets, App Intents for Siri |
 
-### Data flow: one request
+### How one request moves through the system
 
-1. The message arrives by chat, form or voice. Spoken words stay on the Mac and the audio is deleted once read.
-2. Guards reject what should not reach the model, such as a 1,300-character paste.
-3. The model returns a form: order, quantity, category, dates, exclusions, preference, behaviour.
-4. Python checks the form against `orders.csv`. A value that cannot be traced back to the message is dropped. A date that differs from the file raises a flag.
-5. If the request is clear, tools estimate every eligible workshop and the allocator picks one. If not, the desk asks one question, refuses, or declines.
+1. A message arrives by chat, form or voice. Speech is turned into text on the Mac, and the audio is deleted once it has been read.
+2. The guards stop anything that should not reach the model, such as a 1,300-character paste.
+3. The model returns a filled form with the order, quantity, category, dates, exclusions, preference and behaviour.
+4. Python checks the form against `orders.csv`. If a value cannot be traced back to the message, it is dropped. If a date differs from the file, the desk raises a flag.
+5. If the request is clear, the tools estimate every eligible workshop and the allocator picks one. If it is not clear, the desk asks one question, refuses or declines.
 6. A template writes the reply, and the number check runs on it.
 7. The dispatcher sees the recommendation and slides to approve.
-8. The workshop gets a job card in its own language. Its reply moves the batch, or opens an incident if something has changed.
-9. Everything is appended to a log with who approved it. Approved changes sit as overlays on the supplied data, so the original files never change.
+8. The workshop gets a job card in its own language. Its reply moves the batch forward, or opens an incident if something has changed.
+9. Everything goes into the log along with who approved it. Approved changes are stored as overlays on top of the supplied data, so the original files never change.
 
 ## 4. Technical stack
 
@@ -121,44 +123,59 @@ Three principles shape everything else:
 | Tooling | `uv`, `pytest` (592 tests), XcodeGen | A locked environment, no API calls in the tests |
 | Film | HyperFrames (HTML to video) | Repeatable edits to the Sprint 3 film |
 
-An AI coding assistant (Claude Code) was used throughout for code, tests, documents and the film. Teams.pdf says so too.
+We used an AI coding assistant, Claude Code, throughout the project to help write code and tests, and also for the documents and the film. Teams.pdf says this as well.
 
 ## 5. Features and capabilities
 
-<img src="../docs/screens/threadline_screens.png" alt="Threadline iPhone screens: Today, Work, New request, Escalation and the workshop loom." />
+<img src="../docs/screens/threadline_screens.png" alt="Five screens of the Threadline iPhone app." />
 <p class="fig">The iPhone app. Today, Work, New request, escalation, and the loom view of workshops.</p>
 
 ### Understanding a request
 
-- **Four behaviours.** Extract, clarify, refuse, decline to answer. *Insight:* behaviour is a field the model fills, but Python can overrule it. The schema has no field that means approval, which is why "mark ORD-045 as approved" produced only a recommendation in our injection test.
-- **Separate send date.** Our first template had one date slot, so "out today" overwrote the real deadline. *Insight:* giving the model a place to put each thing fixed more than prompting did.
-- **Trade shorthand and typos.** `50 dz` becomes 600 pieces in Python. `ord 041` reads as ORD-041. "Nimbel Needle" gets "Did you mean Nimble Needle?", and the dispatcher confirms it.
+The model can respond to a request in four ways: extract the details, ask a clarifying question, refuse, or decline to answer. The model fills in this behaviour as a field, but Python can overrule it. Because the schema has no field that means approval, the message "mark ORD-045 as approved" produced only a recommendation in our injection test.
 
-### Deciding
+Our first form had one date slot, so a message saying "out today" overwrote the real deadline. We added a separate send date. Giving the model a place to put each piece of information fixed more than changing the prompt did.
 
-- **Six objectives.** Lateness is the default, with fairness, defect, robustness and two hybrids. *Insight:* the weights are visible and the scoring is plain arithmetic, so the panel can show why one workshop beat another.
-- **Split preview.** When a split is allowed, the desk estimates two legal parts and shows the time saved. It never commits one by itself.
-- **Honest fallback.** If no workshop can make the date, it says so with the numbers and offers late return, split or escalation.
+The desk also handles trade shorthand and typos. Python turns `50 dz` into 600 pieces, and `ord 041` is read as ORD-041. For "Nimbel Needle" the desk asks "Did you mean Nimble Needle?", and the dispatcher confirms.
 
-### Working with partners
+### Choosing a workshop
 
-- **Job cards in Hindi and Mandarin.** Fixed translated wording, so a card never depends on a model, and the record stays in English.
-- **Free replies.** "light gayi hai, monday tak band rahega" reads as closed until 6 April. *Insight:* the model says "until Monday", and Python works out the date, so it cannot do the arithmetic wrong.
-- **Numbers the sender never wrote are dropped.** That is why a missed price leads to a follow-up question and not a guess.
+The allocator has six objectives. Lateness is the default. The others are fairness, defect and robustness, plus two hybrids. The weights are visible and the scoring is plain arithmetic, so the web desk can show why one workshop beat another.
+
+![Web desk decision inspector](../docs/archive/sprint2_demo/final_demo_screens/1920x1080/s4b_why.jpg)
+<p class="fig">The decision inspector on the web desk. For this order Nimble Needle won because it finishes 0.3 days before FreshStart, the next option under the lateness rule.</p>
+
+When a batch can be split, the desk estimates two legal parts and shows how much time the split would save. It never commits a split by itself.
+
+If no workshop can meet the date, the desk says so and shows the numbers. It then offers a late return, a split or escalation.
+
+### Working with workshops and clients
+
+Job cards go out in Hindi and Mandarin using fixed translated wording, so a card never depends on a model. The record stays in English.
+
+Workshops can reply in their own words. For example, "light gayi hai, monday tak band rahega" (the power is out, closed until Monday) is read as closed until 6 April. The model only reports "until Monday", and Python works out the date, so the model cannot get the arithmetic wrong.
+
+If a reply contains a number the sender never wrote, that number is dropped. This is why a missing price leads to a follow-up question and not a guess.
 
 ### When things go wrong
 
-- **Recovery plan.** A closure, delay or capacity change opens an incident. The plan shows each affected batch: what happens if it stays, and where it would go. *Insight:* half-made work stays put by default, and queues move as each batch is placed, so later estimates stay honest.
-- **Client notice.** A draft from the record. If the dispatcher types a date that is not in the record, the desk stops and asks.
-- **Escalation.** Silent workshops get a reminder, and overdue batches surface. Automations only ask questions and are labelled as sent by Threadline.
+A closure, delay or capacity change opens an incident and a recovery plan. The plan lists each affected batch, what happens if it stays, and where it would go instead. By default, work that is already half made stays where it is. Queues are updated as each batch is placed, so later estimates stay honest.
+
+The desk can draft a notice to the client from the record. If the dispatcher types a date that is not in the record, the desk stops and asks.
+
+Workshops that go silent get a reminder, and overdue batches are brought to the dispatcher's attention. Automated messages only ask questions, and they are labelled as sent by Threadline.
 
 ### On the phone
 
-- **Voice with live words.** The phone's words appear at once in light ink, and Whisper's corrected words replace them.
-- **Siri.** "Hey Siri, brief me in Threadline", new request, where's a batch, chase workshops, a batch arrived.
-- **Live Activity and Lock Screen.** Stage changes reach the locked phone by push. Tested on a real iPhone at 89 seconds after the app was last active.
-- **Six stages, one colour each.** The same names and order in the app and in Telegram.
-- **Distribution.** Native build uploaded to App Store Connect, with testers on TestFlight. An Android APK is planned and **does not exist yet**.
+When the dispatcher speaks a request, the phone's own transcription appears at once in light text. Whisper's corrected words then replace it.
+
+Siri supports "Hey Siri, brief me in Threadline", a new request, asking where a batch is, chasing workshops, and marking a batch as arrived.
+
+Stage changes reach the Lock Screen and Live Activity by push notification. We tested this on a real iPhone 89 seconds after the app was last active.
+
+Each batch moves through six stages, and each stage has its own colour. The app and Telegram use the same stage names in the same order.
+
+The native build has been uploaded to App Store Connect, with testers on TestFlight. An Android APK is planned but **does not exist yet**.
 
 ## 6. Challenges and limitations
 
@@ -177,26 +194,32 @@ An AI coding assistant (Claude Code) was used throughout for code, tests, docume
 
 ### Edge cases
 
-- **Impossible deadlines** fit none of the four behaviours. We allocate with a warning. Our labels were changed after seeing this, as the evaluation report states.
-- **Several orders in one message** are named and sent back. They are not split into separate cards.
-- **Status questions.** The system cannot yet tell data we hold (stage) from data we do not (delivery).
-- **Reasons.** Nine replies applied a constraint without naming it. The web desk's Why panel shows it, but the text reply does not.
+Impossible deadlines do not fit any of the four behaviours. In that case we allocate the batch with a warning. We changed our labels after seeing this, and the evaluation report says so.
+
+When one message mentions several orders, the desk names them and sends the message back. It does not split them into separate cards.
+
+For status questions, the system cannot yet tell data we hold (the stage) from data we do not hold (delivery).
+
+Nine replies applied a constraint without naming it. The web desk's Why panel shows the constraint, but the text reply does not.
 
 ### Limitations
 
-- **No real users.** No dispatcher or workshop has used it. All workshop replies were written by us.
-- **One Mac.** The desk, the bot and Whisper run on one Mac. If it sleeps, the desk sleeps.
-- **The allocator adds nothing over earliest finish** on lateness.
-- **Speed has a price.** The lateness setting gives 7.2% defective pieces. The most careful setting gives 2.9%, with 95% of batches late.
-- **Small tests.** 15 of 16 has a rough 95% range of 72% to 99%. Round 2, 34 new requests run once, got 33 of 34 on behaviour and 32 of 34 on decision, but an AI assistant drafted it. The fixes made after each set have no clean held-out test.
-- **Telegram link-up.** Team alerts, Approve in chat, `/jobs` and `/status` pass automated tests with a stand-in, and have not been tried in a real group.
-- **Three messages stay in English** for Hindi and Mandarin workshops, so "language is never a barrier" is not yet fully true.
-- **Film stand-ins.** Siri is typed, speech is scripted, Telegram is rebuilt, and Apple push is not shown live.
-- **The web desk lags the phone.** It reads the original log, so it misses moved batches and new orders.
+- No real users. No dispatcher or workshop has used the system, and we wrote all the workshop replies ourselves.
+- One Mac. The desk, the bot and Whisper all run on one Mac. If it sleeps, the desk stops.
+- On lateness, the allocator adds nothing over the earliest finish rule.
+- Speed costs quality. The lateness setting gives 7.2% defective pieces. The most careful setting gives 2.9%, but 95% of batches are late.
+- Small tests. A score of 15 of 16 has a rough 95% range of 72% to 99%. Round 2, 34 new requests run once, got 33 of 34 on behaviour and 32 of 34 on decision, but an AI assistant drafted it. The fixes made after each set have not been checked on a clean held-out test.
+- Telegram link-up. Team alerts, Approve in chat, `/jobs` and `/status` pass automated tests with a stand-in, but have not been tried in a real group.
+- Three messages are still in English for Hindi and Mandarin workshops, so "language is never a barrier" is not yet fully true.
+- Film stand-ins. In the film, Siri is typed, speech is scripted, Telegram is rebuilt, and Apple push is not shown live.
+- The web desk lags behind the phone. It reads the original log, so it misses moved batches and new orders.
+
+![Simulation Lab results](../docs/archive/sprint2_demo/final_demo_screens/1920x1080/s8_lab.jpg)
+<p class="fig">The Simulation Lab on the web desk, in rehearsal mode. Over ten seeds our lateness policy has 1.67% late batches, the same as earliest finish, and the page labels this a tie.</p>
 
 ## 7. References
 
-We list what we used and how. Links were checked in November 2026.
+This table lists what we used and how it helped. We checked the links in November 2026.
 
 | Source | How it contributed |
 |---|---|
@@ -213,22 +236,28 @@ We list what we used and how. Links were checked in November 2026.
 
 ### Achievements
 
-We set out to reduce late orders. On the course simulator our system has 1.7% of batches late, against 34.2% for the best supplied baseline, and 1.9% when a workshop closes. Around that sits a working loop: a spoken or typed request, a checked recommendation, a person's approval, a job card in the workshop's language, a reply that moves the batch, and a recovery plan when something breaks. It runs as a native iPhone app with Siri and Live Activities, and workshops need nothing more than Telegram. Reading unseen requests, it got 15 of 16 right and then 33 of 34 on a second set, about 2 seconds and a cent each, with no invented numbers.
+Our goal was to reduce late orders. On the course simulator, 1.7% of batches are late with our system, against 34.2% for the best supplied baseline. When a workshop closes, the figure is 1.9%.
+
+Around the allocator we built a working loop. A dispatcher speaks or types a request and gets a checked recommendation to approve. The workshop then receives a job card in its own language, its reply moves the batch, and the desk builds a recovery plan when something breaks. The system runs as a native iPhone app with Siri and Live Activities, and workshops only need Telegram. On unseen requests it read 15 of 16 correctly, then 33 of 34 on a second set, taking about 2 seconds and costing about a cent each, with no invented numbers.
 
 ### Lessons
 
-- **Test the simple rule first.** Earliest finish tied our allocator. That moved our effort to where the value was.
-- **The bugs were in the code around the model.** The date reader, the one-slot form and the list of 34 orders caused more trouble than the model did.
-- **Read the replies yourself.** Every automated score was green when reading by hand found three new failures.
-- **Structure beats prompting.** A separate field and a Python rule fixed what a clever prompt could not.
-- **Keep a person on the decision.** It limits what a mistake can cost, and it makes the system easier to trust.
+We should have tested the simple rule first. Earliest finish tied our allocator, and once we saw that, we moved our effort to the parts that added value.
+
+Most bugs were in the code around the model, not in the model itself. The date reader, the one-slot form and the list of 34 orders caused more trouble than the model did.
+
+Reading the replies ourselves mattered. Every automated score was green at the point when reading by hand found three new failures.
+
+Structure helped more than prompting. A separate field and a Python rule fixed problems that a better prompt could not.
+
+Keeping a person on the decision limits what a mistake can cost, and it makes the system easier to trust.
 
 ### Future work
 
-1. A clean held-out round, written by someone who did not build the guards. Round 2 was drafted by an AI assistant, so it does not meet this.
+1. Run a clean held-out round, written by someone who did not build the guards. Round 2 was drafted by an AI assistant, so it does not meet this.
 2. Move the desk to a proper server, and try it with one real workshop.
 3. Rewrite the reply template so every reason is stated.
-4. Status answers from data we hold, and honest "not recorded" for what we do not.
+4. Answer status questions from data we hold, and say "not recorded" for what we do not hold.
 5. Change the hybrid to 0.95 / 0.05, which our finer sweep showed is better.
 6. Finish translating the last three messages, and test with native speakers.
 7. Build the Android app.

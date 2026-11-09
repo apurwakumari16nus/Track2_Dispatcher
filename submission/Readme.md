@@ -1,6 +1,6 @@
 # Readme
 
-Threadline, Group 01, Track 2. How to set it up and run it locally.
+Threadline, Group 01, Track 2. This page shows how to install Threadline on your own computer and check that it works. The quickest check needs no API key and takes about two minutes.
 
 Code: [{{GITHUB}}]({{GITHUB}})
 
@@ -64,7 +64,9 @@ You should see 592 tests pass. `/tmp/threadline_sim/results.csv` should match `e
 uv run streamlit run src/app.py
 ```
 
-Open http://localhost:8501. Keep the date at **01/04/2026** and the objective at **Minimise lateness**, pick request R09, and evaluate it. You should get Nimble Needle, back 4 April, five days to spare, cost 180. **Confirm** writes one line to the local log. Nothing goes to any workshop.
+Open http://localhost:8501. Keep the date at 01/04/2026 and the objective at Minimise lateness, pick request R09, and evaluate it. The desk should recommend Nimble Needle, back on 4 April with five days to spare, at a cost of 180. Pressing Confirm writes one line to the local log. Nothing is sent to any workshop.
+
+![The web desk recommending Nimble Needle for request R09.](../docs/archive/sprint2_demo/final_demo_screens/1440x900/s4_recommendation.jpg)
 
 With no API key, open **System details** in the sidebar and choose **Rehearsal: test fixtures**. These are labelled synthetic extractions, not model output.
 
@@ -130,14 +132,14 @@ A live run (`uv run python eval/run_inbox.py`) makes 30 model calls and needs a 
 | `harness/`, `data/` | Unchanged course simulator and data, plus held-out and red-team requests |
 | `eval/` | Runners, labels, recorded results |
 | `tests/` | Automated tests. No model calls by default |
-| `docs/` | Design and specification notes. Start with `docs/mobile_app.md` |
+| `docs/` | Design and specification notes. Start with `docs/design/mobile_app.md` |
 
 ## Troubleshooting
 
 | You see | Do this |
 |---|---|
 | `Language model not configured` | Add the key to `.env`, or choose a rehearsal source |
-| The app cannot reach the desk | Start `src/api.py` first. On a phone, check the address, token and shared network |
+| The app cannot reach the desk | Start `src/api.py` first. On a phone, check that the address and token are right and that both devices are on the same network |
 | The phone app is slow | Xcode's scheme runs Release. Debug builds are much slower on a phone, and Low Power Mode slows it too |
 | `Set THREADLINE_API_TOKEN first` | `--lan` needs a token, as above |
 | Data file not found | Run from the repository root |

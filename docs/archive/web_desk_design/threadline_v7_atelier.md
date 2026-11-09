@@ -1,6 +1,6 @@
 # Threadline V7: Luminous Atelier
 
-> Superseded in part by V8 (`docs/threadline_v8_experience.md`): the knitted
+> Superseded in part by V8 (`docs/archive/web_desk_design/threadline_v8_experience.md`): the knitted
 > textures described below were replaced by fabric-fold line art.
 
 V7 replaces the V4, V5 and V6 override layers with one design system,

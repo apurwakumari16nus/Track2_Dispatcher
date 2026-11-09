@@ -86,7 +86,7 @@ existing matching cache without new API calls; it does **not** create mock repli
 Do not set `TRACK2_INTAKE_REAL_LLM=1` for ordinary offline tests.
 
 The app opens on **Dispatch**; the other areas are Workshop Network, Simulation
-Lab and Audit Trail (see [Product UI v4](product_ui_v4.md)). The Lab's single-seed
+Lab and Audit Trail (see [Product UI v4](archive/web_desk_design/product_ui_v4.md)). The Lab's single-seed
 views are diagnostics; its Course evidence tab and the CLI comparison above supply
 the required ten-seed means. Both use the same eight official metrics.
 
@@ -128,15 +128,15 @@ confirmations change queues, so subsequent recommendations can differ.
 | `eval/`, `tests/`, `config/`, `docs/` | Evaluation runners/evidence, automated tests, configuration example, and specifications. |
 
 For an implementation change, read the relevant module and its matching tests.
-For calculation contracts, start with [tool_spec.md](tool_spec.md). For intake
-evaluation, read [inbox_evaluation.md](inbox_evaluation.md).
+For calculation contracts, start with [tool_spec.md](design/tool_spec.md). For intake
+evaluation, read [inbox_evaluation.md](evaluation/inbox_evaluation.md).
 
 ## 6. What is proven, and what remains unfinished?
 
 The Data v3 migration was checked on 25 September 2026 with offline tests,
 200 simulator runs across ten paired seeds, and all 30 updated inbox requests
 through prepared extractions and the Streamlit test driver. See
-[data_v3_migration.md](data_v3_migration.md) for current evidence and limitations.
+[data_v3_migration.md](evaluation/data_v3_migration.md) for current evidence and limitations.
 The lateness allocator ties earliest-finish on all eight metrics; do not claim
 it beats that heuristic. The pure-defect preset fails the lateness guardrail.
 Prepared extractions do not measure live LLM accuracy.
