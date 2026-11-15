@@ -39,5 +39,12 @@ ios/AuthKey_*.p8
 records/island.json
 records/island.tmp
 records/devices.json
-# Built copy of the deck for the zip
-submission/Group01/Slide.pptx
+# The demo film for the zip and the Sprint 3 film: too big for GitHub (over 100 MB)
+Presentation_Group01.mp4
+# Sprint videos: too big for GitHub
+*.mp4
+# Working notes for the reports, not part of the submission
+submission/research/
+# Local zip folder (holds Video.mp4, too big for GitHub) and the zip itself
+submission/Group01/
+submission/Group01.zip
